@@ -1,0 +1,41 @@
+{
+    "label": "toogletest",
+    "nodes": [
+        {
+            "ToggleButton": {
+                "inputs": [],
+                "label": "Toggle Button",
+                "on": false,
+                "outputs": [
+                    {
+                        "Output_connector": {
+                            "id": 611448370,
+                            "state": false
+                        }
+                    }
+                ],
+                "pos.x": 959.7622680664063,
+                "pos.y": 862.7374267578125,
+                "size.x": 200.0,
+                "size.y": 200.0
+            }
+        },
+        {
+            "LightBulb": {
+                "inputs": [
+                    {
+                        "Input_connector": {
+                            "target": 611448370
+                        }
+                    }
+                ],
+                "label": "LightBulb",
+                "outputs": [],
+                "pos.x": 1391.2867431640625,
+                "pos.y": 880.4956665039063,
+                "size.x": 100.0,
+                "size.y": 100.0
+            }
+        }
+    ]
+}

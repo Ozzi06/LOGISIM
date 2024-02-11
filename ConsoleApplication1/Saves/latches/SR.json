@@ -1,0 +1,191 @@
+{
+    "label": "SR",
+    "nodes": [
+        {
+            "PushButton": {
+                "inputs": [],
+                "label": "S",
+                "outputs": [
+                    {
+                        "Output_connector": {
+                            "id": 1586669060,
+                            "state": false
+                        }
+                    }
+                ],
+                "pos.x": -385.2793273925781,
+                "pos.y": -371.83428955078125,
+                "size.x": 200.0,
+                "size.y": 200.0
+            }
+        },
+        {
+            "PushButton": {
+                "inputs": [],
+                "label": "R",
+                "outputs": [
+                    {
+                        "Output_connector": {
+                            "id": 3239929945,
+                            "state": false
+                        }
+                    }
+                ],
+                "pos.x": -371.97344970703125,
+                "pos.y": 29.727264404296875,
+                "size.x": 200.0,
+                "size.y": 200.0
+            }
+        },
+        {
+            "GateBUFFER": {
+                "inputs": [
+                    {
+                        "Input_connector": {
+                            "target": 3239929945
+                        }
+                    }
+                ],
+                "label": "BUFFER",
+                "outputs": [
+                    {
+                        "Output_connector": {
+                            "id": 2488576838,
+                            "state": false
+                        }
+                    }
+                ],
+                "pos.x": -117.83551025390625,
+                "pos.y": 30.401519775390625,
+                "size.x": 100.0,
+                "size.y": 150.0
+            }
+        },
+        {
+            "GateBUFFER": {
+                "inputs": [
+                    {
+                        "Input_connector": {
+                            "target": 1586669060
+                        }
+                    }
+                ],
+                "label": "BUFFER",
+                "outputs": [
+                    {
+                        "Output_connector": {
+                            "id": 2097683615,
+                            "state": false
+                        }
+                    }
+                ],
+                "pos.x": -100.8343505859375,
+                "pos.y": -371.95501708984375,
+                "size.x": 100.0,
+                "size.y": 150.0
+            }
+        },
+        {
+            "GateNOR": {
+                "inputs": [
+                    {
+                        "Input_connector": {
+                            "target": 3239929945
+                        }
+                    },
+                    {
+                        "Input_connector": {
+                            "target": 843073570
+                        }
+                    },
+                    {
+                        "Input_connector": {
+                            "target": 2488576838
+                        }
+                    }
+                ],
+                "label": "NOR",
+                "outputs": [
+                    {
+                        "Output_connector": {
+                            "id": 616274624,
+                            "state": false
+                        }
+                    }
+                ],
+                "pos.x": 143.79095458984375,
+                "pos.y": -311.50714111328125,
+                "size.x": 100.0,
+                "size.y": 190.0
+            }
+        },
+        {
+            "GateNOR": {
+                "inputs": [
+                    {
+                        "Input_connector": {
+                            "target": 616274624
+                        }
+                    },
+                    {
+                        "Input_connector": {
+                            "target": 1586669060
+                        }
+                    },
+                    {
+                        "Input_connector": {
+                            "target": 2097683615
+                        }
+                    }
+                ],
+                "label": "NOR",
+                "outputs": [
+                    {
+                        "Output_connector": {
+                            "id": 843073570,
+                            "state": true
+                        }
+                    }
+                ],
+                "pos.x": 140.9573974609375,
+                "pos.y": -30.04638671875,
+                "size.x": 100.0,
+                "size.y": 190.0
+            }
+        },
+        {
+            "LightBulb": {
+                "inputs": [
+                    {
+                        "Input_connector": {
+                            "target": 843073570
+                        }
+                    }
+                ],
+                "label": "~",
+                "outputs": [],
+                "pos.x": 401.96466064453125,
+                "pos.y": -29.795562744140625,
+                "size.x": 100.0,
+                "size.y": 100.0
+            }
+        },
+        {
+            "LightBulb": {
+                "inputs": [
+                    {
+                        "Input_connector": {
+                            "target": 616274624
+                        }
+                    }
+                ],
+                "label": "on",
+                "outputs": [],
+                "pos.x": 406.14019775390625,
+                "pos.y": -311.99407958984375,
+                "size.x": 100.0,
+                "size.y": 100.0
+            }
+        }
+    ]
+}

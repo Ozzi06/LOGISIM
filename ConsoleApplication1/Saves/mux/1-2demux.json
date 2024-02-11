@@ -1,0 +1,206 @@
+{
+    "label": "1-2demux",
+    "nodes": [
+        {
+            "ToggleButton": {
+                "inputs": [],
+                "label": "Toggle Button",
+                "on": false,
+                "outputs": [
+                    {
+                        "Output_connector": {
+                            "id": 1172363504,
+                            "state": false
+                        }
+                    }
+                ],
+                "pos.x": 151.1619110107422,
+                "pos.y": 994.5662231445313,
+                "size.x": 200.0,
+                "size.y": 200.0
+            }
+        },
+        {
+            "GateNOT": {
+                "inputs": [
+                    {
+                        "Input_connector": {
+                            "target": 1172363504
+                        }
+                    }
+                ],
+                "label": "NOT",
+                "outputs": [
+                    {
+                        "Output_connector": {
+                            "id": 3117834765,
+                            "state": true
+                        }
+                    }
+                ],
+                "pos.x": 377.93902587890625,
+                "pos.y": 1084.3492431640625,
+                "size.x": 100.0,
+                "size.y": 150.0
+            }
+        },
+        {
+            "LightBulb": {
+                "inputs": [
+                    {
+                        "Input_connector": {
+                            "target": 3019493739
+                        }
+                    }
+                ],
+                "label": "LightBulb",
+                "outputs": [],
+                "pos.x": 928.231201171875,
+                "pos.y": 684.7568359375,
+                "size.x": 100.0,
+                "size.y": 100.0
+            }
+        },
+        {
+            "PushButton": {
+                "inputs": [],
+                "label": "Push Button",
+                "outputs": [
+                    {
+                        "Output_connector": {
+                            "id": 2304008613,
+                            "state": false
+                        }
+                    }
+                ],
+                "pos.x": 168.14227294921875,
+                "pos.y": 273.3876037597656,
+                "size.x": 200.0,
+                "size.y": 200.0
+            }
+        },
+        {
+            "LightBulb": {
+                "inputs": [
+                    {
+                        "Input_connector": {
+                            "target": 3289713264
+                        }
+                    }
+                ],
+                "label": "LightBulb",
+                "outputs": [],
+                "pos.x": 928.231201171875,
+                "pos.y": 1004.1201171875,
+                "size.x": 100.0,
+                "size.y": 100.0
+            }
+        },
+        {
+            "GateAND": {
+                "inputs": [
+                    {
+                        "Input_connector": {
+                            "target": 1349608448
+                        }
+                    },
+                    {
+                        "Input_connector": {
+                            "target": 3816198678
+                        }
+                    }
+                ],
+                "label": "AND",
+                "outputs": [
+                    {
+                        "Output_connector": {
+                            "id": 3019493739,
+                            "state": false
+                        }
+                    }
+                ],
+                "pos.x": 718.81494140625,
+                "pos.y": 692.495361328125,
+                "size.x": 100.0,
+                "size.y": 160.0
+            }
+        },
+        {
+            "GateAND": {
+                "inputs": [
+                    {
+                        "Input_connector": {
+                            "target": 3117834765
+                        }
+                    },
+                    {
+                        "Input_connector": {
+                            "target": 3816198678
+                        }
+                    }
+                ],
+                "label": "AND",
+                "outputs": [
+                    {
+                        "Output_connector": {
+                            "id": 3289713264,
+                            "state": false
+                        }
+                    }
+                ],
+                "pos.x": 718.81494140625,
+                "pos.y": 1011.858642578125,
+                "size.x": 100.0,
+                "size.y": 160.0
+            }
+        },
+        {
+            "GateBUFFER": {
+                "inputs": [
+                    {
+                        "Input_connector": {
+                            "target": 1172363504
+                        }
+                    }
+                ],
+                "label": "BUFFER",
+                "outputs": [
+                    {
+                        "Output_connector": {
+                            "id": 1349608448,
+                            "state": false
+                        }
+                    }
+                ],
+                "pos.x": 371.31585693359375,
+                "pos.y": 818.748779296875,
+                "size.x": 100.0,
+                "size.y": 150.0
+            }
+        },
+        {
+            "GateBUFFER": {
+                "inputs": [
+                    {
+                        "Input_connector": {
+                            "target": 2304008613
+                        }
+                    }
+                ],
+                "label": "BUFFER",
+                "outputs": [
+                    {
+                        "Output_connector": {
+                            "id": 3816198678,
+                            "state": false
+                        }
+                    }
+                ],
+                "pos.x": 414.75201416015625,
+                "pos.y": 438.0435485839844,
+                "size.x": 100.0,
+                "size.y": 150.0
+            }
+        }
+    ]
+}
