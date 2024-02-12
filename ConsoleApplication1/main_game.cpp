@@ -94,8 +94,8 @@ void Game::unselect_all()
     for (Node* node : nodes) {
         node->is_selected = false;
     }
-    selected_input = nullptr;
-    selected_output = nullptr;
+    selected_inputs.clear();
+    selected_outputs.clear();
 }
 
 void Game::remove_node(Node* node)
@@ -236,12 +236,10 @@ void Game::handle_input()
     {
     case SELECT:
     {
-        static Vector2 prev_pos;
         static bool moving_nodes;
         static Vector2 movement = { 0, 0 };
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             first_corner = GetScreenToWorld2D(GetMousePosition(), camera);
-            prev_pos = first_corner;
 
             area_selected = false;
             if (IsKeyDown(KEY_LEFT_SHIFT))
@@ -276,6 +274,7 @@ void Game::handle_input()
                 }
             }
         }
+
         if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
             if (!moving_nodes) {
 
@@ -370,84 +369,110 @@ void Game::handle_input()
 
     case CONNECT:
     {
-        static Vector2 press_pos;
         static bool moved_mouse;
+
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-            press_pos = GetScreenToWorld2D(GetMousePosition(), camera);
+            first_corner = GetScreenToWorld2D(GetMousePosition(), camera);
+
+            area_selected = false;
+            if (IsKeyDown(KEY_LEFT_SHIFT))
+                area_selected = true;
         }
 
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-            if (abs(GetMousePosition() - GetWorldToScreen2D(press_pos, camera)) > 5)
+            if (abs(GetMousePosition() - GetWorldToScreen2D(first_corner, camera)) > 5)
                 moved_mouse = true;
         }
 
         if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+            if (!IsKeyDown(KEY_LEFT_CONTROL)) {
+                selected_inputs.clear();
+                selected_outputs.clear();
+            }
+
             if (!moved_mouse) {
+                bool did_connect = false;
 
-                if (selected_input) {
-                    bool did_connect = false;
-                    for (Node* node : nodes) {
-                        Output_connector* outcon = node->select_output(GetScreenToWorld2D(GetMousePosition(), camera));
-                        if (outcon) {
-                            selected_input->target = outcon;
-                            did_connect = true;
-                            break;
-                        }
+                for (auto it = nodes.rbegin(); it != nodes.rend(); ++it) {
+                    Node* node = *it;
+
+                    Output_connector* outcon = node->select_output(GetScreenToWorld2D(GetMousePosition(), camera));
+                    if (outcon) {
+                        selected_outputs.push_back(outcon);
+                        break;
                     }
-                    if (!did_connect) selected_input = nullptr;
-                }
 
-                else if (selected_output) {
-                    bool did_connect = false;
-                    for (Node * node : nodes) {
-                        Input_connector* incon = node->select_input(GetScreenToWorld2D(GetMousePosition(), camera));
-                        
-                        if (incon) {
-                            incon->target = selected_output;
-                            did_connect = true;
-                            break;
-                        }
-                    }
-                    if(!did_connect) selected_output = nullptr;
-                }
-
-                else {
-                    for (Node* node : nodes) {
-                        Input_connector* incon = node->select_input(GetScreenToWorld2D(GetMousePosition(), camera));
-                        Output_connector* outcon = node->select_output(GetScreenToWorld2D(GetMousePosition(), camera));
-                        
-                        if (incon) {
-                            selected_input = incon;
-                            selected_output = nullptr; // redundant check
-                            break;
-                        }
-                        
-                        if (outcon) {
-                            selected_output = outcon;
-                            selected_input = nullptr; // redundant check
-                            break;
-                        }
-
+                    Input_connector* incon = node->select_input(GetScreenToWorld2D(GetMousePosition(), camera));
+                    if (incon) {
+                        selected_inputs.push_back(incon);
+                        break;
                     }
                 }
             }
+
+            else if (area_selected) {
+
+                Rectangle area = RectFrom2Points(GetScreenToWorld2D(GetMousePosition(), camera), first_corner);
+                for (Node* node : nodes) {
+                    auto selout = node->select_outputs(area);
+                    selected_outputs.insert(selected_outputs.end(), selout.begin(), selout.end());
+
+                    auto selin = node->select_inputs(area);
+                    selected_inputs.insert(selected_inputs.end(), selin.begin(), selin.end());
+                }
+            }
+
             moved_mouse = false;
         }
 
-        if (IsKeyReleased(KEY_DELETE)) {
+        if (IsKeyDown(KEY_ENTER)) {
+            if (!selected_outputs.empty()) {
 
-            if (selected_input) {
-                selected_input->target = nullptr;
+                std::sort(selected_inputs.begin(), selected_inputs.end(), [](Input_connector* a, Input_connector* b) {
+                    return a->get_connection_pos().y < b->get_connection_pos().y; // Return true if 'a' should come before 'b'
+                    });
+
+                std::sort(selected_outputs.begin(), selected_outputs.end(), [](Output_connector* a, Output_connector* b) {
+                    return a->get_connection_pos().y < b->get_connection_pos().y; // Return true if 'a' should come before 'b'
+                    });
+
+                if (selected_outputs.size() > 1) {
+                    for (size_t i = 0; i < std::min(selected_inputs.size(), selected_outputs.size()); i++) {
+                        selected_inputs[i]->target = selected_outputs[i];
+                    }
+                }
+                else {
+                    for (size_t i = 0; i < selected_inputs.size(); i++) {
+                        selected_inputs[i]->target = selected_outputs[0];
+                    }
+                }
             }
+            
+        }
 
-            else if (selected_output) {
+        if (IsKeyReleased(KEY_DELETE)) {
+            for (auto& input : selected_inputs) {
+                input->target = nullptr;
+            }
+            if (!selected_outputs.empty()) {
                 for (Node* node : nodes) {
                     for (Input_connector& incon : node->inputs) {
-                        if (incon.target == selected_output) incon.target = nullptr;
+                        // Check if incon.target is in selected_outputs
+                        for (auto& selected_output : selected_outputs) {
+                            if (incon.target == selected_output) {
+                                incon.target = nullptr;
+                                break; // No need to check other selected_outputs if a match is found
+                            }
+                        }
                     }
                 }
             }
         }
+
+        if (!IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+            area_selected = false;
+        }
+
         break;
     }
 
@@ -630,10 +655,15 @@ void DrawInputConnector(const Input_connector& conn) {
         lineThick
     };
 
-    if(game.selected_input != &conn)
-        DrawRectangleRec(rec, GRAY);
-    else
-        DrawRectangleRec(rec, GREEN);
+    Color connectorColor = GRAY;
+    for (auto input : game.selected_inputs) {
+        if (input == &conn) {
+            connectorColor = GREEN;
+            break;
+        }
+    }
+
+    DrawRectangleRec(rec, connectorColor);
 
     if (conn.target) {
         if (conn.target->state) {
@@ -663,15 +693,19 @@ void DrawOutputConnector(const Output_connector& conn) {
         lineThick
     };
 
-    if (game.selected_output != &conn)
-        DrawRectangleRec(rec, GRAY);
-    else
-        DrawRectangleRec(rec, GREEN);
+    Color connectorColor = GRAY;
+    for (auto output : game.selected_outputs) {
+        if (output == &conn) {
+            connectorColor = GREEN;
+            break;
+        }
+    }
+
+    DrawRectangleRec(rec, connectorColor);
 }
 
 Input_connector* Node::select_input(Vector2 select_pos)
 {
-    Game& game = Game::getInstance();
     const size_t width = 30;
     float lineThick = 8;
     float spacing = 30;
@@ -699,7 +733,6 @@ Input_connector* Node::select_input(Vector2 select_pos)
 
 Output_connector* Node::select_output(Vector2 select_pos)
 {
-    Game& game = Game::getInstance();
     for (Output_connector& conn : outputs) {
         const size_t width = 30;
         float lineThick = 8;
@@ -722,6 +755,64 @@ Output_connector* Node::select_output(Vector2 select_pos)
 
     }
     return nullptr;
+}
+
+std::vector<Input_connector*> Node::select_inputs(Rectangle select_area)
+{
+    std::vector<Input_connector*> incons;
+
+    const size_t width = 30;
+    float lineThick = 8;
+    float spacing = 30;
+
+    for (Input_connector& conn : inputs) {
+
+        Vector2 pos = {
+            conn.host->pos.x - conn.host->size.x / 2 - width,
+            conn.host->pos.y + ((float)conn.host->inputs.size() - 1.0f) * spacing / 2.0f - conn.index * spacing - lineThick / 2.0f
+        };
+
+        Rectangle rec = {
+            pos.x,
+            pos.y,
+            width,
+            lineThick
+        };
+
+        if (CheckCollisionRecs(select_area, rec))
+            incons.push_back(&conn);
+
+    }
+
+    return incons;
+}
+
+std::vector<Output_connector*> Node::select_outputs(Rectangle select_area)
+{
+    std::vector<Output_connector*> outcons;
+
+    for (Output_connector& conn : outputs) {
+        const size_t width = 30;
+        float lineThick = 8;
+        float spacing = 30;
+
+        Vector2 pos = {
+            conn.host->pos.x + conn.host->size.x / 2.0f,
+            conn.host->pos.y + (conn.host->outputs.size() - 1) * spacing / 2.0f - conn.index * spacing - lineThick / 2.0f
+        };
+
+        Rectangle rec = {
+            pos.x,
+            pos.y,
+            width,
+            lineThick
+        };
+
+        if (CheckCollisionRecs(select_area, rec))
+            outcons.push_back(&conn);
+    }
+
+    return outcons;
 }
 
 void Node::tick()

@@ -58,8 +58,9 @@ public:
 
     std::vector<Node*> nodes;
     std::vector<Node*> clipboard;
-    Input_connector* selected_input = nullptr;
-    Output_connector* selected_output = nullptr;
+
+    std::vector< Input_connector* >selected_inputs;
+    std::vector< Output_connector* >selected_outputs;
 
     void draw();
     void pretick();
@@ -102,11 +103,17 @@ public:
     Vector2 pos;
     Vector2 size;
     const Color color;
+
     std::vector<Input_connector> inputs;
     std::vector<Output_connector> outputs;
+
     std::string label;
-    Input_connector* select_input(Vector2 select_pos);
-    Output_connector* select_output(Vector2 select_pos);
+
+    virtual Input_connector* select_input(Vector2 select_pos);
+    virtual Output_connector* select_output(Vector2 select_pos);
+
+    virtual std::vector<Input_connector*> select_inputs(Rectangle select_area);
+    virtual std::vector<Output_connector*> select_outputs(Rectangle select_area);
 
     virtual void not_clicked() {}
     virtual void clicked() {}
@@ -143,6 +150,15 @@ struct Input_connector {
     uid_t target_id;
     size_t index;
 
+    Vector2 get_connection_pos() const{
+        const float width = 30;
+        float spacing = 30;
+
+        float pos_y = host->pos.y + ((host->inputs.size() - 1) * spacing / 2.0f) - (index * spacing);
+        float pos_x = host->pos.x - host->size.x / 2.0f - width;
+        return Vector2{ pos_x, pos_y };
+    }
+
     json to_JSON() const;
 };
 
@@ -155,12 +171,11 @@ struct Output_connector {
 
     uid_t id;
 
-    Vector2 get_connection_pos() {
-        const size_t width = 30;
-        float lineThick = 8;
-        float spacing = 30;
+    Vector2 get_connection_pos() const {
+        const float width = 30.0f;
+        const float spacing = 30.0f;
 
-        float pos_y = host->pos.y + (host->outputs.size() - 1) * spacing / 2.0f - index * spacing;
+        float pos_y = host->pos.y + ((host->outputs.size() - 1) * spacing / 2.0f) - (index * spacing);
         float pos_x = host->pos.x + host->size.x / 2.0f + width;
         return Vector2{pos_x, pos_y};
     }
