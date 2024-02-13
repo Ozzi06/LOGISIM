@@ -12,6 +12,7 @@
 
 Node::Node(Vector2 pos, Vector2 size, Color color, std::vector<Input_connector> in, std::vector<Output_connector> out) : size(size), color(color), is_selected(false), inputs(in), outputs(out), pos(pos)
 {
+    reserve_outputs();
     if (outputs.size() == 0)
         outputs.push_back(*new Output_connector(this, 0));
     editor_state = GuiNodeEditorState(this);
@@ -20,6 +21,7 @@ Node::Node(Vector2 pos, Vector2 size, Color color, std::vector<Input_connector> 
 Node::Node(const Node* base) : is_selected(false), pos(base->pos), 
                         size(base->size), color(base->color), label(base->label)
 {
+    reserve_outputs();
     for (size_t i = 0; i < base->inputs.size(); ++i) {
         inputs.push_back(Input_connector(this, i, base->inputs[i].target));
     }
@@ -607,12 +609,12 @@ void Node::draw()
     float lineThick = 10;
     Rectangle rec = { pos.x - size.x / 2, pos.y - size.y / 2, size.x, size.y };
 
-    DrawRectangleRounded(rec, roundness, segments, Fade(color, 0.2f));
+    DrawRectangleRec(rec, color);
 
     if (game.camera.zoom > 1 / 10.0f && !is_selected)
-        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, Fade(color, 0.4f));
+        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, ColorBrightness(color, -0.2f));
     if (is_selected)
-        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, Fade(GREEN, 0.4f));
+        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, ColorBrightness(GREEN, -0.2f));
 
     //draw icon
     if (game.camera.zoom > 0.43f) {
@@ -620,7 +622,7 @@ void Node::draw()
 
         float texture_pos_x = pos.x - get_texture().width / 2.0f * texture_scale;
         float texture_pos_y = pos.y - get_texture().height / 2.0f * texture_scale;
-        DrawTextureEx(get_texture(), { texture_pos_x, texture_pos_y }, 0.0f, texture_scale, Fade(WHITE, 0.6f));
+        DrawTextureEx(get_texture(), { texture_pos_x, texture_pos_y }, 0.0f, texture_scale, ColorBrightness(WHITE, -0.4f));
     }
 
     //draw name
@@ -951,13 +953,13 @@ void PushButton::draw()
             DrawRectangleRec(rec, Color{ 219, 42, 2, 255 });
         else
             DrawRectangleRec(rec, Color{ 252, 57, 13, 255 });
-        if(game.camera.zoom > 0.4 && i < button_count - 1)
-            DrawLineEx({ rec.x, rec.y }, { rec.x + rec.width, rec.y}, lineThick / 1.0f, ColorBrightness(color, -0.6f));
+        if (game.camera.zoom > 0.4 && i < button_count - 1)
+            DrawLineEx({ rec.x, rec.y }, { rec.x + rec.width, rec.y }, lineThick / 1.0f, ColorBrightness(color, -0.2f));
     }
 
 
     if (game.camera.zoom > 1 / 10.0f && !is_selected)
-        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, ColorBrightness(color, -0.6f));
+        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, ColorBrightness(color, -0.2f));
     if (is_selected)
         DrawRectangleRoundedLines(rec, roundness, segments, lineThick, ColorBrightness(GREEN, -0.6f));
 
@@ -1018,12 +1020,12 @@ void ToggleButton::draw()
         else
             DrawRectangleRec(rec, Color{ 252, 57, 13, 255 });
         if (game.camera.zoom > 0.4 && i < button_count - 1)
-            DrawLineEx({ rec.x, rec.y }, { rec.x + rec.width, rec.y }, lineThick / 1.0f, ColorBrightness(color, -0.6f));
+            DrawLineEx({ rec.x, rec.y }, { rec.x + rec.width, rec.y }, lineThick / 1.0f, ColorBrightness(color, -0.2f));
     }
 
 
     if (game.camera.zoom > 1 / 10.0f && !is_selected)
-        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, ColorBrightness(color, -0.6f));
+        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, ColorBrightness(color, -0.2f));
     if (is_selected)
         DrawRectangleRoundedLines(rec, roundness, segments, lineThick, ColorBrightness(GREEN, -0.6f));
 

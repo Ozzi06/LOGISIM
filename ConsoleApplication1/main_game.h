@@ -90,6 +90,9 @@ public:
     
     Node(const Node* base);
 
+    virtual size_t get_max_outputs() const { return 1024; }
+    virtual void reserve_outputs() { outputs.reserve(get_max_outputs()); }
+
     virtual Node* copy() const = 0;
 
     virtual Texture get_texture() const = 0;
@@ -184,7 +187,7 @@ struct Output_connector {
 };
 
 struct GateAND : public Node {
-    GateAND(Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}): Node(pos, { 0, 0 }, BLUE) {
+    GateAND(Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}): Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         label = "AND";
         strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
         inputs.insert(inputs.end(), input_connectors.begin(), input_connectors.end());
@@ -219,7 +222,7 @@ struct GateAND : public Node {
 };
 
 struct GateOR : public Node {
-    GateOR(Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}) : Node(pos, { 0, 0 }, BLUE) {
+    GateOR(Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}): Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         label = "OR";
         strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
         inputs.insert(inputs.end(), input_connectors.begin(), input_connectors.end());
@@ -252,7 +255,7 @@ struct GateOR : public Node {
 };
 
 struct GateNAND : public Node {
-    GateNAND(Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}) : Node(pos, { 0, 0 }, BLUE) {
+    GateNAND(Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}): Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         label = "NAND";
         strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
         inputs.insert(inputs.end(), input_connectors.begin(), input_connectors.end());
@@ -285,7 +288,7 @@ struct GateNAND : public Node {
 };
 
 struct GateNOR : public Node {
-    GateNOR(Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}) : Node(pos, { 0, 0 }, BLUE) {
+    GateNOR(Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}): Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         label = "NOR";
         strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
         inputs.insert(inputs.end(), input_connectors.begin(), input_connectors.end());
@@ -318,7 +321,7 @@ struct GateNOR : public Node {
 };
 
 struct GateXOR : public Node {
-    GateXOR(Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}) : Node(pos, { 0, 0 }, BLUE) {
+    GateXOR(Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}): Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         label = "XOR";
         strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
         inputs.insert(inputs.end(), input_connectors.begin(), input_connectors.end());
@@ -351,7 +354,7 @@ struct GateXOR : public Node {
 };
 
 struct GateXNOR : public Node {
-    GateXNOR(Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}) : Node(pos, { 0, 0 }, BLUE) {
+    GateXNOR(Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}): Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         label = "XNOR";
         strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
         inputs.insert(inputs.end(), input_connectors.begin(), input_connectors.end());
@@ -384,7 +387,7 @@ struct GateXNOR : public Node {
 };
 
 struct GateBUFFER : public Node {
-    GateBUFFER(Vector2 pos = { 0,0 }, Output_connector* input = nullptr) : Node(pos, { 0, 0 }, BLUE) {
+    GateBUFFER(Vector2 pos = { 0,0 }, Output_connector* input = nullptr) : Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         label = "BUFFER";
         strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
         
@@ -396,6 +399,7 @@ struct GateBUFFER : public Node {
     GateBUFFER(const GateBUFFER* base): Node(base) {}
 
     virtual void add_input() override { 
+        if (outputs.size() == outputs.capacity()) return;
         inputs.push_back(Input_connector(this, inputs.size())); 
         outputs.push_back(Output_connector(this, outputs.size(), false));
         recompute_size();
@@ -429,7 +433,7 @@ struct GateBUFFER : public Node {
 };
 
 struct GateNOT : public Node {
-    GateNOT(Vector2 pos = { 0,0 }, Output_connector* input = nullptr) : Node(pos, { 0, 0 }, BLUE) {
+    GateNOT(Vector2 pos = { 0,0 }, Output_connector* input = nullptr) : Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         label = "NOT";
         strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
         inputs.push_back(Input_connector(this, 0, input));
@@ -441,6 +445,7 @@ struct GateNOT : public Node {
     GateNOT(const GateNOT* base) : Node(base) {}
 
     virtual void add_input() override {
+        if (outputs.size() == outputs.capacity()) return;
         inputs.push_back(Input_connector(this, inputs.size()));
         outputs.push_back(Output_connector(this, outputs.size(), false));
         recompute_size();
@@ -477,7 +482,7 @@ struct PushButton : public Node {
     virtual Rectangle getButtonRect(size_t id);
     virtual void draw() override;
 
-    PushButton(Vector2 pos = { 0,0 }) : Node(pos, { 0, 0 }, BLUE) {
+    PushButton(Vector2 pos = { 0,0 }) : Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         label = "Push Button";
 
         size = Vector2{ 200, 200 };
@@ -485,6 +490,7 @@ struct PushButton : public Node {
     PushButton(const PushButton* base) : Node(base) {}
 
     virtual void add_input() override {
+        if (outputs.size() == outputs.capacity()) return;
         outputs.push_back(Output_connector(this, outputs.size())); recompute_size();
     }
     virtual void remove_input() override {
@@ -533,7 +539,7 @@ struct ToggleButton : public Node {
     virtual Rectangle getButtonRect(size_t id);
     virtual void draw() override;
 
-    ToggleButton(Vector2 pos = { 0,0 }) : Node(pos, { 0, 0 }, BLUE) {
+    ToggleButton(Vector2 pos = { 0,0 }) : Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         label = "Toggle Button";
 
         size = Vector2{ 200, 200 };
@@ -546,10 +552,19 @@ struct ToggleButton : public Node {
     }
 
     virtual void add_input() override {
+        if (outputs.size() == outputs.capacity()) return;
         outputs.push_back(Output_connector(this, outputs.size())); recompute_size();
     }
     virtual void remove_input() override {
-        if (outputs.size() > 1) outputs.pop_back();  recompute_size();
+        if (outputs.size() > 1) {
+            Game& game = Game::getInstance();
+            for (Node* node : game.nodes) {
+                for (auto& conn : node->inputs) {
+                    if (conn.target == &outputs.back()) conn.target = nullptr;
+                }
+            }
+            outputs.pop_back();  recompute_size();
+        }
     }
 
     Node* copy() const override { return new ToggleButton(this); }
@@ -584,7 +599,7 @@ struct ToggleButton : public Node {
 struct StaticToggleButton : public Node {
     virtual void draw() override;
 
-    StaticToggleButton(Vector2 pos = { 0,0 }) : Node(pos, { 0, 0 }, BLUE) {
+    StaticToggleButton(Vector2 pos = { 0,0 }) : Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         label = "Static Toggle Button";
 
         size = Vector2{ 200, 200 };
@@ -595,16 +610,19 @@ struct StaticToggleButton : public Node {
     }
 
     virtual void add_input() override {
+        if (outputs.size() == outputs.capacity()) return;
         outputs.push_back(Output_connector(this, outputs.size())); recompute_size();
     }
     virtual void remove_input() override {
-        Game& game = Game::getInstance();
-        for (Node* node : game.nodes) {
-            for (auto& conn : node->inputs) {
-                if (conn.target == &outputs.back()) conn.target = nullptr;
+        if (outputs.size() > 1) {
+            Game& game = Game::getInstance();
+            for (Node* node : game.nodes) {
+                for (auto& conn : node->inputs) {
+                    if (conn.target == &outputs.back()) conn.target = nullptr;
+                }
             }
+            outputs.pop_back();  recompute_size();
         }
-        outputs.pop_back();  recompute_size();
     }
 
     Node* copy() const override { return new StaticToggleButton(this); }
