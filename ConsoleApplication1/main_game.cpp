@@ -580,6 +580,15 @@ void NodeNetworkFromJson(const json& nodeNetworkJson, std::vector<Node*>& nodes)
     }
 }
 
+void NormalizeNodeNetworkPosTocLocation(std::vector<Node*>& nodes, Vector2 targpos)
+{
+    if (nodes.empty()) return;
+    Vector2 origin1 = nodes[0]->pos;
+    for (Node* node : nodes) {
+        node->pos = node->pos - origin1 + targpos;
+    }
+}
+
 void Game::load(std::string filePath)
 {
     if (filePath.empty()) {
@@ -998,7 +1007,6 @@ Rectangle PushButton::getButtonRect(size_t id)
     return rec;
 }
 
-
 void PushButton::recompute_size()
 {
     size = Vector2{ 200.0f, 170.0f + 30.0f * outputs.size() };
@@ -1189,7 +1197,6 @@ json Input_connector::to_JSON() const {
         {"Input_connector", json::object({  {"target", target ? target->id : 0}})}
     };
 }
-
 
 FunctionNode::FunctionNode(const FunctionNode* base): Node(base)
 {

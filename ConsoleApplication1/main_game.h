@@ -84,6 +84,10 @@ private:
     Vector2 first_corner = { 0,0 };
 };
 
+void NodeNetworkFromJson(const json& nodeNetworkJson, std::vector<Node*>& nodes);
+
+void NormalizeNodeNetworkPosTocLocation(std::vector<Node*>& nodes, Vector2 targpos);
+
 struct Node {
 public:
     Node(Vector2 pos = { 0,0 }, Vector2 size = { 0,0 }, Color color = { 0,0,0 }, std::vector<Input_connector> in = {}, std::vector<Output_connector> out = {});
