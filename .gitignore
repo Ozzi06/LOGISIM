@@ -3,6 +3,9 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+#saved games/functions/subassemblies
+ConsoleApplication1/Saves/
+
 # User-specific files
 *.rsuser
 *.suo

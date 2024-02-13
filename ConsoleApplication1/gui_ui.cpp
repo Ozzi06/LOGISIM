@@ -125,6 +125,39 @@ bool NodeSelectionMenu() {
         }
 
         {   // Spacing line
+            curr_el_h = 15;
+            GuiLine(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, "Add Subassembly");
+            current_depth += curr_el_h;
+        }
+
+        {   // Button
+            curr_el_h = 50;
+            const char* label = "#01#";
+            if (GuiButton(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, label)) {
+
+                {
+                    std::ifstream saveFile;
+                    saveFile.open(open_file_dialog_json());
+
+                    if (!saveFile.is_open()) goto ouside_if2;
+
+                    json save;
+                    saveFile >> save;
+                    saveFile.close();
+
+                    std::vector<Node*> subassembly; 
+                    NodeNetworkFromJson(save.at("nodes"), subassembly);
+
+                    NormalizeNodeNetworkPosTocLocation(subassembly, game.camera.target);
+
+                    game.nodes.insert(game.nodes.end(), subassembly.begin(), subassembly.end());
+                }
+            }
+        ouside_if2:
+            current_depth += curr_el_h;
+        }
+
+        {   // Spacing line
             curr_el_h = 30;
             GuiLine(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, "IO");
             current_depth += curr_el_h;
