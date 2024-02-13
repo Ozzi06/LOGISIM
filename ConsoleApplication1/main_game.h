@@ -596,63 +596,19 @@ struct ToggleButton : public Node {
     virtual void recompute_size() override;
 };
 
-struct StaticToggleButton : public Node {
-    virtual void draw() override;
+struct StaticToggleButton : public ToggleButton {
 
-    StaticToggleButton(Vector2 pos = { 0,0 }) : Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
+    StaticToggleButton(Vector2 pos = { 0,0 }) : ToggleButton(pos) {
         label = "Static Toggle Button";
-
-        size = Vector2{ 200, 200 };
-        outputs[0].state = on;
     }
-    StaticToggleButton(const StaticToggleButton* base) : Node(base), on(base->on) {
-        outputs[0].state = on;
-    }
-
-    virtual void add_input() override {
-        if (outputs.size() == outputs.capacity()) return;
-        outputs.push_back(Output_connector(this, outputs.size())); recompute_size();
-    }
-    virtual void remove_input() override {
-        if (outputs.size() > 1) {
-            Game& game = Game::getInstance();
-            for (Node* node : game.nodes) {
-                for (auto& conn : node->inputs) {
-                    if (conn.target == &outputs.back()) conn.target = nullptr;
-                }
-            }
-            outputs.pop_back();  recompute_size();
-        }
+    StaticToggleButton(const StaticToggleButton* base) : ToggleButton(base) {
     }
 
     Node* copy() const override { return new StaticToggleButton(this); }
 
-    virtual std::string get_label() const override { return std::string(label); }
-
-
-    virtual Texture get_texture() const override { return{ 0 }; }
-
-    bool on = false;
-
-    virtual void not_clicked() override {}
-
-    virtual void clicked(Vector2 pos) override {
-        on = !on;
-        outputs[0].state = on;
-    }
-
-    virtual void pretick() {}
-    virtual void tick() override {}
-
-    virtual json to_JSON() const override;
-
-    virtual void load_extra_JSON(const json& nodeJson) override;
-
     virtual std::string get_type() const override { return"StaticToggleButton"; }
 
-    virtual bool isInput() const { return false; }
-
-    virtual void recompute_size() override;
+    virtual bool isInput() const override { return false; }
 };
 
 struct LightBulb : public Node {
@@ -775,6 +731,7 @@ public:
             {"GateNOT", []() -> Node* { return new GateNOT(); }},
             {"PushButton", []() -> Node* { return new PushButton(); }},
             {"ToggleButton", []() -> Node* { return new ToggleButton(); }},
+            {"StaticToggleButton", []() -> Node* { return new StaticToggleButton(); }},
             {"LightBulb", []() -> Node* { return new LightBulb(); }},
             {"FunctionNode", []() -> Node* { return new FunctionNode(); }},
         };
