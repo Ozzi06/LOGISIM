@@ -116,7 +116,7 @@ public:
     virtual std::vector<Output_connector*> select_outputs(Rectangle select_area);
 
     virtual void not_clicked() {}
-    virtual void clicked() {}
+    virtual void clicked(Vector2 pos) {}
 
     virtual void add_input() = 0;
     virtual void remove_input() = 0;
@@ -474,6 +474,7 @@ struct GateNOT : public Node {
 };
 
 struct PushButton : public Node {
+    virtual Rectangle getButtonRect(size_t id);
     virtual void draw() override;
 
     PushButton(Vector2 pos = { 0,0 }) : Node(pos, { 0, 0 }, BLUE) {
@@ -483,8 +484,20 @@ struct PushButton : public Node {
     }
     PushButton(const PushButton* base) : Node(base) {}
 
-    virtual void add_input() override {}
-    virtual void remove_input() override {}
+    virtual void add_input() override {
+        outputs.push_back(Output_connector(this, outputs.size())); recompute_size();
+    }
+    virtual void remove_input() override {
+        if (outputs.size() > 1) {
+            Game& game = Game::getInstance();
+            for (Node* node : game.nodes) {
+                for (auto& conn:node->inputs) {
+                    if (conn.target == &outputs.back()) conn.target = nullptr;
+                }
+            }
+            outputs.pop_back();  recompute_size();
+        }
+    }
 
     Node* copy() const override { return new PushButton(this); }
 
@@ -494,11 +507,16 @@ struct PushButton : public Node {
     virtual Texture get_texture() const override { return{ 0 }; }
 
     virtual void not_clicked() override {
-        outputs[0].state = false;
+        for (size_t i = 0; i < outputs.size(); i++) {
+            outputs[i].state = false;
+        }
     }
 
-    virtual void clicked() override {
-        outputs[0].state = true;
+    virtual void clicked(Vector2 pos) override {
+        for (size_t i = 0; i < outputs.size(); i++) {
+            if(CheckCollisionPointRec(pos, getButtonRect(i))) outputs[i].state = true;
+            else outputs[i].state = false;
+        }
     }
 
     virtual void pretick() override {}
@@ -507,25 +525,89 @@ struct PushButton : public Node {
     virtual std::string get_type() const override { return"PushButton"; }
 
     virtual bool isInput() const override { return true; }
+
+    virtual void recompute_size() override;
 };
 
 struct ToggleButton : public Node {
+    virtual Rectangle getButtonRect(size_t id);
     virtual void draw() override;
 
     ToggleButton(Vector2 pos = { 0,0 }) : Node(pos, { 0, 0 }, BLUE) {
         label = "Toggle Button";
 
         size = Vector2{ 200, 200 };
-        outputs[0].state = on;
+        outputs[0].state = false;
     }
-    ToggleButton(const ToggleButton* base) : Node(base), on(base->on) {
-        outputs[0].state = on;
+    ToggleButton(const ToggleButton* base) : Node(base) {
+        for (size_t i = 0; i < outputs.size(); i++) {
+            outputs[i].state = base->outputs[i].state;
+        }
     }
 
-    virtual void add_input() override {}
-    virtual void remove_input() override {}
+    virtual void add_input() override {
+        outputs.push_back(Output_connector(this, outputs.size())); recompute_size();
+    }
+    virtual void remove_input() override {
+        if (outputs.size() > 1) outputs.pop_back();  recompute_size();
+    }
 
     Node* copy() const override { return new ToggleButton(this); }
+
+    virtual std::string get_label() const override { return std::string(label); }
+
+
+    virtual Texture get_texture() const override { return{ 0 }; }
+
+    virtual void not_clicked() override {}
+
+    virtual void clicked(Vector2 pos) override {
+        for (size_t i = 0; i < outputs.size(); i++) {
+            if (CheckCollisionPointRec(pos, getButtonRect(i))) outputs[i].state = !outputs[i].state;
+        }
+    }
+
+    virtual void pretick() {}
+    virtual void tick() override {}
+
+    //virtual json to_JSON() const override;
+
+    //virtual void load_extra_JSON(const json& nodeJson) override;
+
+    virtual std::string get_type() const override { return"ToggleButton"; }
+
+    virtual bool isInput() const { return true; }
+
+    virtual void recompute_size() override;
+};
+
+struct StaticToggleButton : public Node {
+    virtual void draw() override;
+
+    StaticToggleButton(Vector2 pos = { 0,0 }) : Node(pos, { 0, 0 }, BLUE) {
+        label = "Static Toggle Button";
+
+        size = Vector2{ 200, 200 };
+        outputs[0].state = on;
+    }
+    StaticToggleButton(const StaticToggleButton* base) : Node(base), on(base->on) {
+        outputs[0].state = on;
+    }
+
+    virtual void add_input() override {
+        outputs.push_back(Output_connector(this, outputs.size())); recompute_size();
+    }
+    virtual void remove_input() override {
+        Game& game = Game::getInstance();
+        for (Node* node : game.nodes) {
+            for (auto& conn : node->inputs) {
+                if (conn.target == &outputs.back()) conn.target = nullptr;
+            }
+        }
+        outputs.pop_back();  recompute_size();
+    }
+
+    Node* copy() const override { return new StaticToggleButton(this); }
 
     virtual std::string get_label() const override { return std::string(label); }
 
@@ -536,7 +618,7 @@ struct ToggleButton : public Node {
 
     virtual void not_clicked() override {}
 
-    virtual void clicked() override {
+    virtual void clicked(Vector2 pos) override {
         on = !on;
         outputs[0].state = on;
     }
@@ -548,9 +630,11 @@ struct ToggleButton : public Node {
 
     virtual void load_extra_JSON(const json& nodeJson) override;
 
-    virtual std::string get_type() const override { return"ToggleButton"; }
+    virtual std::string get_type() const override { return"StaticToggleButton"; }
 
-    virtual bool isInput() const { return true; }
+    virtual bool isInput() const { return false; }
+
+    virtual void recompute_size() override;
 };
 
 struct LightBulb : public Node {

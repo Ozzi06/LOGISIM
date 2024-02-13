@@ -429,11 +429,11 @@ void Game::handle_input()
             if (!selected_outputs.empty()) {
 
                 std::sort(selected_inputs.begin(), selected_inputs.end(), [](Input_connector* a, Input_connector* b) {
-                    return a->get_connection_pos().y < b->get_connection_pos().y; // Return true if 'a' should come before 'b'
+                    return a->get_connection_pos().y > b->get_connection_pos().y; // Return true if 'a' should come before 'b'
                     });
 
                 std::sort(selected_outputs.begin(), selected_outputs.end(), [](Output_connector* a, Output_connector* b) {
-                    return a->get_connection_pos().y < b->get_connection_pos().y; // Return true if 'a' should come before 'b'
+                    return a->get_connection_pos().y > b->get_connection_pos().y; // Return true if 'a' should come before 'b'
                     });
 
                 if (selected_outputs.size() > 1) {
@@ -484,7 +484,7 @@ void Game::handle_input()
             for (auto it = nodes.rbegin(); it != nodes.rend(); ++it) {
                 Node* node = *it;
                 if (CheckCollisionPointRec(press_pos, { node->pos.x - node->size.x / 2.0f - 10, node->pos.y - node->size.y / 2.0f - 10, node->size.x + 20, node->size.y + 20 })) {
-                    node->clicked();
+                    node->clicked(press_pos);
                 }
                 else node->not_clicked();
             }
@@ -943,15 +943,23 @@ void PushButton::draw()
     int segments = 50;
     float lineThick = 10;
     Rectangle rec = { pos.x - size.x / 2, pos.y - size.y / 2, size.x, size.y };
-    if(outputs[0].state)
-        DrawRectangleRounded(rec, roundness, segments, Color{ 219, 42, 2, 200});
-    else
-        DrawRectangleRounded(rec, roundness, segments, Color{ 252, 57, 13, 200 });
+
+    size_t button_count = outputs.size();
+    for (size_t i = 0; i < button_count; i++) {
+        Rectangle rec = getButtonRect(i);
+        if (outputs[i].state)
+            DrawRectangleRec(rec, Color{ 219, 42, 2, 255 });
+        else
+            DrawRectangleRec(rec, Color{ 252, 57, 13, 255 });
+        if(game.camera.zoom > 0.4 && i < button_count - 1)
+            DrawLineEx({ rec.x, rec.y }, { rec.x + rec.width, rec.y}, lineThick / 1.0f, ColorBrightness(color, -0.6f));
+    }
+
 
     if (game.camera.zoom > 1 / 10.0f && !is_selected)
-        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, Fade(color, 0.4f));
+        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, ColorBrightness(color, -0.6f));
     if (is_selected)
-        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, Fade(GREEN, 0.4f));
+        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, ColorBrightness(GREEN, -0.6f));
 
     //draw icon
     if (game.camera.zoom > 0.43f) {
@@ -959,7 +967,7 @@ void PushButton::draw()
 
         float texture_pos_x = pos.x - get_texture().width / 2.0f * texture_scale;
         float texture_pos_y = pos.y - get_texture().height / 2.0f * texture_scale;
-        DrawTextureEx(get_texture(), { texture_pos_x, texture_pos_y }, 0.0f, texture_scale, Fade(WHITE, 0.6f));
+        DrawTextureEx(get_texture(), { texture_pos_x, texture_pos_y }, 0.0f, texture_scale, ColorBrightness(WHITE, -0.4f));
     }
 
     //draw name
@@ -974,6 +982,24 @@ void PushButton::draw()
     //draw outputs
     for (const Output_connector& conn : outputs)
         DrawOutputConnector(conn);
+}
+
+Rectangle PushButton::getButtonRect(size_t id)
+{
+    Rectangle rec {
+        pos.x - size.x / 2.0f, 
+        
+        pos.y + size.y / 2.0f - (id + 1) * size.y / outputs.size()
+        
+        , size.x, size.y / outputs.size()
+    };
+    return rec;
+}
+
+
+void PushButton::recompute_size()
+{
+    size = Vector2{ 200.0f, 170.0f + 30.0f * outputs.size() };
 }
 
 void ToggleButton::draw()
@@ -983,15 +1009,23 @@ void ToggleButton::draw()
     int segments = 50;
     float lineThick = 10;
     Rectangle rec = { pos.x - size.x / 2, pos.y - size.y / 2, size.x, size.y };
-    if (on)
-        DrawRectangleRounded(rec, roundness, segments, Color{ 219, 42, 2, 200 });
-    else
-        DrawRectangleRounded(rec, roundness, segments, Color{ 252, 57, 13, 200 });
+
+    size_t button_count = outputs.size();
+    for (size_t i = 0; i < button_count; i++) {
+        Rectangle rec = getButtonRect(i);
+        if (outputs[i].state)
+            DrawRectangleRec(rec, Color{ 219, 42, 2, 255 });
+        else
+            DrawRectangleRec(rec, Color{ 252, 57, 13, 255 });
+        if (game.camera.zoom > 0.4 && i < button_count - 1)
+            DrawLineEx({ rec.x, rec.y }, { rec.x + rec.width, rec.y }, lineThick / 1.0f, ColorBrightness(color, -0.6f));
+    }
+
 
     if (game.camera.zoom > 1 / 10.0f && !is_selected)
-        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, Fade(color, 0.4f));
+        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, ColorBrightness(color, -0.6f));
     if (is_selected)
-        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, Fade(GREEN, 0.4f));
+        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, ColorBrightness(GREEN, -0.6f));
 
     //draw icon
     if (game.camera.zoom > 0.43f) {
@@ -999,7 +1033,7 @@ void ToggleButton::draw()
 
         float texture_pos_x = pos.x - get_texture().width / 2.0f * texture_scale;
         float texture_pos_y = pos.y - get_texture().height / 2.0f * texture_scale;
-        DrawTextureEx(get_texture(), { texture_pos_x, texture_pos_y }, 0.0f, texture_scale, Fade(WHITE, 0.6f));
+        DrawTextureEx(get_texture(), { texture_pos_x, texture_pos_y }, 0.0f, texture_scale, ColorBrightness(WHITE, -0.4f));
     }
 
     //draw name
@@ -1016,7 +1050,18 @@ void ToggleButton::draw()
         DrawOutputConnector(conn);
 }
 
-json ToggleButton::to_JSON() const
+Rectangle ToggleButton::getButtonRect(size_t id)
+{
+    Rectangle rec{
+        pos.x - size.x / 2.0f,
+
+        pos.y + size.y / 2.0f - (id + 1) * size.y / outputs.size()
+
+        , size.x, size.y / outputs.size()
+    };
+    return rec;
+}
+/*json ToggleButton::to_JSON() const
 {
 
     json jOutputs = json::array();
@@ -1039,15 +1084,14 @@ json ToggleButton::to_JSON() const
                 {"size.x", size.x},
                 {"size.y", size.y},
                 {"label", label},
-                {"on", on},
                 {"outputs", jOutputs},
                 {"inputs", jInputs}
             }
         }
     };
-}
+}*/
 
-void ToggleButton::load_extra_JSON(const json& nodeJson)
+/*void ToggleButton::load_extra_JSON(const json& nodeJson)
 {
     try {
         on = nodeJson.at("on").get<bool>();
@@ -1056,6 +1100,11 @@ void ToggleButton::load_extra_JSON(const json& nodeJson)
         // Handle or log error, e.g., missing key or wrong type
         std::cerr << "JSON parsing error: " << e.what() << '\n';
     }
+}*/
+
+void ToggleButton::recompute_size()
+{
+    size = Vector2{ 200.0f, 170.0f + 30.0f * outputs.size() };
 }
 
 json Node::to_JSON() const {

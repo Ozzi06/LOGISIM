@@ -1,0 +1,147 @@
+{
+    "camera": {
+        "offset": {
+            "x": 1168.0,
+            "y": 509.0
+        },
+        "rotation": 0.0,
+        "target": {
+            "x": 544.2664184570313,
+            "y": -176.1518096923828
+        },
+        "zoom": 0.9873613119125366
+    },
+    "label": "Half_Adder",
+    "nodes": [
+        {
+            "GateAND": {
+                "inputs": [
+                    {
+                        "Input_connector": {
+                            "target": 436625219
+                        }
+                    },
+                    {
+                        "Input_connector": {
+                            "target": 4148634493
+                        }
+                    }
+                ],
+                "label": "AND",
+                "outputs": [
+                    {
+                        "Output_connector": {
+                            "id": 2723807297,
+                            "state": false
+                        }
+                    }
+                ],
+                "pos.x": 453.62457275390625,
+                "pos.y": -315.1664733886719,
+                "size.x": 100.0,
+                "size.y": 160.0
+            }
+        },
+        {
+            "LightBulb": {
+                "inputs": [
+                    {
+                        "Input_connector": {
+                            "target": 2723807297
+                        }
+                    }
+                ],
+                "label": "Carry",
+                "outputs": [],
+                "pos.x": 673.3589477539063,
+                "pos.y": -315.02935791015625,
+                "size.x": 100.0,
+                "size.y": 100.0
+            }
+        },
+        {
+            "ToggleButton": {
+                "inputs": [],
+                "label": "B",
+                "on": false,
+                "outputs": [
+                    {
+                        "Output_connector": {
+                            "id": 436625219,
+                            "state": false
+                        }
+                    }
+                ],
+                "pos.x": -1.958343505859375,
+                "pos.y": -52.257720947265625,
+                "size.x": 200.0,
+                "size.y": 200.0
+            }
+        },
+        {
+            "ToggleButton": {
+                "inputs": [],
+                "label": "A",
+                "on": false,
+                "outputs": [
+                    {
+                        "Output_connector": {
+                            "id": 4148634493,
+                            "state": false
+                        }
+                    }
+                ],
+                "pos.x": -1.9274826049804688,
+                "pos.y": -330.3462219238281,
+                "size.x": 200.0,
+                "size.y": 200.0
+            }
+        },
+        {
+            "LightBulb": {
+                "inputs": [
+                    {
+                        "Input_connector": {
+                            "target": 3584386458
+                        }
+                    }
+                ],
+                "label": "Sum",
+                "outputs": [],
+                "pos.x": 673.33984375,
+                "pos.y": -66.99896240234375,
+                "size.x": 100.0,
+                "size.y": 100.0
+            }
+        },
+        {
+            "GateXOR": {
+                "inputs": [
+                    {
+                        "Input_connector": {
+                            "target": 436625219
+                        }
+                    },
+                    {
+                        "Input_connector": {
+                            "target": 4148634493
+                        }
+                    }
+                ],
+                "label": "XOR",
+                "outputs": [
+                    {
+                        "Output_connector": {
+                            "id": 3584386458,
+                            "state": false
+                        }
+                    }
+                ],
+                "pos.x": 453.150390625,
+                "pos.y": -67.249755859375,
+                "size.x": 100.0,
+                "size.y": 160.0
+            }
+        }
+    ]
+}

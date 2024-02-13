@@ -1,23 +1,88 @@
 {
+    "camera": {
+        "offset": {
+            "x": 1167.0,
+            "y": 634.0
+        },
+        "rotation": 0.0,
+        "target": {
+            "x": 275.4375,
+            "y": 202.9375
+        },
+        "zoom": 0.6399999856948853
+    },
     "label": "toogletest",
     "nodes": [
         {
-            "ToggleButton": {
+            "PushButton": {
                 "inputs": [],
-                "label": "Toggle Button",
-                "on": false,
+                "label": "",
                 "outputs": [
                     {
                         "Output_connector": {
-                            "id": 611448370,
+                            "id": 118947764,
+                            "state": false
+                        }
+                    },
+                    {
+                        "Output_connector": {
+                            "id": 1751310721,
+                            "state": false
+                        }
+                    },
+                    {
+                        "Output_connector": {
+                            "id": 1461410095,
+                            "state": false
+                        }
+                    },
+                    {
+                        "Output_connector": {
+                            "id": 2725758557,
                             "state": false
                         }
                     }
                 ],
-                "pos.x": 959.7622680664063,
-                "pos.y": 862.7374267578125,
+                "pos.x": -534.0,
+                "pos.y": -307.0,
                 "size.x": 200.0,
-                "size.y": 200.0
+                "size.y": 290.0
+            }
+        },
+        {
+            "ToggleButton": {
+                "inputs": [],
+                "label": "",
+                "outputs": [
+                    {
+                        "Output_connector": {
+                            "id": 2405550897,
+                            "state": true
+                        }
+                    },
+                    {
+                        "Output_connector": {
+                            "id": 2371800050,
+                            "state": false
+                        }
+                    },
+                    {
+                        "Output_connector": {
+                            "id": 1784858645,
+                            "state": false
+                        }
+                    },
+                    {
+                        "Output_connector": {
+                            "id": 1357561148,
+                            "state": true
+                        }
+                    }
+                ],
+                "pos.x": -535.0,
+                "pos.y": 74.0,
+                "size.x": 200.0,
+                "size.y": 290.0
             }
         },
         {
@@ -25,14 +90,65 @@
                 "inputs": [
                     {
                         "Input_connector": {
-                            "target": 611448370
+                            "target": 1357561148
                         }
                     }
                 ],
                 "label": "LightBulb",
                 "outputs": [],
-                "pos.x": 1391.2867431640625,
-                "pos.y": 880.4956665039063,
+                "pos.x": 105.0,
+                "pos.y": -147.4375,
+                "size.x": 100.0,
+                "size.y": 100.0
+            }
+        },
+        {
+            "LightBulb": {
+                "inputs": [
+                    {
+                        "Input_connector": {
+                            "target": 1784858645
+                        }
+                    }
+                ],
+                "label": "LightBulb",
+                "outputs": [],
+                "pos.x": 105.0,
+                "pos.y": 10.5625,
+                "size.x": 100.0,
+                "size.y": 100.0
+            }
+        },
+        {
+            "LightBulb": {
+                "inputs": [
+                    {
+                        "Input_connector": {
+                            "target": 2371800050
+                        }
+                    }
+                ],
+                "label": "LightBulb",
+                "outputs": [],
+                "pos.x": 105.0,
+                "pos.y": 179.5625,
+                "size.x": 100.0,
+                "size.y": 100.0
+            }
+        },
+        {
+            "LightBulb": {
+                "inputs": [
+                    {
+                        "Input_connector": {
+                            "target": 2405550897
+                        }
+                    }
+                ],
+                "label": "LightBulb",
+                "outputs": [],
+                "pos.x": 105.0,
+                "pos.y": 337.5625,
                 "size.x": 100.0,
                 "size.y": 100.0
             }
