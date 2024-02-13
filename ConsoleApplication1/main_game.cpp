@@ -47,7 +47,7 @@ void Game::draw() {
 
     if (area_selected) {
         Rectangle area = RectFrom2Points(GetScreenToWorld2D(GetMousePosition(), camera), first_corner);
-        DrawRectangleRec(area, Fade(GREEN, 0.05));
+        DrawRectangleRec(area, Fade(GREEN, 0.05f));
     }
 
     EndMode2D();

@@ -117,7 +117,7 @@ int main()
                 game.pretick();
                 game.tick();
             }
-            game.real_sim_hz = i / (t - prev_update_t);
+            game.real_sim_hz = i / (t - (float)prev_update_t);
             prev_update_t = t;
         }
         

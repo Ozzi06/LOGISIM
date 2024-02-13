@@ -76,7 +76,7 @@ bool NodeSelectionMenu() {
 
     Game& game = Game::getInstance();
 
-    float menu_area_w = 200, menu_area_h = game.screenHeight - 200;
+    float menu_area_w = 200.0f, menu_area_h = game.screenHeight - 200.0f;
     Vector2 menu_area_pos = { game.screenWidth - menu_area_w, 100 };
 
     Rectangle menu_area = { menu_area_pos.x, menu_area_pos.y, menu_area_w, menu_area_h };
@@ -88,7 +88,7 @@ bool NodeSelectionMenu() {
     {
         GuiScrollPanel(menu_area, "Add Nodes", panelContentRec, &panelScroll, &panelView);
 
-        BeginScissorMode(panelView.x, panelView.y, panelView.width, panelView.height);
+        BeginScissorMode((int)panelView.x, (int)panelView.y, (int)panelView.width, (int)panelView.height);
         //GuiGrid(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y, content_w, panelContentRec.height }, NULL, 16, 3, NULL);
 
         float curr_el_h;
