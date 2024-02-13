@@ -153,7 +153,6 @@
   <ItemGroup>
     <ClInclude Include="file_dialogs.h" />
     <ClInclude Include="gui_node_editor.h" />
-    <ClInclude Include="gui_Test_menu.h" />
     <ClInclude Include="gui_ui.h" />
     <ClInclude Include="main_game.h" />
     <ClInclude Include="nlohmann\json.hpp" />

@@ -52,9 +52,6 @@
     <ClInclude Include="gui_node_editor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="gui_Test_menu.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="gui_ui.h">
       <Filter>Header Files</Filter>
     </ClInclude>

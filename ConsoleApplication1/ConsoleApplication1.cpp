@@ -30,7 +30,6 @@ enum class type {
     BUTTON
 };
 
-
 void LoadTextures() {
     Image img = LoadImage("resources/logic_gates/AND.png");
     ImageColorInvert(&img);
