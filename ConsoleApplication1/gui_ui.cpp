@@ -162,6 +162,21 @@ bool NodeSelectionMenu() {
 
         {   // Button
             curr_el_h = 30;
+            const char* label = "StaticToggleButton";
+            if (GuiButton(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, label)) {
+                game.nodes.push_back(new StaticToggleButton(GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
+            }
+            current_depth += curr_el_h;
+        }
+
+        {   // Spacing line
+            curr_el_h = 15;
+            GuiLine(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, NULL);
+            current_depth += curr_el_h;
+        }
+
+        {   // Button
+            curr_el_h = 30;
             const char* label = "LightBulb";
             if (GuiButton(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, label)) {
                 game.nodes.push_back(new LightBulb(GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));

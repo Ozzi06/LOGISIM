@@ -53,7 +53,7 @@ bool GuiNodeEditor(GuiNodeEditorState* state)
 {
     assert(state->node);
     Game game = Game::getInstance();
-    Vector2 Pos = GetWorldToScreen2D(state->node->pos + Vector2{ state->node->size.x / 2 , -state->node->size.y / 2.0f }, game.camera);
+    Vector2 Pos = GetWorldToScreen2D(state->node->pos + Vector2{ state->node->size.x / 2 , 0 }, game.camera);
     Rectangle area = { Pos.x + 0, Pos.y + 0, 176, 232 };
 
     GuiPanel(area, "Node Settings");
