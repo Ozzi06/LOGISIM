@@ -617,6 +617,14 @@ void Node::draw()
     float lineThick = 10;
     Rectangle rec = { pos.x - size.x / 2, pos.y - size.y / 2, size.x, size.y };
 
+    //draw inputs
+    for (const Input_connector& conn : inputs)
+        conn.draw();
+
+    //draw outputs
+    for (const Output_connector& conn : outputs)
+        conn.draw();
+
     DrawRectangleRec(rec, color);
 
     if (game.camera.zoom > 1 / 10.0f && !is_selected)
@@ -637,14 +645,6 @@ void Node::draw()
     if (game.camera.zoom > 1 / 10.0f) {
         DrawTextEx(game.regular, label.c_str(), { pos.x - size.x / 2, pos.y + size.y / 2.0f + lineThick + 2 }, 30, 1.0f, WHITE); // Draw text using font and additional parameters
     }
-
-    //draw inputs
-    for (const Input_connector& conn : inputs)
-        DrawInputConnector(conn);
-
-    //draw outputs
-    for (const Output_connector& conn : outputs)
-        DrawOutputConnector(conn);
 }
 
 bool Node::show_node_editor()
@@ -682,73 +682,6 @@ bool Node::show_node_editor()
     label = TextBoxNodeLabel;
 
     return CheckCollisionPointRec(GetMousePosition(), area);
-}
-
-void DrawInputConnector(const Input_connector& conn) {
-    Game& game = Game::getInstance();
-    const size_t width = 30;
-    float lineThick = 8;
-    float spacing = 30;
-
-    Vector2 pos = { 
-        conn.host->pos.x - conn.host->size.x / 2 - width, 
-        conn.host->pos.y + ((float)conn.host->inputs.size() - 1.0f) * spacing / 2.0f - conn.index * spacing - lineThick / 2.0f
-    };
-
-    Rectangle rec = {
-        pos.x,
-        pos.y,
-        width,
-        lineThick
-    };
-
-    Color connectorColor = GRAY;
-    for (auto input : game.selected_inputs) {
-        if (input == &conn) {
-            connectorColor = GREEN;
-            break;
-        }
-    }
-
-    DrawRectangleRec(rec, connectorColor);
-
-    if (conn.target) {
-        if (conn.target->state) {
-            DrawLineEx(pos + Vector2{ 0, lineThick / 2 }, conn.target->get_connection_pos(), lineThick, GREEN);
-        }
-        else {
-            DrawLineEx(pos + Vector2{ 0, lineThick / 2 }, conn.target->get_connection_pos(), lineThick, GRAY);
-        }
-    }
-}
-
-void DrawOutputConnector(const Output_connector& conn) {
-    Game& game = Game::getInstance();
-    const size_t width = 30;
-    float lineThick = 8;
-    float spacing = 30;
-
-    Vector2 pos = {
-        conn.host->pos.x + conn.host->size.x / 2.0f,
-        conn.host->pos.y + (conn.host->outputs.size() - 1) * spacing / 2.0f - conn.index * spacing - lineThick / 2.0f
-    };
-
-    Rectangle rec = {
-        pos.x,
-        pos.y,
-        width,
-        lineThick
-    };
-
-    Color connectorColor = GRAY;
-    for (auto output : game.selected_outputs) {
-        if (output == &conn) {
-            connectorColor = GREEN;
-            break;
-        }
-    }
-
-    DrawRectangleRec(rec, connectorColor);
 }
 
 Input_connector* Node::select_input(Vector2 select_pos)
@@ -893,7 +826,7 @@ Game Game::instance;
 void GateNOT::pretick()
 {
     for (size_t i = 0; i < inputs.size(); i++) {
-        if (inputs[0].target)
+        if (inputs[i].target)
             outputs[i].new_state = !inputs[i].target->state;
         else
             outputs[i].new_state = true;
@@ -915,7 +848,7 @@ void GateAND::pretick()
 void GateBUFFER::pretick()
 {
     for (size_t i = 0; i < inputs.size(); i++) {
-        if (inputs[0].target)
+        if (inputs[i].target)
             outputs[i].new_state = inputs[i].target->state;
         else
             outputs[i].new_state = false;
@@ -983,7 +916,7 @@ void GateXNOR::pretick()
     return;
 }
 
-void PushButton::draw()
+void Button::draw()
 {
     Game& game = Game::getInstance();
     float roundness = 0.1f;
@@ -1024,14 +957,14 @@ void PushButton::draw()
 
     //draw inputs
     for (const Input_connector& conn : inputs)
-        DrawInputConnector(conn);
+        conn.draw();
 
     //draw outputs
     for (const Output_connector& conn : outputs)
-        DrawOutputConnector(conn);
+        conn.draw();
 }
 
-Rectangle PushButton::getButtonRect(size_t id)
+Rectangle Button::getButtonRect(size_t id)
 {
     Rectangle rec {
         pos.x - size.x / 2.0f, 
@@ -1043,114 +976,16 @@ Rectangle PushButton::getButtonRect(size_t id)
     return rec;
 }
 
-void PushButton::recompute_size()
+void Button::recompute_size()
 {
     size = Vector2{ 130.0f, 100.0f + 30.0f * outputs.size() };
 }
 
-void ToggleButton::draw()
+void ToggleButton::clicked(Vector2 pos)
 {
-    Game& game = Game::getInstance();
-    float roundness = 0.1f;
-    int segments = 50;
-    float lineThick = 10;
-    Rectangle rec = { pos.x - size.x / 2, pos.y - size.y / 2, size.x, size.y };
-
-    size_t button_count = outputs.size();
-    for (size_t i = 0; i < button_count; i++) {
-        Rectangle rec = getButtonRect(i);
-        if (outputs[i].state)
-            DrawRectangleRec(rec, Color{ 219, 42, 2, 255 });
-        else
-            DrawRectangleRec(rec, Color{ 252, 57, 13, 255 });
-        if (game.camera.zoom > 0.4 && i < button_count - 1)
-            DrawLineEx({ rec.x, rec.y }, { rec.x + rec.width, rec.y }, lineThick / 1.0f, ColorBrightness(color, -0.2f));
+    for (size_t i = 0; i < outputs.size(); i++) {
+        if (CheckCollisionPointRec(pos, getButtonRect(i))) outputs[i].state = !outputs[i].state;
     }
-
-
-    if (game.camera.zoom > 1 / 10.0f && !is_selected)
-        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, ColorBrightness(color, -0.2f));
-    if (is_selected)
-        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, ColorBrightness(GREEN, -0.6f));
-
-    //draw icon
-    if (game.camera.zoom > 0.43f) {
-        float texture_scale = 0.1f;
-
-        float texture_pos_x = pos.x - get_texture().width / 2.0f * texture_scale;
-        float texture_pos_y = pos.y - get_texture().height / 2.0f * texture_scale;
-        DrawTextureEx(get_texture(), { texture_pos_x, texture_pos_y }, 0.0f, texture_scale, ColorBrightness(WHITE, -0.4f));
-    }
-
-    //draw name
-    if (game.camera.zoom > 1 / 10.0f) {
-        DrawTextEx(game.regular, label.c_str(), { pos.x - size.x / 2, pos.y + size.y / 2.0f + lineThick + 2 }, 30, 1.0f, WHITE); // Draw text using font and additional parameters
-    }
-
-    //draw inputs
-    for (const Input_connector& conn : inputs)
-        DrawInputConnector(conn);
-
-    //draw outputs
-    for (const Output_connector& conn : outputs)
-        DrawOutputConnector(conn);
-}
-
-Rectangle ToggleButton::getButtonRect(size_t id)
-{
-    Rectangle rec{
-        pos.x - size.x / 2.0f,
-
-        pos.y + size.y / 2.0f - (id + 1) * size.y / outputs.size()
-
-        , size.x, size.y / outputs.size()
-    };
-    return rec;
-}
-/*json ToggleButton::to_JSON() const
-{
-
-    json jOutputs = json::array();
-    for (const auto& output : outputs) {
-        jOutputs.push_back(output.to_JSON());
-    }
-
-    json jInputs = json::array();
-    for (const auto& input : inputs) {
-        jInputs.push_back(input.to_JSON());
-    }
-
-    return
-    {
-
-        {get_type(),
-            {
-                {"pos.x", pos.x},
-                {"pos.y", pos.y},
-                {"size.x", size.x},
-                {"size.y", size.y},
-                {"label", label},
-                {"outputs", jOutputs},
-                {"inputs", jInputs}
-            }
-        }
-    };
-}*/
-
-/*void ToggleButton::load_extra_JSON(const json& nodeJson)
-{
-    try {
-        on = nodeJson.at("on").get<bool>();
-    }
-    catch (const json::exception& e) {
-        // Handle or log error, e.g., missing key or wrong type
-        std::cerr << "JSON parsing error: " << e.what() << '\n';
-    }
-}*/
-
-void ToggleButton::recompute_size()
-{
-    size = Vector2{ 130.0f, 100.0f + 30.0f * outputs.size() };
 }
 
 json Node::to_JSON() const {
@@ -1221,11 +1056,68 @@ void Node::load_JSON(const json& nodeJson) {
     load_extra_JSON(nodeJson);
 }
 
+void Output_connector::draw() const
+{
+    Game& game = Game::getInstance();
+    const size_t width = 30;
+    float lineThick = 8;
+    float spacing = 30;
+
+    Vector2 startPos = {
+        host->pos.x + host->size.x / 2.0f,
+        host->pos.y + (host->outputs.size() - 1) * spacing / 2.0f - index * spacing
+    };
+
+    Vector2 endPos = { startPos.x + width ,startPos.y, };
+
+    Color color = GRAY;
+    for (auto output : game.selected_outputs) {
+        if (output == this) {
+            color = GREEN;
+            break;
+        }
+    }
+
+    DrawLineEx(startPos, endPos, lineThick, color);
+}
 
 json Output_connector::to_JSON() const {
     return json{ 
         {"Output_connector", json::object({  {"id", id}, {"state", state}})}
     };
+}
+
+void Input_connector::draw() const
+{
+    Game& game = Game::getInstance();
+    const size_t width = 30;
+    float lineThick = 8;
+    float spacing = 30;
+
+    Vector2 startPos = {
+        host->pos.x - host->size.x / 2,
+        host->pos.y + ((float)host->inputs.size() - 1.0f) * spacing / 2.0f - index * spacing
+    };
+    Vector2 endPos = { startPos.x - width ,startPos.y, };
+
+    Color color = GRAY;
+    for (auto input : game.selected_inputs) {
+        if (input == this) {
+            color = GREEN;
+            break;
+        }
+    }
+
+    DrawLineEx(startPos, endPos, lineThick, color);
+
+    if (target) {
+        if (target->state) {
+            DrawLineEx(get_connection_pos(), target->get_connection_pos(), lineThick, GREEN);
+        }
+        else {
+            DrawLineEx(get_connection_pos(), target->get_connection_pos(), lineThick, GRAY);
+        }
+    }
 }
 
 json Input_connector::to_JSON() const {
@@ -1289,85 +1181,6 @@ FunctionNode::FunctionNode(const FunctionNode* base): Node(base)
         });
 
     recompute_size();
-}
-
-void FunctionNode::draw()
-{
-    Game& game = Game::getInstance();
-    float roundness = 0.1f;
-    int segments = 50;
-    float lineThick = 10;
-    Rectangle rec = { pos.x - size.x / 2, pos.y - size.y / 2, size.x, size.y };
-
-    DrawRectangleRounded(rec, roundness, segments, Fade(color, 0.2f));
-
-    if (game.camera.zoom > 1 / 10.0f && !is_selected)
-        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, Fade(color, 0.4f));
-    if (is_selected)
-        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, Fade(GREEN, 0.4f));
-
-    //draw icon
-    if (game.camera.zoom > 0.43f) {
-        float texture_scale = 0.1f;
-
-        float texture_pos_x = pos.x - get_texture().width / 2.0f * texture_scale;
-        float texture_pos_y = pos.y - get_texture().height / 2.0f * texture_scale;
-        DrawTextureEx(get_texture(), { texture_pos_x, texture_pos_y }, 0.0f, texture_scale, Fade(WHITE, 0.6f));
-    }
-
-    //draw name
-    if (game.camera.zoom > 1 / 10.0f) {
-        DrawTextEx(game.regular, label.c_str(), { pos.x - size.x / 2, pos.y + size.y / 2.0f + lineThick + 2 }, 30, 1.0f, WHITE); // Draw text using font and additional parameters
-    }
-
-    //draw inputs
-    for (size_t i = 0; i < input_targs.size(); i++) {
-        for (size_t j = 0; j < input_targs[i]->outputs.size(); j++) {
-            DrawInputConnector(inputs[i + j]);
-
-            const size_t width = 30;
-            float lineThick = 8;
-            float height_spacing = 30;
-            float text_spacing = 2.0f;
-            Vector2 pos = {
-            inputs[i].host->pos.x - inputs[i + j].host->size.x / 2 - width,
-            inputs[i].host->pos.y + ((float)inputs[i].host->inputs.size() - 1.0f) * height_spacing / 2.0f - inputs[i].index * height_spacing - lineThick / 2.0f
-            };
-
-            Font font = GetFontDefault();
-            const char* text = input_targs[i]->label.c_str();
-            Color color = RAYWHITE;
-            if (input_targs[i]->outputs[j].state)
-                color = DARKGREEN;
-            DrawTextEx(font, text, pos + Vector2{ width, 0 }, 12, text_spacing, color);
-        }
-        
-    }
-
-    //draw outputs
-    for (size_t i = 0; i < output_targs.size(); i++) {
-        for (size_t j = 0; j < output_targs[i]->inputs.size(); j++) {
-            DrawOutputConnector(outputs[i + j]);
-
-            const size_t width = 30;
-            float lineThick = 8;
-            float height_spacing = 30;
-            float text_spacing = 2.0f;
-
-            Vector2 pos = {
-                outputs[i].host->pos.x + outputs[i].host->size.x / 2.0f,
-                outputs[i].host->pos.y + (outputs[i].host->outputs.size() - 1) * height_spacing / 2.0f - outputs[i].index * height_spacing - lineThick / 2.0f
-            };
-
-            Font font = GetFontDefault();
-            const char* text;
-            text = output_targs[i]->label.c_str();
-            Color color = RAYWHITE;
-            if (output_targs[i]->inputs[j].target && output_targs[i]->inputs[j].target->state)
-                color = DARKGREEN;
-            DrawTextEx(font, text, pos - Vector2{ float(output_targs[i]->label.size()) * (text_spacing + 7.0f), 0 }, 12, text_spacing, color);
-        }
-    }
 }
 
 json FunctionNode::to_JSON() const
@@ -1535,7 +1348,7 @@ void LightBulb::draw()
 
         //draw inputs
         for (const Input_connector& conn : inputs)
-            DrawInputConnector(conn);
+            conn.draw();
     }
 }
 
@@ -1546,6 +1359,11 @@ void SevenSegmentDisplay::draw()
     int segments = 50;
     float lineThick = 10;
     Rectangle rec = { pos.x - size.x / 2, pos.y - size.y / 2, size.x, size.y };
+
+
+    //draw inputs
+    for (const Input_connector& conn : inputs)
+        conn.draw();
 
     DrawRectangleRec(rec, color);
 
@@ -1558,10 +1376,6 @@ void SevenSegmentDisplay::draw()
     if (game.camera.zoom > 1 / 10.0f) {
         DrawTextEx(game.regular, label.c_str(), { pos.x - size.x / 2, pos.y + size.y / 2.0f + lineThick + 2 }, 30, 1.0f, WHITE); // Draw text using font and additional parameters
     }
-
-    //draw inputs
-    for (const Input_connector& conn : inputs)
-        DrawInputConnector(conn);
 
 
     //draw segments
@@ -1601,4 +1415,19 @@ void SevenSegmentDisplay::draw()
 void SevenSegmentDisplay::recompute_size()
 {
     size = Vector2{ 200, 350 };
+}
+
+void PushButton::not_clicked()
+{
+    for (size_t i = 0; i < outputs.size(); i++) {
+        outputs[i].state = false;
+    }
+}
+
+void PushButton::clicked(Vector2 pos)
+{
+    for (size_t i = 0; i < outputs.size(); i++) {
+        if (CheckCollisionPointRec(pos, getButtonRect(i))) outputs[i].state = true;
+        else outputs[i].state = false;
+    }
 }
