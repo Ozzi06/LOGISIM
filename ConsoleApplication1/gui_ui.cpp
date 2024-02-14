@@ -159,7 +159,7 @@ bool NodeSelectionMenu() {
 
         {   // Spacing line
             curr_el_h = 30;
-            GuiLine(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, "IO");
+            GuiLine(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, "Interface Nodes");
             current_depth += curr_el_h;
         }
 
@@ -210,6 +210,21 @@ bool NodeSelectionMenu() {
 
         {   // Button
             curr_el_h = 30;
+            const char* label = "SevenSegmentDisplay";
+            if (GuiButton(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, label)) {
+                game.nodes.push_back(new SevenSegmentDisplay(GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
+            }
+            current_depth += curr_el_h;
+        }
+
+        {   // Spacing line
+            curr_el_h = 15;
+            GuiLine(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, NULL);
+            current_depth += curr_el_h;
+        }
+
+        {   // Button
+            curr_el_h = 30;
             const char* label = "LightBulb";
             if (GuiButton(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, label)) {
                 game.nodes.push_back(new LightBulb(GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
@@ -234,7 +249,7 @@ bool NodeSelectionMenu() {
 
         {   // Spacing line
             curr_el_h = 15;
-            GuiLine(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, "Gates");
+            GuiLine(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, NULL);
             current_depth += curr_el_h;
         }
 
@@ -249,7 +264,7 @@ bool NodeSelectionMenu() {
 
         {   // Spacing line
             curr_el_h = 15;
-            GuiLine(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, "Gates");
+            GuiLine(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, NULL);
             current_depth += curr_el_h;
         }
 
@@ -264,7 +279,7 @@ bool NodeSelectionMenu() {
 
         {   // Spacing line
             curr_el_h = 15;
-            GuiLine(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, "Gates");
+            GuiLine(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, NULL);
             current_depth += curr_el_h;
         }
 
@@ -279,7 +294,7 @@ bool NodeSelectionMenu() {
 
         {   // Spacing line
             curr_el_h = 15;
-            GuiLine(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, "Gates");
+            GuiLine(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, NULL);
             current_depth += curr_el_h;
         }
 
@@ -294,7 +309,7 @@ bool NodeSelectionMenu() {
 
         {   // Spacing line
             curr_el_h = 15;
-            GuiLine(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, "Gates");
+            GuiLine(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, NULL);
             current_depth += curr_el_h;
         }
 
@@ -308,7 +323,7 @@ bool NodeSelectionMenu() {
         }
 
         {   // Spacing line
-            curr_el_h = 15;
+            curr_el_h = 30;
             GuiLine(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, NULL);
             current_depth += curr_el_h;
         }
