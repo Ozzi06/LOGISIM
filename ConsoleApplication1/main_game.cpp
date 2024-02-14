@@ -651,7 +651,14 @@ bool Node::show_node_editor()
 {
     Game& game = Game::getInstance();
     Vector2 Pos = GetWorldToScreen2D(pos + Vector2{ size.x / 2 , 0 }, game.camera);
-    Rectangle area = { Pos.x + 0, Pos.y + 0, 176, 232 };
+
+    const static float area_width = 176;
+    const static float margin = 4;
+    const static float content_w = area_width - 2*margin;
+
+    static float area_height = 232;
+
+    Rectangle area = { Pos.x + 0, Pos.y + 0, area_width, area_height };
 
     static bool TextBoxNodeLabelEditMode = false;
     const static size_t buffersize = 256;
@@ -659,28 +666,53 @@ bool Node::show_node_editor()
     strcpy_s(TextBoxNodeLabel, buffersize, label.c_str());
 
     GuiPanel(area, "Node Settings");
-    if (GuiButton(Rectangle{ Pos.x + 32, Pos.y + 32, 56, 40 }, "#143#")) {
-        game.remove_node(this);
-        delete this;
-        return true;
+
+    float curr_el_h;
+    float current_depth = 30;
+
+    {   // label
+        curr_el_h = 32;
+        float current_x = Pos.x + margin;
+        GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 32, 16 }, "Label:");
+        current_x += 32 + margin;
+
+        if (GuiTextBox(Rectangle{ current_x, Pos.y + current_depth, Pos.x + margin + content_w - current_x, 32 }, TextBoxNodeLabel, buffersize, TextBoxNodeLabelEditMode))
+            TextBoxNodeLabelEditMode = !TextBoxNodeLabelEditMode;
+        label = TextBoxNodeLabel;
+        current_depth += curr_el_h;
     }
-    if (GuiButton(Rectangle{ Pos.x + 104, Pos.y + 32, 56, 40 }, "#016#")); // TODO: Add copy functionality
-    GuiLine(Rectangle{ Pos.x + 0, Pos.y + 120, 176, 12 }, NULL);
 
-    GuiLabel(Rectangle{ Pos.x + 8, Pos.y + 88, 48, 32 }, "Rotate:");
-    if (GuiButton(Rectangle{ Pos.x + 56, Pos.y + 88, 32, 32 }, "#073#")); // TODO: Add rotate functionality
-    if (GuiButton(Rectangle{ Pos.x + 104, Pos.y + 88, 32, 32 }, "#072#")); // TODO: Add rotate functionality
-    GuiLine(Rectangle{ Pos.x + 0, Pos.y + 72, 176, 16 }, NULL);
+    {   // Spacing line
+        curr_el_h = 15;
+        GuiLine(Rectangle{ Pos.x, Pos.y + current_depth, area_width, curr_el_h }, NULL);
+        current_depth += curr_el_h;
+    }
 
-    GuiLabel(Rectangle{ Pos.x + 8, Pos.y + 136, 48, 32 }, "Inputs:");
-    if (GuiButton(Rectangle{ Pos.x + 56, Pos.y + 136, 32, 32 }, "#121#")) add_input();
-    if (GuiButton(Rectangle{ Pos.x + 104, Pos.y + 136, 32, 32 }, "#120#")) remove_input();
-    GuiLine(Rectangle{ Pos.x + 0, Pos.y + 168, 176, 12 }, NULL);
+    {   // Connectors
+        curr_el_h = 32;
+        float current_x = Pos.x + margin;
 
-    GuiLabel(Rectangle{ Pos.x + 8, Pos.y + 176, 48, 16 }, "Label:");
-    if (GuiTextBox(Rectangle{ Pos.x + 8, Pos.y + 192, 160, 32 }, TextBoxNodeLabel, buffersize, TextBoxNodeLabelEditMode)) TextBoxNodeLabelEditMode = !TextBoxNodeLabelEditMode;
-    label = TextBoxNodeLabel;
+        GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "Connectors:");
+        current_x += 64 + margin;
 
+        if (GuiButton(Rectangle{ current_x, Pos.y + current_depth, 32, 32 }, "#121#")) add_input();
+        current_x += 32 + margin;
+
+        if (GuiButton(Rectangle{ current_x, Pos.y + current_depth, 32, 32 }, "#120#")) remove_input();
+        current_x += 32 + margin;
+
+        current_depth += curr_el_h;
+    }
+
+    
+    {   // Spacing line
+        curr_el_h = 15;
+        GuiLine(Rectangle{ Pos.x, Pos.y + current_depth, area_width, curr_el_h }, NULL);
+        current_depth += curr_el_h;
+    }
+
+    
+    area_height = current_depth;
     return CheckCollisionPointRec(GetMousePosition(), area);
 }
 
