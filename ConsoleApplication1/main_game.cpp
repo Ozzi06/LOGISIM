@@ -1009,7 +1009,7 @@ Rectangle PushButton::getButtonRect(size_t id)
 
 void PushButton::recompute_size()
 {
-    size = Vector2{ 200.0f, 170.0f + 30.0f * outputs.size() };
+    size = Vector2{ 130.0f, 100.0f + 30.0f * outputs.size() };
 }
 
 void ToggleButton::draw()
@@ -1114,7 +1114,7 @@ Rectangle ToggleButton::getButtonRect(size_t id)
 
 void ToggleButton::recompute_size()
 {
-    size = Vector2{ 200.0f, 170.0f + 30.0f * outputs.size() };
+    size = Vector2{ 130.0f, 100.0f + 30.0f * outputs.size() };
 }
 
 json Node::to_JSON() const {
@@ -1401,10 +1401,23 @@ void FunctionNode::load_extra_JSON(const json& nodeJson)
             });
 
         // create input and output connectors then resize the node
-        while (input_targs.size() > inputs.size()) {
+        size_t targ_input_count = 0;
+        for (size_t i = 0; i < input_targs.size(); i++) {
+            for (size_t j = 0; j < input_targs[i]->outputs.size(); j++) {
+                targ_input_count++;
+            }
+        }
+        size_t targ_output_count = 0;
+        for (size_t i = 0; i < output_targs.size(); i++) {
+            for (size_t j = 0; j < output_targs[i]->inputs.size(); j++) {
+                targ_output_count++;
+            }
+        }
+
+        while (inputs.size() < targ_input_count) {
             inputs.push_back(Input_connector(this, inputs.size()));
         }
-        while (output_targs.size() > outputs.size()) {
+        while (outputs.size() < targ_output_count) {
             outputs.push_back(Output_connector(this, outputs.size()));
         }
         recompute_size();
@@ -1488,4 +1501,68 @@ void LightBulb::draw()
         for (const Input_connector& conn : inputs)
             DrawInputConnector(conn);
     }
+}
+
+void SevenSegmentDisplay::draw()
+{
+    Game& game = Game::getInstance();
+    float roundness = 0.1f;
+    int segments = 50;
+    float lineThick = 10;
+    Rectangle rec = { pos.x - size.x / 2, pos.y - size.y / 2, size.x, size.y };
+
+    DrawRectangleRec(rec, color);
+
+    if (game.camera.zoom > 1 / 10.0f && !is_selected)
+        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, ColorBrightness(color, -0.2f));
+    if (is_selected)
+        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, ColorBrightness(GREEN, -0.2f));
+
+    //draw name
+    if (game.camera.zoom > 1 / 10.0f) {
+        DrawTextEx(game.regular, label.c_str(), { pos.x - size.x / 2, pos.y + size.y / 2.0f + lineThick + 2 }, 30, 1.0f, WHITE); // Draw text using font and additional parameters
+    }
+
+    //draw inputs
+    for (const Input_connector& conn : inputs)
+        DrawInputConnector(conn);
+
+
+    //draw segments
+    Color color;
+    float linethickness = 12.0f;
+
+    if (inputs[0].target && inputs[0].target->state) color = {255, 0, 0, 255};
+    else color = ColorBrightness(GRAY, -0.8f);
+    DrawLineBezier(pos + Vector2{ -70.0f, -150.0f }, pos + Vector2{ 70.0f, -150.0f }, linethickness, color);
+
+    if (inputs[1].target && inputs[1].target->state) color = { 255, 0, 0, 255 };
+    else color = ColorBrightness(GRAY, -0.8f);
+    DrawLineBezier(pos + Vector2{ 75.0f, -145.0f }, pos + Vector2{ 75.0f, -5.0f }, linethickness, color);
+
+    if (inputs[2].target && inputs[2].target->state) color = { 255, 0, 0, 255 };
+    else color = ColorBrightness(GRAY, -0.8f);
+    DrawLineBezier(pos + Vector2{ 75.0f, 5.0f }, pos + Vector2{ 75.0f, 145.0f }, linethickness, color);
+
+    if (inputs[3].target && inputs[3].target->state) color = { 255, 0, 0, 255 };
+    else color = ColorBrightness(GRAY, -0.8f);
+    DrawLineBezier(pos + Vector2{ -70.0f, 150.0f }, pos + Vector2{ 70.0f, 150.0f }, linethickness, color);
+
+    if (inputs[4].target && inputs[4].target->state) color = { 255, 0, 0, 255 };
+    else color = ColorBrightness(GRAY, -0.8f);
+    DrawLineBezier(pos + Vector2{ -75.0f, 5.0f }, pos + Vector2{ -75.0f, 145.0f }, linethickness, color);
+
+    if (inputs[5].target && inputs[5].target->state) color = { 255, 0, 0, 255 };
+    else color = ColorBrightness(GRAY, -0.8f);
+    DrawLineBezier(pos + Vector2{ -75.0f, -145.0f }, pos + Vector2{ -75.0f, -5.0f }, linethickness, color);
+
+    if (inputs[6].target && inputs[6].target->state) color = { 255, 0, 0, 255 };
+    else color = ColorBrightness(GRAY, -0.8f);
+    DrawLineBezier(pos + Vector2{ -70.0f, 0.0f }, pos + Vector2{ 70.0f, -0.0f }, linethickness, color);
+
+}
+
+void SevenSegmentDisplay::recompute_size()
+{
+    size = Vector2{ 200, 350 };
 }

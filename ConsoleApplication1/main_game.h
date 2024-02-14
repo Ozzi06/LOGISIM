@@ -488,8 +488,7 @@ struct PushButton : public Node {
 
     PushButton(Vector2 pos = { 0,0 }) : Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         label = "Push Button";
-
-        size = Vector2{ 200, 200 };
+        recompute_size();
     }
     PushButton(const PushButton* base) : Node(base) {}
 
@@ -546,7 +545,7 @@ struct ToggleButton : public Node {
     ToggleButton(Vector2 pos = { 0,0 }) : Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         label = "Toggle Button";
 
-        size = Vector2{ 200, 200 };
+        recompute_size();
         outputs[0].state = false;
     }
     ToggleButton(const ToggleButton* base) : Node(base) {
@@ -617,7 +616,7 @@ struct StaticToggleButton : public ToggleButton {
 
 struct LightBulb : public Node {
     LightBulb(Vector2 pos = { 0,0 }) : Node(pos, { 0, 0 }, YELLOW) {
-        label = "LightBulb";
+        label = "Light Bulb";
         strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
 
         size = Vector2{ 100, 100 };
@@ -636,7 +635,6 @@ struct LightBulb : public Node {
 
     virtual std::string get_label() const override { return std::string(label); }
 
-
     virtual Texture get_texture() const override { return {0}; }
 
     virtual void pretick() override {}
@@ -644,6 +642,40 @@ struct LightBulb : public Node {
     virtual std::string get_type() const override { return"LightBulb"; }
 
     virtual bool isOutput() const override { return true; }
+};
+
+struct SevenSegmentDisplay : public Node {
+    SevenSegmentDisplay(Vector2 pos = { 0,0 }) : Node(pos, { 0, 0 }, ColorBrightness(GRAY, -0.7f)) {
+        label = "7-Segment Disp";
+        strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
+
+        outputs.clear();
+        inputs.clear();
+        for(size_t i = 0; i < 7; i++)
+            inputs.push_back(Input_connector(this, i));
+        recompute_size();
+    }
+    SevenSegmentDisplay(const SevenSegmentDisplay* base) : Node(base) {}
+
+    virtual void draw() override;
+
+    virtual void add_input() override {}
+    virtual void remove_input() override {}
+
+    Node* copy() const override { return new SevenSegmentDisplay(this); }
+
+    virtual std::string get_label() const override { return std::string(label); }
+
+    virtual Texture get_texture() const override { return { 0 }; }
+
+    virtual void pretick() override {}
+
+    virtual std::string get_type() const override { return"SevenSegmentDisplay"; }
+
+    virtual bool isOutput() const override { return false; }
+
+protected:
+    virtual void recompute_size() override;
 };
 
 struct FunctionInput_node : public Node {
@@ -737,6 +769,7 @@ public:
             {"ToggleButton", []() -> Node* { return new ToggleButton(); }},
             {"StaticToggleButton", []() -> Node* { return new StaticToggleButton(); }},
             {"LightBulb", []() -> Node* { return new LightBulb(); }},
+            {"SevenSegmentDisplay", []() -> Node* { return new SevenSegmentDisplay(); }},
             {"FunctionNode", []() -> Node* { return new FunctionNode(); }},
         };
 
