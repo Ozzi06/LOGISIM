@@ -141,7 +141,6 @@
   <ItemGroup>
     <ClCompile Include="ConsoleApplication1.cpp" />
     <ClCompile Include="file_dialogs.cpp" />
-    <ClCompile Include="gui_node_editor.cpp" />
     <ClCompile Include="gui_ui.cpp" />
     <ClCompile Include="main_game.cpp" />
     <ClCompile Include="random_id.cpp" />
@@ -152,7 +151,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="file_dialogs.h" />
-    <ClInclude Include="gui_node_editor.h" />
     <ClInclude Include="gui_ui.h" />
     <ClInclude Include="main_game.h" />
     <ClInclude Include="nlohmann\json.hpp" />

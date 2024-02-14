@@ -9,13 +9,13 @@
 
 #include <algorithm>
 #include "vector_tools.h"
+#include "raygui.h"
 
 Node::Node(Vector2 pos, Vector2 size, Color color, std::vector<Input_connector> in, std::vector<Output_connector> out) : size(size), color(color), is_selected(false), inputs(in), outputs(out), pos(pos)
 {
     reserve_outputs();
     if (outputs.size() == 0)
         outputs.push_back(*new Output_connector(this, 0));
-    editor_state = GuiNodeEditorState(this);
 }
 
 Node::Node(const Node* base) : is_selected(false), pos(base->pos), 
@@ -28,7 +28,6 @@ Node::Node(const Node* base) : is_selected(false), pos(base->pos),
     for (size_t i = 0; i < base->outputs.size(); ++i) {
         outputs.push_back(Output_connector(this, i, base->outputs[i].state));
     }
-    editor_state = GuiNodeEditorState(this);
 }
 
 void Game::draw() {
@@ -58,14 +57,14 @@ void Game::draw() {
     DrawText(num_toString(real_sim_hz, 1).c_str(), 10, 30, 20, WHITE);
 
 
-    bool hovering_above_gui = false;
+    hovering_above_gui = false;
 
     if (GuiUi()) hovering_above_gui = true;
 
     if (edit_mode == EDIT) {
         for (Node* node : nodes) {
             if (node->is_selected) {
-                if (GuiNodeEditor(&node->editor_state)) hovering_above_gui = true;
+                if (node->show_node_editor()) hovering_above_gui = true;
             }
         }
     }
@@ -646,6 +645,43 @@ void Node::draw()
     //draw outputs
     for (const Output_connector& conn : outputs)
         DrawOutputConnector(conn);
+}
+
+bool Node::show_node_editor()
+{
+    Game& game = Game::getInstance();
+    Vector2 Pos = GetWorldToScreen2D(pos + Vector2{ size.x / 2 , 0 }, game.camera);
+    Rectangle area = { Pos.x + 0, Pos.y + 0, 176, 232 };
+
+    static bool TextBoxNodeLabelEditMode = false;
+    const static size_t buffersize = 256;
+    char TextBoxNodeLabel[256] = "";
+    strcpy_s(TextBoxNodeLabel, buffersize, label.c_str());
+
+    GuiPanel(area, "Node Settings");
+    if (GuiButton(Rectangle{ Pos.x + 32, Pos.y + 32, 56, 40 }, "#143#")) {
+        game.remove_node(this);
+        delete this;
+        return true;
+    }
+    if (GuiButton(Rectangle{ Pos.x + 104, Pos.y + 32, 56, 40 }, "#016#")); // TODO: Add copy functionality
+    GuiLine(Rectangle{ Pos.x + 0, Pos.y + 120, 176, 12 }, NULL);
+
+    GuiLabel(Rectangle{ Pos.x + 8, Pos.y + 88, 48, 32 }, "Rotate:");
+    if (GuiButton(Rectangle{ Pos.x + 56, Pos.y + 88, 32, 32 }, "#073#")); // TODO: Add rotate functionality
+    if (GuiButton(Rectangle{ Pos.x + 104, Pos.y + 88, 32, 32 }, "#072#")); // TODO: Add rotate functionality
+    GuiLine(Rectangle{ Pos.x + 0, Pos.y + 72, 176, 16 }, NULL);
+
+    GuiLabel(Rectangle{ Pos.x + 8, Pos.y + 136, 48, 32 }, "Inputs:");
+    if (GuiButton(Rectangle{ Pos.x + 56, Pos.y + 136, 32, 32 }, "#121#")) add_input();
+    if (GuiButton(Rectangle{ Pos.x + 104, Pos.y + 136, 32, 32 }, "#120#")) remove_input();
+    GuiLine(Rectangle{ Pos.x + 0, Pos.y + 168, 176, 12 }, NULL);
+
+    GuiLabel(Rectangle{ Pos.x + 8, Pos.y + 176, 48, 16 }, "Label:");
+    if (GuiTextBox(Rectangle{ Pos.x + 8, Pos.y + 192, 160, 32 }, TextBoxNodeLabel, buffersize, TextBoxNodeLabelEditMode)) TextBoxNodeLabelEditMode = !TextBoxNodeLabelEditMode;
+    label = TextBoxNodeLabel;
+
+    return CheckCollisionPointRec(GetMousePosition(), area);
 }
 
 void DrawInputConnector(const Input_connector& conn) {

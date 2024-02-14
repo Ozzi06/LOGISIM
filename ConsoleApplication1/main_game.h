@@ -1,5 +1,4 @@
 #pragma once
-#include "gui_node_editor.h"
 #include "gui_ui.h"
 #include <vector>
 #include "random_id.h"
@@ -63,6 +62,7 @@ public:
     std::vector< Output_connector* >selected_outputs;
 
     void draw();
+
     void pretick();
 
     void tick();
@@ -78,6 +78,8 @@ public:
 
     void save(std::string filePath = "gamesave.json");
     void load(std::string filePath = "gamesave.json");
+
+    bool hovering_above_gui = false;
 
 private:
     bool area_selected = false;
@@ -103,9 +105,11 @@ public:
 
     virtual void draw();
 
+    virtual bool show_node_editor();
+
     virtual std::string get_label() const = 0;
 
-    GuiNodeEditorState editor_state;
+    //GuiNodeEditorState editor_state;
     bool is_selected;
     Vector2 pos;
     Vector2 size;
@@ -193,7 +197,6 @@ struct Output_connector {
 struct GateAND : public Node {
     GateAND(Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}): Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         label = "AND";
-        strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
         inputs.insert(inputs.end(), input_connectors.begin(), input_connectors.end());
 
         while (inputs.size() < input_count)
@@ -228,7 +231,6 @@ struct GateAND : public Node {
 struct GateOR : public Node {
     GateOR(Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}): Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         label = "OR";
-        strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
         inputs.insert(inputs.end(), input_connectors.begin(), input_connectors.end());
 
         while (inputs.size() < input_count)
@@ -261,7 +263,6 @@ struct GateOR : public Node {
 struct GateNAND : public Node {
     GateNAND(Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}): Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         label = "NAND";
-        strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
         inputs.insert(inputs.end(), input_connectors.begin(), input_connectors.end());
 
         while (inputs.size() < input_count)
@@ -294,7 +295,6 @@ struct GateNAND : public Node {
 struct GateNOR : public Node {
     GateNOR(Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}): Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         label = "NOR";
-        strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
         inputs.insert(inputs.end(), input_connectors.begin(), input_connectors.end());
 
         while (inputs.size() < input_count)
@@ -327,7 +327,6 @@ struct GateNOR : public Node {
 struct GateXOR : public Node {
     GateXOR(Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}): Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         label = "XOR";
-        strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
         inputs.insert(inputs.end(), input_connectors.begin(), input_connectors.end());
 
         while (inputs.size() < input_count)
@@ -360,7 +359,6 @@ struct GateXOR : public Node {
 struct GateXNOR : public Node {
     GateXNOR(Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}): Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         label = "XNOR";
-        strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
         inputs.insert(inputs.end(), input_connectors.begin(), input_connectors.end());
 
         while (inputs.size() < input_count)
@@ -393,7 +391,6 @@ struct GateXNOR : public Node {
 struct GateBUFFER : public Node {
     GateBUFFER(Vector2 pos = { 0,0 }, Output_connector* input = nullptr) : Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         label = "BUFFER";
-        strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
         
         inputs.push_back(Input_connector(this, 0, input));
 
@@ -439,7 +436,6 @@ struct GateBUFFER : public Node {
 struct GateNOT : public Node {
     GateNOT(Vector2 pos = { 0,0 }, Output_connector* input = nullptr) : Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         label = "NOT";
-        strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
         inputs.push_back(Input_connector(this, 0, input));
 
         size = Vector2{ 100, 100 + 50 * 1 };
@@ -617,7 +613,6 @@ struct StaticToggleButton : public ToggleButton {
 struct LightBulb : public Node {
     LightBulb(Vector2 pos = { 0,0 }) : Node(pos, { 0, 0 }, YELLOW) {
         label = "Light Bulb";
-        strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
 
         size = Vector2{ 100, 100 };
         outputs.clear();
@@ -647,7 +642,6 @@ struct LightBulb : public Node {
 struct SevenSegmentDisplay : public Node {
     SevenSegmentDisplay(Vector2 pos = { 0,0 }) : Node(pos, { 0, 0 }, ColorBrightness(GRAY, -0.7f)) {
         label = "7-Segment Disp";
-        strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
 
         outputs.clear();
         inputs.clear();
@@ -709,7 +703,6 @@ class FunctionNode : public Node {
 public:
     FunctionNode(Vector2 pos = {0, 0}) : Node(pos, {0, 0}, GRAY) {
         label = "Function";
-        strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
     }
 
     FunctionNode(const FunctionNode* base);

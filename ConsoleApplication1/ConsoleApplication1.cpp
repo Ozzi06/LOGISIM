@@ -10,7 +10,6 @@
 //#define GUI_WINDOW_HELP_IMPLEMENTATION
 //#include "gui_window_help.h"
 
-#include "gui_node_editor.h"
 #include <fstream>
 
 enum class type {
