@@ -123,6 +123,7 @@ public:
     virtual std::vector<Input_connector*> select_inputs(Rectangle select_area);
     virtual std::vector<Output_connector*> select_outputs(Rectangle select_area);
 
+
     virtual void not_clicked() {}
     virtual void clicked(Vector2 pos) {}
 
@@ -143,6 +144,17 @@ public:
 
     virtual bool isInput() const { return false; }
     virtual bool isOutput() const { return false; }
+
+    virtual bool is_cyclic() const { return false; }
+    virtual int delay() const { return 1; }
+
+    virtual std::vector<size_t> connected_inputs(size_t output_idx) {
+        std::vector<size_t> input_idxs;
+        for (size_t i = 0; i < inputs.size(); i++) {
+            input_idxs.push_back(i);
+        }
+        return input_idxs;
+    }
 
 protected:
     virtual void recompute_size() {
@@ -359,6 +371,11 @@ struct UnaryLogicGate : public Node {
         }
         recompute_size();
     }
+
+
+    virtual std::vector<size_t> connected_inputs(size_t output_idx) {
+        return std::vector<size_t>(output_idx);
+    }
 };
 
 struct GateBUFFER : public UnaryLogicGate {
@@ -545,33 +562,6 @@ protected:
     virtual void recompute_size() override;
 };
 
-struct FunctionInput_node : public Node {
-
-    FunctionInput_node(Vector2 pos = { 0,0 }) : Node(pos, { 0, 0 }, BLUE) {
-        label = "Push Button";
-
-        size = Vector2{ 200, 200 };
-    }
-    FunctionInput_node(const FunctionInput_node* base) : Node(base) {}
-
-    virtual void add_input() override {}
-    virtual void remove_input() override {}
-
-    Node* copy() const override { return new FunctionInput_node(this); }
-
-    virtual std::string get_label() const override { return std::string(label); }
-
-
-    virtual Texture get_texture() const override { return{ 0 }; }
-
-    virtual void pretick() override {}
-    virtual void tick() override {}
-
-    virtual std::string get_type() const override { return"FunctionInput_node"; }
-
-    virtual bool isInput() const override { return true; }
-};
-
 class FunctionNode : public Node {
 public:
     
@@ -596,6 +586,8 @@ public:
 
     virtual Texture get_texture() const override { return {0}; }
 
+    std::string delay_str;
+    virtual bool show_node_editor();
 
     std::vector<Node*> nodes;
     
@@ -610,6 +602,9 @@ public:
     virtual void pretick() override;
 
     virtual void tick() override;
+
+    virtual bool is_cyclic() const override;
+    virtual int delay() const override;
     
     virtual std::string get_type() const override { return"FunctionNode"; }
 

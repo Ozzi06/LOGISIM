@@ -617,13 +617,6 @@ void Node::draw()
     float lineThick = 10;
     Rectangle rec = { pos.x - size.x / 2, pos.y - size.y / 2, size.x, size.y };
 
-    //draw inputs
-    for (const Input_connector& conn : inputs)
-        conn.draw();
-
-    //draw outputs
-    for (const Output_connector& conn : outputs)
-        conn.draw();
 
     DrawRectangleRec(rec, color);
 
@@ -645,6 +638,14 @@ void Node::draw()
     if (game.camera.zoom > 1 / 10.0f) {
         DrawTextEx(game.regular, label.c_str(), { pos.x - size.x / 2, pos.y + size.y / 2.0f + lineThick + 2 }, 30, 1.0f, WHITE); // Draw text using font and additional parameters
     }
+
+    //draw inputs
+    for (const Input_connector& conn : inputs)
+        conn.draw();
+
+    //draw outputs
+    for (const Output_connector& conn : outputs)
+        conn.draw();
 }
 
 bool Node::show_node_editor()
@@ -1215,6 +1216,101 @@ FunctionNode::FunctionNode(const FunctionNode* base): Node(base)
     recompute_size();
 }
 
+bool FunctionNode::show_node_editor()
+{
+    Game& game = Game::getInstance();
+    Vector2 Pos = GetWorldToScreen2D(pos + Vector2{ size.x / 2 , 0 }, game.camera);
+
+    const static float area_width = 176;
+    const static float margin = 4;
+    const static float content_w = area_width - 2 * margin;
+
+    static float area_height = 232;
+
+    Rectangle area = { Pos.x + 0, Pos.y + 0, area_width, area_height };
+
+    static bool TextBoxNodeLabelEditMode = false;
+    const static size_t buffersize = 256;
+    char TextBoxNodeLabel[256] = "";
+    strcpy_s(TextBoxNodeLabel, buffersize, label.c_str());
+
+    GuiPanel(area, "Node Settings");
+
+    float curr_el_h;
+    float current_depth = 30;
+
+    {   // label
+        curr_el_h = 32;
+        float current_x = Pos.x + margin;
+        GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 32, 16 }, "Label:");
+        current_x += 32 + margin;
+
+        if (GuiTextBox(Rectangle{ current_x, Pos.y + current_depth, Pos.x + margin + content_w - current_x, 32 }, TextBoxNodeLabel, buffersize, TextBoxNodeLabelEditMode))
+            TextBoxNodeLabelEditMode = !TextBoxNodeLabelEditMode;
+        label = TextBoxNodeLabel;
+        current_depth += curr_el_h;
+    }
+
+    {   // Spacing line
+        curr_el_h = 15;
+        GuiLine(Rectangle{ Pos.x, Pos.y + current_depth, area_width, curr_el_h }, NULL);
+        current_depth += curr_el_h;
+    }
+
+    {   // Depth
+        curr_el_h = 32;
+        float current_x = Pos.x + margin;
+        static bool is_cyclic_val = is_cyclic();
+
+        GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "is_cyclic:");
+        current_x += 64 + margin;
+
+        if (is_cyclic_val) {
+            GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "true");
+            current_x += 64 + margin;
+        }
+        else {
+            GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "false");
+            current_x += 64 + margin;
+        }
+
+        current_depth += curr_el_h;
+    }
+
+
+    {   // Spacing line
+        curr_el_h = 15;
+        GuiLine(Rectangle{ Pos.x, Pos.y + current_depth, area_width, curr_el_h }, NULL);
+        current_depth += curr_el_h;
+    }
+
+    {   // Depth
+        curr_el_h = 32;
+        if(delay_str.empty())
+            delay_str = std::to_string(delay());
+        float current_x = Pos.x + margin;
+
+        GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "depth:");
+        current_x += 64 + margin;
+
+        GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, delay_str.c_str());
+        current_x += 64 + margin;
+
+        current_depth += curr_el_h;
+    }
+
+
+    {   // Spacing line
+        curr_el_h = 15;
+        GuiLine(Rectangle{ Pos.x, Pos.y + current_depth, area_width, curr_el_h }, NULL);
+        current_depth += curr_el_h;
+    }
+
+
+    area_height = current_depth;
+    return CheckCollisionPointRec(GetMousePosition(), area);
+}
+
 json FunctionNode::to_JSON() const
 {
 
@@ -1339,6 +1435,102 @@ void FunctionNode::tick()
             else outputs[i + j].state = false;
         }
     }
+}
+
+bool FunctionNode::is_cyclic() const
+{
+    enum NodeState {
+        Unvisited,
+        Visiting,  // Node is being visited (used for cycle detection)
+        Visited    // Node has been fully visited
+    };
+
+    std::unordered_map<Output_connector*, NodeState> marked_outconns;
+    bool hasCycle = false;
+
+    std::function<void(Output_connector*)> DFS;
+
+
+    DFS = [&](Output_connector* outconn) {
+        if (hasCycle || !outconn) return;
+
+        if (marked_outconns[outconn] == NodeState::Visiting) {
+            hasCycle = true;
+            return;
+        }
+
+        if (outconn->host->is_cyclic()) {
+            hasCycle = true;
+            return;
+        }
+
+        if (marked_outconns[outconn] == NodeState::Visited) {
+            return;
+        }
+
+        marked_outconns[outconn] = NodeState::Visiting;
+
+        std::vector<size_t> input_idxs = outconn->host->connected_inputs(outconn->index);
+        
+        for (size_t idx : input_idxs) {
+            DFS(outconn->host->inputs[idx].target);
+            if (hasCycle) return;
+        }
+
+        marked_outconns[outconn] = NodeState::Visited;
+    };
+
+    for (Node* outnode : output_targs) {
+        for (Input_connector& inconn : outnode->inputs) {
+            DFS(inconn.target);
+            if (hasCycle) return true;
+            marked_outconns.clear();
+        }
+    }
+
+    return false;
+}
+
+int FunctionNode::delay() const
+{
+    if (is_cyclic()) return -1;
+
+    std::unordered_map<Output_connector*, int> marked_outconns;
+    int max_delay = 1;
+    std::function<void(Output_connector*)> DFS;
+
+
+    DFS = [&](Output_connector* outconn) {
+        if (!outconn || max_delay == -1) return;
+
+        if (outconn->host->is_cyclic()) {
+            max_delay = -1;
+            return;
+        }
+
+        if (outconn->host->isInput()) return;
+
+        int current_delay = marked_outconns[outconn] + outconn->host->delay();
+        if (current_delay > max_delay) max_delay = current_delay;
+
+        std::vector<size_t> input_idxs = outconn->host->connected_inputs(outconn->index);
+
+        for (size_t idx : input_idxs) {
+            if (marked_outconns[outconn->host->inputs[idx].target] < current_delay) {
+                marked_outconns[outconn->host->inputs[idx].target] = current_delay;
+                DFS(outconn->host->inputs[idx].target);
+                if (max_delay == -1) return;
+            }
+        }
+    };
+
+    for (Node* outnode : output_targs) {
+        for (Input_connector& inconn : outnode->inputs) {
+            DFS(inconn.target);
+        }
+    }
+
+    return max_delay;
 }
 
 void FunctionNode::recompute_size()
