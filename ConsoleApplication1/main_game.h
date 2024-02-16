@@ -599,6 +599,8 @@ public:
 
     virtual void load_extra_JSON(const json& nodeJson) override;
 
+    virtual void draw() override;
+
     virtual void pretick() override;
 
     virtual void tick() override;

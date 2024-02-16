@@ -50,11 +50,8 @@ void Game::draw() {
     }
 
     EndMode2D();
-    //GuiNodeEditor(&state);
 
-    DrawText("Mouse right button drag to move, mouse wheel to zoom", 10, 10, 20, WHITE);
-
-    DrawText(num_toString(real_sim_hz, 1).c_str(), 10, 30, 20, WHITE);
+    DrawText(num_toString(real_sim_hz, 1).c_str(), 10, 100, 20, WHITE);
 
 
     hovering_above_gui = false;
@@ -1402,6 +1399,86 @@ void FunctionNode::load_extra_JSON(const json& nodeJson)
     catch (const json::exception& e) {
         // Handle or log error, e.g., missing key or wrong type
         std::cerr << "JSON parsing error: " << e.what() << '\n';
+    }
+}
+
+void FunctionNode::draw()
+{
+    Game& game = Game::getInstance();
+    float roundness = 0.1f;
+    int segments = 50;
+    float lineThick = 10;
+    Rectangle rec = { pos.x - size.x / 2, pos.y - size.y / 2, size.x, size.y };
+
+
+    DrawRectangleRec(rec, color);
+
+    if (game.camera.zoom > 1 / 10.0f && !is_selected)
+        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, ColorBrightness(color, -0.2f));
+    if (is_selected)
+        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, ColorBrightness(GREEN, -0.2f));
+
+    //draw icon
+    if (game.camera.zoom > 0.43f) {
+        float texture_scale = 0.1f;
+
+        float texture_pos_x = pos.x - get_texture().width / 2.0f * texture_scale;
+        float texture_pos_y = pos.y - get_texture().height / 2.0f * texture_scale;
+        DrawTextureEx(get_texture(), { texture_pos_x, texture_pos_y }, 0.0f, texture_scale, ColorBrightness(WHITE, -0.4f));
+    }
+
+    //draw name
+    if (game.camera.zoom > 1 / 10.0f) {
+        DrawTextEx(game.regular, label.c_str(), { pos.x - size.x / 2, pos.y + size.y / 2.0f + lineThick + 2 }, 30, 1.0f, WHITE); // Draw text using font and additional parameters
+    }
+
+    //draw inputs
+    for (size_t i = 0; i < input_targs.size(); i++) {
+        for (size_t j = 0; j < input_targs[i]->outputs.size(); j++) {
+            inputs[i + j].draw();
+
+            const size_t width = 30;
+            float lineThick = 8;
+            float height_spacing = 30;
+            float text_spacing = 2.0f;
+            Vector2 pos = {
+            inputs[i].host->pos.x - inputs[i + j].host->size.x / 2 - width,
+            inputs[i].host->pos.y + ((float)inputs[i].host->inputs.size() - 1.0f) * height_spacing / 2.0f - inputs[i].index * height_spacing - lineThick / 2.0f
+            };
+
+            Font font = GetFontDefault();
+            const char* text = input_targs[i]->label.c_str();
+            Color color = RAYWHITE;
+            if (input_targs[i]->outputs[j].state)
+                color = DARKGREEN;
+            DrawTextEx(font, text, pos + Vector2{ width, 0 }, 12, text_spacing, color);
+        }
+
+    }
+
+    //draw outputs
+    for (size_t i = 0; i < output_targs.size(); i++) {
+        for (size_t j = 0; j < output_targs[i]->inputs.size(); j++) {
+            outputs[i + j].draw();
+
+            const size_t width = 30;
+            float lineThick = 8;
+            float height_spacing = 30;
+            float text_spacing = 2.0f;
+
+            Vector2 pos = {
+                outputs[i].host->pos.x + outputs[i].host->size.x / 2.0f,
+                outputs[i].host->pos.y + (outputs[i].host->outputs.size() - 1) * height_spacing / 2.0f - outputs[i].index * height_spacing - lineThick / 2.0f
+            };
+
+            Font font = GetFontDefault();
+            const char* text;
+            text = output_targs[i]->label.c_str();
+            Color color = RAYWHITE;
+            if (output_targs[i]->inputs[j].target && output_targs[i]->inputs[j].target->state)
+                color = DARKGREEN;
+            DrawTextEx(font, text, pos - Vector2{ float(output_targs[i]->label.size()) * (text_spacing + 7.0f), 0 }, 12, text_spacing, color);
+        }
     }
 }
 

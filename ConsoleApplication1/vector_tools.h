@@ -28,31 +28,34 @@ Rectangle RectFrom2Points(Vector2 a, Vector2 b);
 class RollingAverage {
 private:
     std::vector<double> window;
-    int size;
-    int index;
-    double sum;
-
+    size_t size;
+    size_t current_size = 0;
+    size_t index;
 public:
-    RollingAverage(int windowSize) : size(windowSize), index(0), sum(0) {
+    RollingAverage(int windowSize) : size(windowSize), index(0) {
         window.resize(size, 0);
     }
 
     void add(double num) {
-        // Subtract the oldest number from the sum
-        sum -= window[index];
-
-        // Add the new number
         window[index] = num;
-        sum += num;
 
         // Move to the next index
         index = (index + 1) % size;
+
+        if (current_size < size) current_size++;
+    }
+
+    void reset() {
+        current_size = 0;
+        index = 0;
     }
 
     double getAverage() const {
-        // Handle case where less than 'size' elements have been added
-        int currentSize = std::min(index, size);
-        return currentSize == 0 ? 0 : sum / currentSize;
+        double sum = 0;
+        for (size_t i = 0; i < current_size; i++) {
+            sum += window[i];
+        }
+        return sum / double(current_size);
     }
 };
 
