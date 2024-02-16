@@ -851,6 +851,7 @@ std::vector<Output_connector*> Node::select_outputs(Rectangle select_area)
 
 void Node::tick()
 {
+    has_changed = false;
     for (Output_connector& conn : outputs) {
         if (conn.new_state != conn.state) {
             has_changed = true;
