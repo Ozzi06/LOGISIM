@@ -702,6 +702,30 @@ bool Node::show_node_editor()
         current_depth += curr_el_h;
     }
 
+    {   // Spacing line
+        curr_el_h = 15;
+        GuiLine(Rectangle{ Pos.x, Pos.y + current_depth, area_width, curr_el_h }, NULL);
+        current_depth += curr_el_h;
+    }
+
+    {   // Has_changed
+        curr_el_h = 32;
+        float current_x = Pos.x + margin;
+
+        GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "has_changed:");
+        current_x += 64 + margin;
+
+        if (has_changed) {
+            GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "true");
+            current_x += 64 + margin;
+        }
+        else {
+            GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "false");
+            current_x += 64 + margin;
+        }
+
+        current_depth += curr_el_h;
+    }
     
     {   // Spacing line
         curr_el_h = 15;
@@ -828,7 +852,10 @@ std::vector<Output_connector*> Node::select_outputs(Rectangle select_area)
 void Node::tick()
 {
     for (Output_connector& conn : outputs) {
-        conn.state = conn.new_state;
+        if (conn.new_state != conn.state) {
+            has_changed = true;
+            conn.state = conn.new_state;
+        }
     }
 }
 
@@ -860,6 +887,7 @@ void GateNOT::pretick()
             outputs[i].new_state = !inputs[i].target->state;
         else
             outputs[i].new_state = true;
+
     }
 }
 
@@ -872,6 +900,7 @@ void GateAND::pretick()
         if (!in.target || !in.target->state) retval = false;
     }
     outputs[0].new_state = retval;
+
     return;
 }
 
@@ -1013,8 +1042,12 @@ void Button::recompute_size()
 
 void ToggleButton::clicked(Vector2 pos)
 {
+    has_changed = false;
     for (size_t i = 0; i < outputs.size(); i++) {
-        if (CheckCollisionPointRec(pos, getButtonRect(i))) outputs[i].state = !outputs[i].state;
+        if (CheckCollisionPointRec(pos, getButtonRect(i))) { 
+            outputs[i].state = !outputs[i].state;
+            has_changed = true;
+        }
     }
 }
 
@@ -1296,6 +1329,30 @@ bool FunctionNode::show_node_editor()
         current_depth += curr_el_h;
     }
 
+    {   // Spacing line
+        curr_el_h = 15;
+        GuiLine(Rectangle{ Pos.x, Pos.y + current_depth, area_width, curr_el_h }, NULL);
+        current_depth += curr_el_h;
+    }
+
+    {   // Has_changed
+        curr_el_h = 32;
+        float current_x = Pos.x + margin;
+
+        GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "has_changed:");
+        current_x += 64 + margin;
+
+        if (has_changed) {
+            GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "true");
+            current_x += 64 + margin;
+        }
+        else {
+            GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "false");
+            current_x += 64 + margin;
+        }
+
+        current_depth += curr_el_h;
+    }
 
     {   // Spacing line
         curr_el_h = 15;
@@ -1486,30 +1543,47 @@ void FunctionNode::pretick()
 {
     for (size_t i = 0; i < input_targs.size(); i++) {
         for (size_t j = 0; j < input_targs[i]->outputs.size(); j++) {
-            if (inputs[i+j].target)
-                input_targs[i]->outputs[j].state = inputs[i + j].target->state;
+            if (inputs[i + j].target) {
+                if (inputs[i + j].target->host->has_changed) {
+                    has_changed = true;
+                    input_targs[i]->outputs[j].state = inputs[i + j].target->state;
+                    input_targs[i]->outputs[j].host->has_changed = true;
+                }
+            }
             else
                 input_targs[i]->outputs[j].state = false;
         }
         
     }
 
-    for (Node* node : nodes) {
-        node->pretick();
+    if (has_changed) {
+        for (Node* node : nodes) {
+            node->pretick();
+        }
     }
 }
 
 void FunctionNode::tick()
 {
-    for (Node* node : nodes) {
-        node->tick();
+    if (has_changed) {
+        has_changed = false;
+        for (Node* node : nodes) {
+            node->tick();
+            if (node->has_changed) has_changed = true;
+        }
     }
+        
+
 
     for (size_t i = 0; i < output_targs.size(); i++) {
         for (size_t j = 0; j < output_targs[i]->inputs.size(); j++) {
-            if (output_targs[i]->inputs[j].target)
-                outputs[i + j].state = output_targs[i]->inputs[j].target->state;
-            else outputs[i + j].state = false;
+            if (output_targs[i]->inputs[j].target) {
+                if (outputs[i + j].state != output_targs[i]->inputs[j].target->state) {
+                    outputs[i + j].state = output_targs[i]->inputs[j].target->state;
+                    has_changed = true;
+                }
+            }
+            else outputs[i + j].new_state = false;
         }
     }
 }
@@ -1720,15 +1794,20 @@ void SevenSegmentDisplay::recompute_size()
 
 void PushButton::not_clicked()
 {
+    has_changed = false;
     for (size_t i = 0; i < outputs.size(); i++) {
+        if (outputs[i].state) has_changed = true;
         outputs[i].state = false;
     }
 }
 
 void PushButton::clicked(Vector2 pos)
 {
+    has_changed = false;
     for (size_t i = 0; i < outputs.size(); i++) {
+        if (!outputs[i].state) has_changed = true;
         if (CheckCollisionPointRec(pos, getButtonRect(i))) outputs[i].state = true;
         else outputs[i].state = false;
+
     }
 }

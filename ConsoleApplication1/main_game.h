@@ -106,6 +106,8 @@ public:
 
     virtual std::string get_label() const { return std::string(label); }
 
+    bool has_changed = true;
+
     //GuiNodeEditorState editor_state;
     bool is_selected;
     Vector2 pos;
@@ -448,7 +450,7 @@ struct Button :public Node {
     virtual void clicked(Vector2 pos) = 0;
 
     virtual void pretick() override {}
-    virtual void tick() override {}
+    virtual void tick() override { has_changed = false; }
 
     virtual bool isInput() const override { return true; }
 
@@ -522,7 +524,7 @@ struct LightBulb : public Node {
 
     virtual Texture get_texture() const override { return {0}; }
 
-    virtual void pretick() override {}
+    virtual void pretick() override { has_changed = false; }
 
     virtual std::string get_type() const override { return"LightBulb"; }
 
