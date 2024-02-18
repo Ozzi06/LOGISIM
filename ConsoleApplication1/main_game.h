@@ -452,6 +452,8 @@ struct Bus : public Node {
     virtual std::vector<size_t> connected_inputs(size_t output_idx) {
         return std::vector<size_t>(output_idx);
     }
+private:
+    std::shared_ptr<std::vector<bool>> bus_values;
 };
 
 struct Button :public Node {
