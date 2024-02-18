@@ -11,14 +11,14 @@
 #include "vector_tools.h"
 #include "raygui.h"
 
-Node::Node(Vector2 pos, Vector2 size, Color color, std::vector<Input_connector> in, std::vector<Output_connector> out) : size(size), color(color), is_selected(false), inputs(in), outputs(out), pos(pos)
+Node::Node(std::vector<Node*>& container, Vector2 pos, Vector2 size, Color color, std::vector<Input_connector> in, std::vector<Output_connector> out) : container(container), size(size), color(color), is_selected(false), inputs(in), outputs(out), pos(pos)
 {
     reserve_outputs();
     if (outputs.size() == 0)
         outputs.push_back(*new Output_connector(this, 0));
 }
 
-Node::Node(const Node* base) : is_selected(false), pos(base->pos), 
+Node::Node(const Node* base) : container(base->container), is_selected(false), pos(base->pos), 
                         size(base->size), color(base->color), label(base->label)
 {
     reserve_outputs();
@@ -547,7 +547,7 @@ void NodeNetworkFromJson(const json& nodeNetworkJson, std::vector<Node*>& nodes)
             std::string nodeType = it.key(); // Get the gate type (e.g., "GateAND")
             json nodeJson = it.value(); // Get the JSON object representing the node
 
-            Node* node = NodeFactory::createNode(nodeType);
+            Node* node = NodeFactory::createNode(nodes, nodeType);
             assert(node && "node not created");
             node->load_JSON(nodeJson);
             nodes.push_back(node);
@@ -1190,7 +1190,7 @@ json Input_connector::to_JSON() const {
     };
 }
 
-FunctionNode::FunctionNode(const FunctionNode* base): Node(base)
+FunctionNode::FunctionNode(const FunctionNode* base): Node(base), is_single_tick(base->is_single_tick), is_cyclic_val(base->is_cyclic_val)
 {
     nodes.clear();
     size_t* idxs = new size_t[base->nodes.size()];
@@ -1266,7 +1266,7 @@ bool FunctionNode::show_node_editor()
     strcpy_s(TextBoxNodeLabel, buffersize, label.c_str());
 
     GuiPanel(area, "Node Settings");
-
+    
     float curr_el_h;
     float current_depth = 30;
 
@@ -1288,10 +1288,9 @@ bool FunctionNode::show_node_editor()
         current_depth += curr_el_h;
     }
 
-    {   // Depth
+    {   // is_cyclic
         curr_el_h = 32;
         float current_x = Pos.x + margin;
-        static bool is_cyclic_val = is_cyclic();
 
         GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "is_cyclic:");
         current_x += 64 + margin;
@@ -1353,6 +1352,31 @@ bool FunctionNode::show_node_editor()
         }
 
         current_depth += curr_el_h;
+    }
+
+    {   // Spacing line
+        curr_el_h = 15;
+        GuiLine(Rectangle{ Pos.x, Pos.y + current_depth, area_width, curr_el_h }, NULL);
+        current_depth += curr_el_h;
+    }
+
+    {   // Change mode
+        curr_el_h = 32;
+        float current_x = Pos.x + margin;
+
+        if (is_cyclic_val){}
+        else if (!is_single_tick) {
+            GuiToggle(Rectangle{ current_x, Pos.y + current_depth, 128, 32 }, "make_single_tick", &is_single_tick);
+            if (is_single_tick) 
+                delay_str = "1";
+            current_depth += curr_el_h;
+        }
+        else {
+            GuiToggle(Rectangle{ current_x, Pos.y + current_depth, 128, 32 }, "make_normal_timing", &is_single_tick);
+            if (!is_single_tick)
+                delay_str = std::to_string(delay());
+            current_depth += curr_el_h;
+        }
     }
 
     {   // Spacing line
@@ -1452,6 +1476,7 @@ void FunctionNode::load_extra_JSON(const json& nodeJson)
         while (outputs.size() < targ_output_count) {
             outputs.push_back(Output_connector(this, outputs.size()));
         }
+        is_cyclic_val = is_cyclic();
         recompute_size();
     }
     catch (const json::exception& e) {
@@ -1491,100 +1516,153 @@ void FunctionNode::draw()
     }
 
     //draw inputs
-    for (size_t i = 0; i < input_targs.size(); i++) {
-        for (size_t j = 0; j < input_targs[i]->outputs.size(); j++) {
-            inputs[i + j].draw();
+    {
+        size_t i = 0;
+        for (size_t x = 0; x < input_targs.size(); x++) {
+            for (size_t y = 0; y < input_targs[x]->outputs.size(); y++) {
+                inputs[i].draw();
 
-            const size_t width = 30;
-            float lineThick = 8;
-            float height_spacing = 30;
-            float text_spacing = 2.0f;
-            Vector2 pos = {
-            inputs[i].host->pos.x - inputs[i + j].host->size.x / 2 - width,
-            inputs[i].host->pos.y + ((float)inputs[i].host->inputs.size() - 1.0f) * height_spacing / 2.0f - inputs[i].index * height_spacing - lineThick / 2.0f
-            };
+                const size_t width = 30;
+                float lineThick = 8;
+                float height_spacing = 30;
+                float text_spacing = 2.0f;
+                Vector2 pos = {
+                inputs[i].host->pos.x - inputs[i].host->size.x / 2 - width,
+                inputs[i].host->pos.y + ((float)inputs[i].host->inputs.size() - 1.0f) * height_spacing / 2.0f - inputs[i].index * height_spacing - lineThick / 2.0f
+                };
 
-            Font font = GetFontDefault();
-            const char* text = input_targs[i]->label.c_str();
-            Color color = RAYWHITE;
-            if (input_targs[i]->outputs[j].state)
-                color = DARKGREEN;
-            DrawTextEx(font, text, pos + Vector2{ width, 0 }, 12, text_spacing, color);
+                Font font = GetFontDefault();
+                const char* text = input_targs[x]->label.c_str();
+                Color color = RAYWHITE;
+                if (input_targs[x]->outputs[y].state)
+                    color = DARKGREEN;
+                DrawTextEx(font, text, pos + Vector2{ width, 0 }, 12, text_spacing, color);
+                i++;
+            }
+
         }
-
     }
+    
 
     //draw outputs
-    for (size_t i = 0; i < output_targs.size(); i++) {
-        for (size_t j = 0; j < output_targs[i]->inputs.size(); j++) {
-            outputs[i + j].draw();
+    {
+        size_t i = 0;
+        for (size_t x = 0; x < output_targs.size(); x++) {
+            for (size_t y = 0; y < output_targs[x]->inputs.size(); y++) {
+                outputs[i].draw();
 
-            const size_t width = 30;
-            float lineThick = 8;
-            float height_spacing = 30;
-            float text_spacing = 2.0f;
+                const size_t width = 30;
+                float lineThick = 8;
+                float height_spacing = 30;
+                float text_spacing = 2.0f;
 
-            Vector2 pos = {
-                outputs[i].host->pos.x + outputs[i].host->size.x / 2.0f,
-                outputs[i].host->pos.y + (outputs[i].host->outputs.size() - 1) * height_spacing / 2.0f - outputs[i].index * height_spacing - lineThick / 2.0f
-            };
+                Vector2 pos = {
+                    outputs[i].host->pos.x + outputs[i].host->size.x / 2.0f,
+                    outputs[i].host->pos.y + (outputs[i].host->outputs.size() - 1) * height_spacing / 2.0f - outputs[i].index * height_spacing - lineThick / 2.0f
+                };
 
-            Font font = GetFontDefault();
-            const char* text;
-            text = output_targs[i]->label.c_str();
-            Color color = RAYWHITE;
-            if (output_targs[i]->inputs[j].target && output_targs[i]->inputs[j].target->state)
-                color = DARKGREEN;
-            DrawTextEx(font, text, pos - Vector2{ float(output_targs[i]->label.size()) * (text_spacing + 7.0f), 0 }, 12, text_spacing, color);
+                Font font = GetFontDefault();
+                const char* text;
+                text = output_targs[x]->label.c_str();
+                Color color = RAYWHITE;
+                if (output_targs[x]->inputs[y].target && output_targs[x]->inputs[y].target->state)
+                    color = DARKGREEN;
+                DrawTextEx(font, text, pos - Vector2{ float(output_targs[x]->label.size()) * (text_spacing + 7.0f), 0 }, 12, text_spacing, color);
+                i++;
+            }
         }
     }
+    
 }
 
 void FunctionNode::pretick()
 {
-    for (size_t i = 0; i < input_targs.size(); i++) {
-        for (size_t j = 0; j < input_targs[i]->outputs.size(); j++) {
-            if (inputs[i + j].target) {
-                if (inputs[i + j].target->host->has_changed) {
-                    has_changed = true;
-                    input_targs[i]->outputs[j].state = inputs[i + j].target->state;
-                    input_targs[i]->outputs[j].host->has_changed = true;
+    Game& game = Game::getInstance();
+    {
+        size_t i = 0;
+        for (size_t x = 0; x < input_targs.size(); x++) {
+            for (size_t y = 0; y < input_targs[x]->outputs.size(); y++) {
+                if (inputs[i].target) {
+                    if (inputs[i].target->host->has_changed) {
+                        has_changed = true;
+                        input_targs[x]->outputs[y].state = inputs[i].target->state;
+                        input_targs[x]->outputs[y].host->has_changed = true;
+                    }
                 }
+                else
+                    input_targs[x]->outputs[y].state = false;
+                i++;
             }
-            else
-                input_targs[i]->outputs[j].state = false;
         }
-        
     }
+    
+    if (is_single_tick) {
 
-    if (has_changed) {
-        for (Node* node : nodes) {
-            node->pretick();
+        if (has_changed) {
+            for (Node* node : nodes) {
+                node->pretick();
+                node->tick();
+            }
+        }
+    }
+    else {
+
+        if (has_changed ||!game.get_efficient_simulation()) {
+            for (Node* node : nodes) {
+                node->pretick();
+            }
         }
     }
 }
 
 void FunctionNode::tick()
 {
-    if (has_changed) {
+    Game& game = Game::getInstance();
+    if (is_single_tick) {
+        if (has_changed || !game.get_efficient_simulation()) {
+            has_changed = false;
+            for (Node* node : nodes) {
+                if (node->has_changed) has_changed = true;
+            }
+            {
+                size_t i = 0;
+                for (size_t x = 0; x < output_targs.size(); x++) {
+                    for (size_t y = 0; y < output_targs[x]->inputs.size(); y++) {
+                        if (output_targs[x]->inputs[y].target) {
+                            if (outputs[i].state != output_targs[x]->inputs[y].target->state) {
+                                outputs[i].state = output_targs[x]->inputs[y].target->state;
+                                has_changed = true;
+                            }
+                        }
+                        else outputs[i].new_state = false;
+                        i++;
+                    }
+                }
+            }
+        }
+        return;
+    }
+    if (has_changed || !game.get_efficient_simulation()) {
         has_changed = false;
         for (Node* node : nodes) {
             node->tick();
             if (node->has_changed) has_changed = true;
         }
-    }
-        
 
-
-    for (size_t i = 0; i < output_targs.size(); i++) {
-        for (size_t j = 0; j < output_targs[i]->inputs.size(); j++) {
-            if (output_targs[i]->inputs[j].target) {
-                if (outputs[i + j].state != output_targs[i]->inputs[j].target->state) {
-                    outputs[i + j].state = output_targs[i]->inputs[j].target->state;
-                    has_changed = true;
+        {
+            size_t i = 0;
+            for (size_t x = 0; x < output_targs.size(); x++) {
+                for (size_t y = 0; y < output_targs[x]->inputs.size(); y++) {
+                    if (output_targs[x]->inputs[y].target) {
+                        if (outputs[i].state != output_targs[x]->inputs[y].target->state) {
+                            outputs[i].state = output_targs[x]->inputs[y].target->state;
+                            has_changed = true;
+                        }
+                    }
+                    else outputs[i].new_state = false;
+                    i++;
                 }
             }
-            else outputs[i + j].new_state = false;
         }
     }
 }
@@ -1683,6 +1761,59 @@ int FunctionNode::delay() const
     }
 
     return max_delay;
+}
+
+
+void FunctionNode::sort_linear()
+{
+    if (is_cyclic()) return ;
+
+    std::unordered_map<Output_connector*, int> marked_outconns;
+    int max_delay = 1;
+    std::function<void(Output_connector*)> DFS;
+
+
+    DFS = [&](Output_connector* outconn) {
+        if (!outconn || max_delay == -1) return;
+
+        if (outconn->host->is_cyclic()) {
+            max_delay = -1;
+            return;
+        }
+
+        if (outconn->host->isInput()) return;
+
+        int current_delay = marked_outconns[outconn] + outconn->host->delay();
+        if (current_delay > max_delay) max_delay = current_delay;
+
+        std::vector<size_t> input_idxs = outconn->host->connected_inputs(outconn->index);
+
+        for (size_t idx : input_idxs) {
+            if (marked_outconns[outconn->host->inputs[idx].target] < current_delay) {
+                marked_outconns[outconn->host->inputs[idx].target] = current_delay;
+                DFS(outconn->host->inputs[idx].target);
+                if (max_delay == -1) return;
+            }
+        }
+    };
+
+    for (Node* outnode : output_targs) {
+        for (Input_connector& inconn : outnode->inputs) {
+            DFS(inconn.target);
+        }
+    }
+
+    std::sort(nodes.begin(), nodes.end(), [&](Node* a, Node* b) {
+        size_t max_a = 0;
+        for (Output_connector& out : a->outputs) {
+            if (marked_outconns[&out] > max_a) max_a = marked_outconns[&out];
+        }
+        size_t max_b = 0;
+        for (Output_connector& out : b->outputs) {
+            if (marked_outconns[&out] > max_b) max_b = marked_outconns[&out];
+        }
+        return max_a > max_b; // Return true if 'a' should come before 'b'
+        });
 }
 
 void FunctionNode::recompute_size()

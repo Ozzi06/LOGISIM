@@ -135,8 +135,9 @@ int main()
         game.draw();
 
         t = GetTime();
-        if(expected_updates < game.targ_sim_hz * 5)
-            expected_updates += (t - pre_update_t) * game.targ_sim_hz;
+        expected_updates += (t - pre_update_t) * game.targ_sim_hz;
+        if (expected_updates > game.targ_sim_hz * 5)
+            expected_updates = game.targ_sim_hz * 5;
 
         roller.add(i / (t - pre_update_t));
            
