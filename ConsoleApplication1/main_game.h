@@ -97,6 +97,8 @@ public:
     
     Node(const Node* base);
 
+    virtual ~Node() {}
+
     virtual size_t get_max_outputs() const { return 32; }
     virtual void reserve_outputs() { outputs.reserve(get_max_outputs()); }
 
@@ -137,7 +139,6 @@ public:
 
     virtual void pretick() = 0;
     virtual void tick();
-    ~Node();
 
     virtual std::string get_type() const = 0;
 

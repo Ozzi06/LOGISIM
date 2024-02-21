@@ -225,8 +225,8 @@ void Game::handle_input()
         if (camera.zoom > 14.0f)
             camera.zoom = 14.0f;
 
-        if (camera.zoom < 1 / 30.0f)
-            camera.zoom = 1 / 30.0f;
+        if (camera.zoom < 1 / 256.0f)
+            camera.zoom = 1 / 256.0f;
     }
     
 
@@ -860,9 +860,6 @@ void Node::tick()
     }
 }
 
-Node::~Node()
-{}
-
 Texture GateAND::texture = Texture{ 0 };
 
 Texture GateOR::texture = Texture{ 0 };
@@ -1245,6 +1242,13 @@ FunctionNode::FunctionNode(const FunctionNode* base): Node(base), is_single_tick
         });
 
     recompute_size();
+}
+
+FunctionNode::~FunctionNode()
+{
+    for (Node* node : nodes) {
+        delete node;
+    }
 }
 
 bool FunctionNode::show_node_editor()
