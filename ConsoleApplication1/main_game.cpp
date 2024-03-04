@@ -1703,11 +1703,9 @@ bool FunctionNode::is_cyclic() const
         }
 
         marked_outconns[outconn] = NodeState::Visiting;
-
-        std::vector<size_t> input_idxs = outconn->host->connected_inputs(outconn->index);
         
-        for (size_t idx : input_idxs) {
-            DFS(outconn->host->inputs[idx].target);
+        for (Input_connector* inconn : outconn->host->connected_inputs(outconn->index)) {
+            DFS(inconn->target);
             if (hasCycle) return;
         }
 
@@ -1747,12 +1745,10 @@ int FunctionNode::delay() const
         int current_delay = marked_outconns[outconn] + outconn->host->delay();
         if (current_delay > max_delay) max_delay = current_delay;
 
-        std::vector<size_t> input_idxs = outconn->host->connected_inputs(outconn->index);
-
-        for (size_t idx : input_idxs) {
-            if (marked_outconns[outconn->host->inputs[idx].target] < current_delay) {
-                marked_outconns[outconn->host->inputs[idx].target] = current_delay;
-                DFS(outconn->host->inputs[idx].target);
+        for (Input_connector* inconn : outconn->host->connected_inputs(outconn->index)) {
+            if (marked_outconns[inconn->target] < current_delay) {
+                marked_outconns[inconn->target] = current_delay;
+                DFS(inconn->target);
                 if (max_delay == -1) return;
             }
         }
@@ -1790,12 +1786,10 @@ void FunctionNode::sort_linear()
         int current_delay = marked_outconns[outconn] + outconn->host->delay();
         if (current_delay > max_delay) max_delay = current_delay;
 
-        std::vector<size_t> input_idxs = outconn->host->connected_inputs(outconn->index);
-
-        for (size_t idx : input_idxs) {
-            if (marked_outconns[outconn->host->inputs[idx].target] < current_delay) {
-                marked_outconns[outconn->host->inputs[idx].target] = current_delay;
-                DFS(outconn->host->inputs[idx].target);
+        for (Input_connector* inconn : outconn->host->connected_inputs(outconn->index)) {
+            if (marked_outconns[inconn->target] < current_delay) {
+                marked_outconns[inconn->target] = current_delay;
+                DFS(inconn->target);
                 if (max_delay == -1) return;
             }
         }

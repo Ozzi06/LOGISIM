@@ -154,12 +154,12 @@ public:
     virtual bool is_cyclic() const { return false; }
     virtual int delay() const { return 1; }
 
-    virtual std::vector<size_t> connected_inputs(size_t output_idx) {
-        std::vector<size_t> input_idxs;
+    virtual std::vector<Input_connector*> connected_inputs(size_t output_idx) {
+        std::vector<Input_connector*> input_nodes;
         for (size_t i = 0; i < inputs.size(); i++) {
-            input_idxs.push_back(i);
+            input_nodes.push_back(&inputs[i]);
         }
-        return input_idxs;
+        return input_nodes;
     }
 
 protected:
@@ -380,8 +380,10 @@ struct UnaryLogicGate : public Node {
     }
 
 
-    virtual std::vector<size_t> connected_inputs(size_t output_idx) {
-        return std::vector<size_t>(output_idx);
+    virtual std::vector<Input_connector*> connected_inputs(size_t output_idx) {
+        std::vector<Input_connector*> a;
+        a.push_back(&inputs[output_idx]);
+        return a;
     }
 };
 
@@ -435,6 +437,7 @@ struct Bus : public Node {
         outputs.push_back(Output_connector(this, outputs.size(), false));
         recompute_size();
     }
+
     virtual void remove_input() override {
         Game& game = Game::getInstance();
         if (inputs.size() > 1) {
@@ -450,8 +453,18 @@ struct Bus : public Node {
     }
 
 
-    virtual std::vector<size_t> connected_inputs(size_t output_idx) {
-        return std::vector<size_t>(output_idx);
+    virtual std::vector<Input_connector*> connected_inputs(size_t output_idx) {
+        std::vector<Input_connector*> conned;
+
+        for (Node* node : container) {
+            Bus* bus = dynamic_cast<Bus*>(node);
+            if (bus) {
+                if (bus->label == label) {
+                    conned.push_back(&bus->inputs[output_idx]);
+                }
+            }
+        }
+        return conned;
     }
 private:
     std::shared_ptr<std::vector<bool>> bus_values;
