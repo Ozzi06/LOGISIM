@@ -680,7 +680,7 @@ protected:
 class FunctionNode : public Node {
 public:
     
-    FunctionNode(std::vector<Node*> * container, Vector2 pos = {0, 0}) : Node(container, pos, {0, 0}, ColorBrightness(GRAY, -0.6f)), is_single_tick(false), is_cyclic_val(true) {
+    FunctionNode(std::vector<Node*> * container, Vector2 pos = {0, 0}) : Node(container, pos, {0, 0}, ColorBrightness(GRAY, -0.6f)), is_single_tick(false) {
         label = "Function";
     }
 
@@ -726,8 +726,9 @@ protected:
     virtual void recompute_size() override;
     
 private:
+    std::optional<bool> is_cyclic_val;
     bool is_single_tick;
-    bool is_cyclic_val;
+    //bool is_cyclic_val;
     std::string delay_str;
 };
 

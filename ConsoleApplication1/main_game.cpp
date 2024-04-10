@@ -1371,7 +1371,7 @@ bool FunctionNode::show_node_editor()
         curr_el_h = 32;
         float current_x = Pos.x + margin;
 
-        if (is_cyclic_val){}
+        if (is_cyclic()){}
         else if (!is_single_tick) {
             GuiToggle(Rectangle{ current_x, Pos.y + current_depth, 128, 32 }, "make_single_tick", &is_single_tick);
             if (is_single_tick) 
@@ -1674,6 +1674,10 @@ void FunctionNode::tick()
 
 bool FunctionNode::is_cyclic() const
 {
+    if (is_cyclic_val.has_value()) {
+        return is_cyclic_val.value();
+    }
+
     enum NodeState {
         Unvisited,
         Visiting,  // Node is being visited (used for cycle detection)
