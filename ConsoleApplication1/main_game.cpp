@@ -540,27 +540,27 @@ void Game::save(std::string filePath)
 
 }
 
-void NodeNetworkFromJson(const json& nodeNetworkJson, std::vector<Node*>& nodes) {
+void NodeNetworkFromJson(const json& nodeNetworkJson, std::vector<Node*> * nodes) {
     for (const auto& node : nodeNetworkJson) {
         // Each node is a JSON object where the key is the gate type
         for (auto it = node.begin(); it != node.end(); ++it) {
             std::string nodeType = it.key(); // Get the gate type (e.g., "GateAND")
             json nodeJson = it.value(); // Get the JSON object representing the node
 
-            Node* node = NodeFactory::createNode(&nodes, nodeType);
+            Node* node = NodeFactory::createNode(nodes, nodeType);
             assert(node && "node not created");
             node->load_JSON(nodeJson);
-            nodes.push_back(node);
+            nodes->push_back(node);
         }
     }
 
-    for (Node* node : nodes) {
+    for (Node* node : *nodes) {
         for (Input_connector& input : node->inputs) {
 
             bool found = false;
             uid_t id = input.target_id;
             if (id) {
-                for (Node* node2 : nodes) {
+                for (Node* node2 : *nodes) {
                     if (found) break;
                     for (Output_connector& output : node2->outputs) {
                         if (output.id == id) {
@@ -601,7 +601,7 @@ void Game::load(std::string filePath)
     saveFile.close();
     
     nodes.clear();
-    NodeNetworkFromJson(save["nodes"], nodes);
+    NodeNetworkFromJson(save["nodes"], &nodes);
     if (save.contains("camera"))
         camera = save.at("camera").get<Camera2D>();
 }
@@ -1437,9 +1437,9 @@ void FunctionNode::load_extra_JSON(const json& nodeJson)
         // load all the nodes
         nodes.clear();
         if (nodeJson.contains(get_type()))
-            NodeNetworkFromJson(nodeJson.at(get_type()).at("nodes"), nodes);
+            NodeNetworkFromJson(nodeJson.at(get_type()).at("nodes"), &nodes);
         else if (nodeJson.contains("nodes"))
-            NodeNetworkFromJson(nodeJson.at("nodes"), nodes);
+            NodeNetworkFromJson(nodeJson.at("nodes"), &nodes);
         else
             std::cerr << "JSON parsing error: \n";
 

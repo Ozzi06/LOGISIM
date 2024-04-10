@@ -87,7 +87,7 @@ private:
 
 };
 
-void NodeNetworkFromJson(const json& nodeNetworkJson, std::vector<Node*>& nodes);
+void NodeNetworkFromJson(const json& nodeNetworkJson, std::vector<Node*> * nodes);
 
 void NormalizeNodeNetworkPosTocLocation(std::vector<Node*>& nodes, Vector2 targpos);
 
@@ -734,27 +734,27 @@ private:
 class NodeFactory {
 public:
     static Node* createNode(std::vector<Node*> * container, const std::string& nodeName) {
-        static std::unordered_map<std::string, std::function<Node* ()>> factoryMap = {
-            {"GateAND", [&container]() -> Node* { return new GateAND(container); }},
-            {"GateOR", [&container]() -> Node* { return new GateOR(container); }},
-            {"GateNAND", [&container]() -> Node* { return new GateNAND(container); }},
-            {"GateNOR", [&container]() -> Node* { return new GateNOR(container); }},
-            {"GateXOR", [&container]() -> Node* { return new GateXOR(container); }},
-            {"GateXNOR", [&container]() -> Node* { return new GateXNOR(container); }},
-            {"GateBUFFER", [&container]() -> Node* { return new GateBUFFER(container); }},
-            {"GateNOT", [&container]() -> Node* { return new GateNOT(container); }},
-            {"PushButton", [&container]() -> Node* { return new PushButton(container); }},
-            {"ToggleButton", [&container]() -> Node* { return new ToggleButton(container); }},
-            {"StaticToggleButton", [&container]() -> Node* { return new StaticToggleButton(container); }},
-            {"LightBulb", [&container]() -> Node* { return new LightBulb(container); }},
-            {"SevenSegmentDisplay", [&container]() -> Node* { return new SevenSegmentDisplay(container); }},
-            {"FunctionNode", [&container]() -> Node* { return new FunctionNode(container); }},
-            {"Bus", [&container]() -> Node* { return new Bus(container); }},
+        static std::unordered_map<std::string, std::function<Node* (std::vector<Node*>* container)>> factoryMap = {
+            {"GateAND", [](std::vector<Node*>* container) -> Node* { return new GateAND(container); }},
+            {"GateOR", [](std::vector<Node*>* container) -> Node* { return new GateOR(container); }},
+            {"GateNAND", [](std::vector<Node*>* container) -> Node* { return new GateNAND(container); }},
+            {"GateNOR", [](std::vector<Node*>* container) -> Node* { return new GateNOR(container); }},
+            {"GateXOR", [](std::vector<Node*>* container) -> Node* { return new GateXOR(container); }},
+            {"GateXNOR", [](std::vector<Node*>* container) -> Node* { return new GateXNOR(container); }},
+            {"GateBUFFER", [](std::vector<Node*>* container) -> Node* { return new GateBUFFER(container); }},
+            {"GateNOT", [](std::vector<Node*>* container) -> Node* { return new GateNOT(container); }},
+            {"PushButton", [](std::vector<Node*>* container) -> Node* { return new PushButton(container); }},
+            {"ToggleButton", [](std::vector<Node*>* container) -> Node* { return new ToggleButton(container); }},
+            {"StaticToggleButton", [](std::vector<Node*>* container) -> Node* { return new StaticToggleButton(container); }},
+            {"LightBulb", [](std::vector<Node*>* container) -> Node* { return new LightBulb(container); }},
+            {"SevenSegmentDisplay", [](std::vector<Node*>* container) -> Node* { return new SevenSegmentDisplay(container); }},
+            {"FunctionNode", [](std::vector<Node*>* container) -> Node* { return new FunctionNode(container); }},
+            {"Bus", [](std::vector<Node*>* container) -> Node* { return new Bus(container); }},
         };
 
         auto it = factoryMap.find(nodeName);
         if (it != factoryMap.end()) {
-            return it->second(); // Instantiate the node
+            return it->second(container); // Instantiate the node
         }
 
 

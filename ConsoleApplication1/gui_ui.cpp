@@ -156,7 +156,7 @@ bool NodeSelectionMenu() {
                     saveFile.close();
 
                     std::vector<Node*> subassembly; 
-                    NodeNetworkFromJson(save.at("nodes"), subassembly);
+                    NodeNetworkFromJson(save.at("nodes"), &subassembly);
 
                     NormalizeNodeNetworkPosTocLocation(subassembly, game.camera.target);
 
