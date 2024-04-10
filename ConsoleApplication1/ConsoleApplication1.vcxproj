@@ -112,7 +112,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\raylib\raylib\out\build\x64-Debug\raylib\lib;C:\raygui-4.0\src</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\raylib\raylib\out\build\x64-Debug\raylib;C:\raygui-4.0\src</AdditionalLibraryDirectories>
       <AdditionalDependencies>winmm.lib;raylib.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -134,7 +134,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\raylib\raylib\out\build\x64-Debug\raylib\lib;C:\raygui-4.0\src</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\raylib\raylib\out\build\x64-Debug\raylib;C:\raygui-4.0\src</AdditionalLibraryDirectories>
       <AdditionalDependencies>winmm.lib;raylib.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>

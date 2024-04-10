@@ -11,7 +11,7 @@
 #include "vector_tools.h"
 #include "raygui.h"
 
-Node::Node(std::vector<Node*>& container, Vector2 pos, Vector2 size, Color color, std::vector<Input_connector> in, std::vector<Output_connector> out) : container(container), size(size), color(color), is_selected(false), inputs(in), outputs(out), pos(pos)
+Node::Node(std::vector<Node*> * container, Vector2 pos, Vector2 size, Color color, std::vector<Input_connector> in, std::vector<Output_connector> out) : container(container), size(size), color(color), is_selected(false), inputs(in), outputs(out), pos(pos)
 {
     reserve_outputs();
     if (outputs.size() == 0)
@@ -547,7 +547,7 @@ void NodeNetworkFromJson(const json& nodeNetworkJson, std::vector<Node*>& nodes)
             std::string nodeType = it.key(); // Get the gate type (e.g., "GateAND")
             json nodeJson = it.value(); // Get the JSON object representing the node
 
-            Node* node = NodeFactory::createNode(nodes, nodeType);
+            Node* node = NodeFactory::createNode(&nodes, nodeType);
             assert(node && "node not created");
             node->load_JSON(nodeJson);
             nodes.push_back(node);
@@ -674,9 +674,12 @@ bool Node::show_node_editor()
         GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 32, 16 }, "Label:");
         current_x += 32 + margin;
 
-        if (GuiTextBox(Rectangle{ current_x, Pos.y + current_depth, Pos.x + margin + content_w - current_x, 32 }, TextBoxNodeLabel, buffersize, TextBoxNodeLabelEditMode))
+        if (GuiTextBox(Rectangle{ current_x, Pos.y + current_depth, Pos.x + margin + content_w - current_x, 32 }, TextBoxNodeLabel, buffersize, TextBoxNodeLabelEditMode)) {
             TextBoxNodeLabelEditMode = !TextBoxNodeLabelEditMode;
-        label = TextBoxNodeLabel;
+        }
+        if (label.c_str() != TextBoxNodeLabel) {
+            change_label(TextBoxNodeLabel);
+        }
         current_depth += curr_el_h;
     }
 
@@ -1422,8 +1425,6 @@ json FunctionNode::to_JSON() const
         }
     };
 
-    size_t i = 0;
-
     for (Node* node : nodes)
         myJson[get_type()]["nodes"].push_back(node->to_JSON());
 
@@ -1938,6 +1939,87 @@ void PushButton::clicked(Vector2 pos)
         if (!outputs[i].state) has_changed = true;
         if (CheckCollisionPointRec(pos, getButtonRect(i))) outputs[i].state = true;
         else outputs[i].state = false;
+
+    }
+}
+
+void Bus::pretick()
+{
+    if (!*bus_values_has_updated) {
+        for (size_t i = 0; i < (*bus_values).size(); i++) {
+            (*bus_values)[i] = false;
+        }
+    }
+    for (size_t i = 0; i < inputs.size(); i++) {
+        if (inputs[i].target && inputs[i].target->state)
+            (*bus_values)[i] = true;
+    }
+    *bus_values_has_updated = true;
+}
+
+void Bus::tick()
+{
+    has_changed = false;
+    *bus_values_has_updated = false;
+    for (size_t i = 0; i < outputs.size(); i++) {
+        if ((*bus_values)[i] != outputs[i].state) {
+            has_changed = true;
+            outputs[i].state = (*bus_values)[i];
+        }
+    }
+}
+
+json Bus::to_JSON() const {
+
+    json jOutputs = json::array();
+    for (const auto& output : outputs) {
+        jOutputs.push_back(output.to_JSON());
+    }
+
+    json jInputs = json::array();
+    for (const auto& input : inputs) {
+        jInputs.push_back(input.to_JSON());
+    }
+
+    json myJson =
+    {
+
+        {get_type(),
+            {
+                {"pos.x", pos.x},
+                {"pos.y", pos.y},
+                {"size.x", size.x},
+                {"size.y", size.y},
+                {"label", label},
+                {"outputs", jOutputs},
+                {"inputs", jInputs},
+                {"bus_values", json::array()}
+            }
+        }
+    };
+    for (bool val : (*bus_values)) {
+        myJson[get_type()]["bus_values"].push_back(val);
+    }
+
+    return myJson;
+}
+
+void Bus::load_extra_JSON(const json& nodeJson) {
+    find_connections();
+
+    // Assuming 'type' is the key for your main object.
+    // Replace 'type' with whatever your main object's key is.
+    if (nodeJson.contains(get_type()) && nodeJson[get_type()].contains("bus_values")) {
+        std::vector<bool> loaded_bus_vals = nodeJson[get_type()]["bus_values"].get<std::vector<bool>>();
+
+        if (loaded_bus_vals.size() >= bus_values->size()) {
+            *bus_values = loaded_bus_vals;
+        }
+        else {
+            for (size_t i = 0; i < loaded_bus_vals.size(); i++) {
+                (*bus_values)[i] = loaded_bus_vals[i];
+            }
+        }
 
     }
 }
