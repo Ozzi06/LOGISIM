@@ -1302,7 +1302,7 @@ bool FunctionNode::show_node_editor()
         GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "is_cyclic:");
         current_x += 64 + margin;
 
-        if (is_cyclic_val) {
+        if (is_cyclic_val.value()) {
             GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "true");
             current_x += 64 + margin;
         }

@@ -728,7 +728,6 @@ protected:
 private:
     std::optional<bool> is_cyclic_val;
     bool is_single_tick;
-    //bool is_cyclic_val;
     std::string delay_str;
 };
 
