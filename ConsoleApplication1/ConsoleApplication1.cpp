@@ -78,12 +78,12 @@ int main()
     Game& game = Game::getInstance();
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);    // Window configuration flags
     InitWindow(game.screenWidth, game.screenHeight, "raylib [core] example - 2d camera mouse zoom");
-
+    LoadFontEx("resources/fonts/OpenSans-Regular.ttf", 128, 0, 0);
     game.regular = LoadFont("resources/fonts/OpenSans-Regular.ttf");
 
     LoadTextures();
     game.camera.zoom = 1.0f;
-    SetTextureFilter(game.regular.texture, TEXTURE_FILTER_BILINEAR);
+    SetTextureFilter(game.regular.texture, TEXTURE_FILTER_POINT);
 
     rlEnableSmoothLines();
 

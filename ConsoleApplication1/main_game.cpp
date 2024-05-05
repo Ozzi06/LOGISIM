@@ -11,7 +11,7 @@
 #include "vector_tools.h"
 #include "raygui.h"
 
-Node::Node(std::vector<Node*>& container, Vector2 pos, Vector2 size, Color color, std::vector<Input_connector> in, std::vector<Output_connector> out) : container(container), size(size), color(color), is_selected(false), inputs(in), outputs(out), pos(pos)
+Node::Node(std::vector<Node*> * container, Vector2 pos, Vector2 size, Color color, std::vector<Input_connector> in, std::vector<Output_connector> out) : container(container), size(size), color(color), is_selected(false), inputs(in), outputs(out), pos(pos)
 {
     reserve_outputs();
     if (outputs.size() == 0)
@@ -540,7 +540,7 @@ void Game::save(std::string filePath)
 
 }
 
-void NodeNetworkFromJson(const json& nodeNetworkJson, std::vector<Node*>& nodes) {
+void NodeNetworkFromJson(const json& nodeNetworkJson, std::vector<Node*> * nodes) {
     for (const auto& node : nodeNetworkJson) {
         // Each node is a JSON object where the key is the gate type
         for (auto it = node.begin(); it != node.end(); ++it) {
@@ -550,17 +550,17 @@ void NodeNetworkFromJson(const json& nodeNetworkJson, std::vector<Node*>& nodes)
             Node* node = NodeFactory::createNode(nodes, nodeType);
             assert(node && "node not created");
             node->load_JSON(nodeJson);
-            nodes.push_back(node);
+            nodes->push_back(node);
         }
     }
 
-    for (Node* node : nodes) {
+    for (Node* node : *nodes) {
         for (Input_connector& input : node->inputs) {
 
             bool found = false;
             uid_t id = input.target_id;
             if (id) {
-                for (Node* node2 : nodes) {
+                for (Node* node2 : *nodes) {
                     if (found) break;
                     for (Output_connector& output : node2->outputs) {
                         if (output.id == id) {
@@ -601,7 +601,7 @@ void Game::load(std::string filePath)
     saveFile.close();
     
     nodes.clear();
-    NodeNetworkFromJson(save["nodes"], nodes);
+    NodeNetworkFromJson(save["nodes"], &nodes);
     if (save.contains("camera"))
         camera = save.at("camera").get<Camera2D>();
 }
@@ -674,9 +674,12 @@ bool Node::show_node_editor()
         GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 32, 16 }, "Label:");
         current_x += 32 + margin;
 
-        if (GuiTextBox(Rectangle{ current_x, Pos.y + current_depth, Pos.x + margin + content_w - current_x, 32 }, TextBoxNodeLabel, buffersize, TextBoxNodeLabelEditMode))
+        if (GuiTextBox(Rectangle{ current_x, Pos.y + current_depth, Pos.x + margin + content_w - current_x, 32 }, TextBoxNodeLabel, buffersize, TextBoxNodeLabelEditMode)) {
             TextBoxNodeLabelEditMode = !TextBoxNodeLabelEditMode;
-        label = TextBoxNodeLabel;
+        }
+        if (label.c_str() != TextBoxNodeLabel) {
+            change_label(TextBoxNodeLabel);
+        }
         current_depth += curr_el_h;
     }
 
@@ -1299,7 +1302,7 @@ bool FunctionNode::show_node_editor()
         GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "is_cyclic:");
         current_x += 64 + margin;
 
-        if (is_cyclic_val) {
+        if (is_cyclic_val.value()) {
             GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "true");
             current_x += 64 + margin;
         }
@@ -1368,7 +1371,7 @@ bool FunctionNode::show_node_editor()
         curr_el_h = 32;
         float current_x = Pos.x + margin;
 
-        if (is_cyclic_val){}
+        if (is_cyclic()){}
         else if (!is_single_tick) {
             GuiToggle(Rectangle{ current_x, Pos.y + current_depth, 128, 32 }, "make_single_tick", &is_single_tick);
             if (is_single_tick) 
@@ -1422,8 +1425,6 @@ json FunctionNode::to_JSON() const
         }
     };
 
-    size_t i = 0;
-
     for (Node* node : nodes)
         myJson[get_type()]["nodes"].push_back(node->to_JSON());
 
@@ -1436,9 +1437,9 @@ void FunctionNode::load_extra_JSON(const json& nodeJson)
         // load all the nodes
         nodes.clear();
         if (nodeJson.contains(get_type()))
-            NodeNetworkFromJson(nodeJson.at(get_type()).at("nodes"), nodes);
+            NodeNetworkFromJson(nodeJson.at(get_type()).at("nodes"), &nodes);
         else if (nodeJson.contains("nodes"))
-            NodeNetworkFromJson(nodeJson.at("nodes"), nodes);
+            NodeNetworkFromJson(nodeJson.at("nodes"), &nodes);
         else
             std::cerr << "JSON parsing error: \n";
 
@@ -1673,6 +1674,10 @@ void FunctionNode::tick()
 
 bool FunctionNode::is_cyclic() const
 {
+    if (is_cyclic_val.has_value()) {
+        return is_cyclic_val.value();
+    }
+
     enum NodeState {
         Unvisited,
         Visiting,  // Node is being visited (used for cycle detection)
@@ -1938,6 +1943,87 @@ void PushButton::clicked(Vector2 pos)
         if (!outputs[i].state) has_changed = true;
         if (CheckCollisionPointRec(pos, getButtonRect(i))) outputs[i].state = true;
         else outputs[i].state = false;
+
+    }
+}
+
+void Bus::pretick()
+{
+    if (!*bus_values_has_updated) {
+        for (size_t i = 0; i < (*bus_values).size(); i++) {
+            (*bus_values)[i] = false;
+        }
+    }
+    for (size_t i = 0; i < inputs.size(); i++) {
+        if (inputs[i].target && inputs[i].target->state)
+            (*bus_values)[i] = true;
+    }
+    *bus_values_has_updated = true;
+}
+
+void Bus::tick()
+{
+    has_changed = false;
+    *bus_values_has_updated = false;
+    for (size_t i = 0; i < outputs.size(); i++) {
+        if ((*bus_values)[i] != outputs[i].state) {
+            has_changed = true;
+            outputs[i].state = (*bus_values)[i];
+        }
+    }
+}
+
+json Bus::to_JSON() const {
+
+    json jOutputs = json::array();
+    for (const auto& output : outputs) {
+        jOutputs.push_back(output.to_JSON());
+    }
+
+    json jInputs = json::array();
+    for (const auto& input : inputs) {
+        jInputs.push_back(input.to_JSON());
+    }
+
+    json myJson =
+    {
+
+        {get_type(),
+            {
+                {"pos.x", pos.x},
+                {"pos.y", pos.y},
+                {"size.x", size.x},
+                {"size.y", size.y},
+                {"label", label},
+                {"outputs", jOutputs},
+                {"inputs", jInputs},
+                {"bus_values", json::array()}
+            }
+        }
+    };
+    for (bool val : (*bus_values)) {
+        myJson[get_type()]["bus_values"].push_back(val);
+    }
+
+    return myJson;
+}
+
+void Bus::load_extra_JSON(const json& nodeJson) {
+    find_connections();
+
+    // Assuming 'type' is the key for your main object.
+    // Replace 'type' with whatever your main object's key is.
+    if (nodeJson.contains(get_type()) && nodeJson[get_type()].contains("bus_values")) {
+        std::vector<bool> loaded_bus_vals = nodeJson[get_type()]["bus_values"].get<std::vector<bool>>();
+
+        if (loaded_bus_vals.size() >= bus_values->size()) {
+            *bus_values = loaded_bus_vals;
+        }
+        else {
+            for (size_t i = 0; i < loaded_bus_vals.size(); i++) {
+                (*bus_values)[i] = loaded_bus_vals[i];
+            }
+        }
 
     }
 }
