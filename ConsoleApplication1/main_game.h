@@ -1,5 +1,4 @@
 #pragma once
-#include "gui_node_editor.h"
 #include "gui_ui.h"
 #include <vector>
 #include "random_id.h"
@@ -15,9 +14,6 @@ struct Node;
 class Game;
 
 struct GuiNodeEditorState;
-
-void DrawInputConnector(const Input_connector& conn);
-void DrawOutputConnector(const Output_connector& conn);
 
 enum EditMode {
     SELECT,
@@ -44,8 +40,8 @@ public:
 
     Camera2D camera;
 
-    unsigned int screenWidth = 1920;
-    unsigned int screenHeight = 1080;
+    unsigned int screenWidth = 500;
+    unsigned int screenHeight = 500;
 
     Font regular;
     EditMode edit_mode = EDIT;
@@ -63,6 +59,7 @@ public:
     std::vector< Output_connector* >selected_outputs;
 
     void draw();
+
     void pretick();
 
     void tick();
@@ -79,9 +76,15 @@ public:
     void save(std::string filePath = "gamesave.json");
     void load(std::string filePath = "gamesave.json");
 
+    bool hovering_above_gui = false;
+
+    bool get_efficient_simulation() const { return efficient_simulation; }
+    bool efficient_simulation = false;
+
 private:
     bool area_selected = false;
     Vector2 first_corner = { 0,0 };
+
 };
 
 void NodeNetworkFromJson(const json& nodeNetworkJson, std::vector<Node*>& nodes);
@@ -90,11 +93,13 @@ void NormalizeNodeNetworkPosTocLocation(std::vector<Node*>& nodes, Vector2 targp
 
 struct Node {
 public:
-    Node(Vector2 pos = { 0,0 }, Vector2 size = { 0,0 }, Color color = { 0,0,0 }, std::vector<Input_connector> in = {}, std::vector<Output_connector> out = {});
+    Node(std::vector<Node*>& container, Vector2 pos = { 0,0 }, Vector2 size = { 0,0 }, Color color = { 0,0,0 }, std::vector<Input_connector> in = {}, std::vector<Output_connector> out = {});
     
     Node(const Node* base);
 
-    virtual size_t get_max_outputs() const { return 1024; }
+    virtual ~Node() {}
+
+    virtual size_t get_max_outputs() const { return 32; }
     virtual void reserve_outputs() { outputs.reserve(get_max_outputs()); }
 
     virtual Node* copy() const = 0;
@@ -103,9 +108,12 @@ public:
 
     virtual void draw();
 
-    virtual std::string get_label() const = 0;
+    virtual bool show_node_editor();
 
-    GuiNodeEditorState editor_state;
+    virtual std::string get_label() const { return std::string(label); }
+
+    bool has_changed = true;
+
     bool is_selected;
     Vector2 pos;
     Vector2 size;
@@ -122,6 +130,7 @@ public:
     virtual std::vector<Input_connector*> select_inputs(Rectangle select_area);
     virtual std::vector<Output_connector*> select_outputs(Rectangle select_area);
 
+
     virtual void not_clicked() {}
     virtual void clicked(Vector2 pos) {}
 
@@ -130,7 +139,6 @@ public:
 
     virtual void pretick() = 0;
     virtual void tick();
-    ~Node();
 
     virtual std::string get_type() const = 0;
 
@@ -143,10 +151,22 @@ public:
     virtual bool isInput() const { return false; }
     virtual bool isOutput() const { return false; }
 
+    virtual bool is_cyclic() const { return false; }
+    virtual int delay() const { return 1; }
+
+    virtual std::vector<Input_connector*> connected_inputs(size_t output_idx) {
+        std::vector<Input_connector*> input_nodes;
+        for (size_t i = 0; i < inputs.size(); i++) {
+            input_nodes.push_back(&inputs[i]);
+        }
+        return input_nodes;
+    }
+
 protected:
     virtual void recompute_size() {
         size = Vector2{ 100, std::max(100 + 30 * float(inputs.size()), 100 + 30 * float(outputs.size())) };
     }
+    std::vector<Node*>& container;
 
 };
 
@@ -165,6 +185,8 @@ struct Input_connector {
         float pos_x = host->pos.x - host->size.x / 2.0f - width;
         return Vector2{ pos_x, pos_y };
     }
+
+    void draw() const;
 
     json to_JSON() const;
 };
@@ -187,32 +209,38 @@ struct Output_connector {
         return Vector2{pos_x, pos_y};
     }
 
+    void draw() const;
+
     json to_JSON() const;
 };
 
-struct GateAND : public Node {
-    GateAND(Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}): Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
-        label = "AND";
-        strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
+struct BinaryLogicGate : public Node {
+    BinaryLogicGate(std::vector<Node*>& container, Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}) : Node(container, pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         inputs.insert(inputs.end(), input_connectors.begin(), input_connectors.end());
 
         while (inputs.size() < input_count)
             inputs.push_back(Input_connector(this, inputs.size()));
 
-        size = Vector2{ 100, 100 + 30 * float(inputs.size()) };
+        recompute_size();
     }
-    GateAND(const GateAND* base): Node(base) {}
+    BinaryLogicGate(const BinaryLogicGate* base) : Node(base) {}
 
     virtual void add_input() override {
         inputs.push_back(Input_connector(this, inputs.size())); recompute_size();
     }
-    virtual void remove_input() override { if(inputs.size() > 1) inputs.pop_back();  recompute_size();
-    }
 
+    virtual void remove_input() override {
+        if (inputs.size() > 1) inputs.pop_back();  recompute_size();
+    }
+};
+
+struct GateAND : public BinaryLogicGate {
+    GateAND(std::vector<Node*>& container, Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}) : BinaryLogicGate(container, pos, input_count, input_connectors) {
+        label = "AND";
+    }
+    GateAND(const GateAND* base) : BinaryLogicGate(base) {}
 
     Node* copy() const override { return new GateAND(this); }
-
-    virtual std::string get_label() const override { return std::string(label); }
 
     static Texture texture;
 
@@ -221,33 +249,15 @@ struct GateAND : public Node {
     virtual void pretick();
 
     virtual std::string get_type() const override { return"GateAND"; }
-
-    //Node* from_json(const json& j);
 };
 
-struct GateOR : public Node {
-    GateOR(Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}): Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
+struct GateOR : public BinaryLogicGate {
+    GateOR(std::vector<Node*>& container, Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}) : BinaryLogicGate(container, pos, input_count, input_connectors) {
         label = "OR";
-        strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
-        inputs.insert(inputs.end(), input_connectors.begin(), input_connectors.end());
-
-        while (inputs.size() < input_count)
-            inputs.push_back(Input_connector(this, inputs.size()));
-
-        size = Vector2{ 100, 100 + 30 * float(inputs.size()) };
     }
-    GateOR(const GateOR* base) : Node(base) {}
-
-    virtual void add_input() override {
-        inputs.push_back(Input_connector(this, inputs.size())); recompute_size();
-    }
-    virtual void remove_input() override {
-        if (inputs.size() > 1) inputs.pop_back();  recompute_size();
-    }
+    GateOR(const GateOR* base) : BinaryLogicGate(base) {}
 
     Node* copy() const override { return new GateOR(this); }
-
-    virtual std::string get_label() const override { return std::string(label); }
 
     static Texture texture;
 
@@ -259,9 +269,8 @@ struct GateOR : public Node {
 };
 
 struct GateNAND : public Node {
-    GateNAND(Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}): Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
+    GateNAND(std::vector<Node*>& container, Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}) : Node(container, pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         label = "NAND";
-        strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
         inputs.insert(inputs.end(), input_connectors.begin(), input_connectors.end());
 
         while (inputs.size() < input_count)
@@ -291,29 +300,13 @@ struct GateNAND : public Node {
     virtual std::string get_type() const override { return"GateNAND"; }
 };
 
-struct GateNOR : public Node {
-    GateNOR(Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}): Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
+struct GateNOR : public BinaryLogicGate {
+    GateNOR(std::vector<Node*>& container, Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}) : BinaryLogicGate(container, pos, input_count, input_connectors) {
         label = "NOR";
-        strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
-        inputs.insert(inputs.end(), input_connectors.begin(), input_connectors.end());
-
-        while (inputs.size() < input_count)
-            inputs.push_back(Input_connector(this, inputs.size()));
-
-        size = Vector2{ 100, 100 + 30 * float(inputs.size()) };
     }
-    GateNOR(const GateNOR* base) : Node(base) {}
-
-    virtual void add_input() override {
-        inputs.push_back(Input_connector(this, inputs.size())); recompute_size();
-    }
-    virtual void remove_input() override {
-        if (inputs.size() > 1) inputs.pop_back();  recompute_size();
-    }
+    GateNOR(const GateNOR* base) : BinaryLogicGate(base) {}
 
     Node* copy() const override { return new GateNOR(this); }
-
-    virtual std::string get_label() const override { return std::string(label); }
 
     static Texture texture;
 
@@ -324,29 +317,13 @@ struct GateNOR : public Node {
     virtual std::string get_type() const override { return"GateNOR"; }
 };
 
-struct GateXOR : public Node {
-    GateXOR(Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}): Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
+struct GateXOR : public BinaryLogicGate {
+    GateXOR(std::vector<Node*>& container, Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}) : BinaryLogicGate(container, pos, input_count, input_connectors) {
         label = "XOR";
-        strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
-        inputs.insert(inputs.end(), input_connectors.begin(), input_connectors.end());
-
-        while (inputs.size() < input_count)
-            inputs.push_back(Input_connector(this, inputs.size()));
-
-        size = Vector2{ 100, 100 + 30 * float(inputs.size()) };
     }
-    GateXOR(const GateXOR* base) : Node(base) {}
-
-    virtual void add_input() override {
-        inputs.push_back(Input_connector(this, inputs.size())); recompute_size();
-    }
-    virtual void remove_input() override {
-        if (inputs.size() > 1) inputs.pop_back();  recompute_size();
-    }
+    GateXOR(const GateXOR* base) : BinaryLogicGate(base) {}
 
     Node* copy() const override { return new GateXOR(this); }
-
-    virtual std::string get_label() const override { return std::string(label); }
 
     static Texture texture;
 
@@ -357,29 +334,13 @@ struct GateXOR : public Node {
     virtual std::string get_type() const override { return"GateXOR"; }
 };
 
-struct GateXNOR : public Node {
-    GateXNOR(Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}): Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
+struct GateXNOR : public BinaryLogicGate {
+    GateXNOR(std::vector<Node*>& container, Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}) : BinaryLogicGate(container, pos, input_count, input_connectors) {
         label = "XNOR";
-        strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
-        inputs.insert(inputs.end(), input_connectors.begin(), input_connectors.end());
-
-        while (inputs.size() < input_count)
-            inputs.push_back(Input_connector(this, inputs.size()));
-
-        size = Vector2{ 100, 100 + 30 * float(inputs.size()) };
     }
-    GateXNOR(const GateXNOR* base) : Node(base) {}
-
-    virtual void add_input() override {
-        inputs.push_back(Input_connector(this, inputs.size())); recompute_size();
-    }
-    virtual void remove_input() override {
-        if (inputs.size() > 1) inputs.pop_back();  recompute_size();
-    }
+    GateXNOR(const GateXNOR* base) : BinaryLogicGate(base) {}
 
     Node* copy() const override { return new GateXNOR(this); }
-
-    virtual std::string get_label() const override { return std::string(label); }
 
     static Texture texture;
 
@@ -390,63 +351,13 @@ struct GateXNOR : public Node {
     virtual std::string get_type() const override { return"GateXNOR"; }
 };
 
-struct GateBUFFER : public Node {
-    GateBUFFER(Vector2 pos = { 0,0 }, Output_connector* input = nullptr) : Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
-        label = "BUFFER";
-        strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
-        
+struct UnaryLogicGate : public Node {
+    UnaryLogicGate(std::vector<Node*>& container, Vector2 pos = { 0,0 }, Output_connector* input = nullptr) : Node(container, pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         inputs.push_back(Input_connector(this, 0, input));
-
-        size = Vector2{ 100, 100 + 50 * 1 };
-
-    }
-    GateBUFFER(const GateBUFFER* base): Node(base) {}
-
-    virtual void add_input() override { 
-        if (outputs.size() == outputs.capacity()) return;
-        inputs.push_back(Input_connector(this, inputs.size())); 
-        outputs.push_back(Output_connector(this, outputs.size(), false));
         recompute_size();
     }
-    virtual void remove_input() override { 
-        Game& game = Game::getInstance();
-        if (inputs.size() > 1) {
-            inputs.pop_back();
-            for (Node* node : game.nodes) {
-                for (Input_connector& input : node->inputs) {
-                    if (input.target == &outputs.back()) input.target = nullptr;
-                }
-            }
-            outputs.pop_back();
-        }
-        recompute_size();
-    }
+    UnaryLogicGate(const UnaryLogicGate* base) : Node(base) {}
 
-    Node* copy() const override { return new GateBUFFER(this); }
-
-    virtual std::string get_label() const override { return std::string(label); }
-
-    static Texture texture;
-    virtual Texture get_texture() const override {
-        return texture;
-    }
-
-    virtual void pretick() override;
-
-    virtual std::string get_type() const override { return"GateBUFFER"; }
-};
-
-struct GateNOT : public Node {
-    GateNOT(Vector2 pos = { 0,0 }, Output_connector* input = nullptr) : Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
-        label = "NOT";
-        strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
-        inputs.push_back(Input_connector(this, 0, input));
-
-        size = Vector2{ 100, 100 + 50 * 1 };
-
-    }
-
-    GateNOT(const GateNOT* base) : Node(base) {}
 
     virtual void add_input() override {
         if (outputs.size() == outputs.capacity()) return;
@@ -468,96 +379,111 @@ struct GateNOT : public Node {
         recompute_size();
     }
 
+
+    virtual std::vector<Input_connector*> connected_inputs(size_t output_idx) {
+        std::vector<Input_connector*> a;
+        a.push_back(&inputs[output_idx]);
+        return a;
+    }
+};
+
+struct GateBUFFER : public UnaryLogicGate {
+    GateBUFFER(std::vector<Node*>& container, Vector2 pos = { 0,0 }, Output_connector* input = nullptr) : UnaryLogicGate(container, pos, input) {
+        label = "BUFFER";
+    }
+    GateBUFFER(const GateBUFFER* base) : UnaryLogicGate(base) {}
+
+    Node* copy() const override { return new GateBUFFER(this); }
+
+    virtual std::string get_label() const override { return std::string(label); }
+
+    static Texture texture;
+    virtual Texture get_texture() const override { return texture; }
+
+    virtual void pretick() override;
+
+    virtual std::string get_type() const override { return"GateBUFFER"; }
+};
+
+struct GateNOT : public UnaryLogicGate {
+    GateNOT(std::vector<Node*>& container, Vector2 pos = { 0,0 }, Output_connector* input = nullptr) : UnaryLogicGate(container, pos, input) {
+        label = "NOT";
+    }
+    GateNOT(const GateNOT* base) : UnaryLogicGate(base) {}
+
     Node* copy() const override { return new GateNOT(this); }
 
     virtual std::string get_label() const override { return std::string(label); }
 
     static Texture texture;
-    virtual Texture get_texture() const override {
-        return texture;
-    }
+    virtual Texture get_texture() const override { return texture; }
 
-    virtual void pretick();
+    virtual void pretick() override;
 
     virtual std::string get_type() const override { return"GateNOT"; }
 };
 
-struct PushButton : public Node {
-    virtual Rectangle getButtonRect(size_t id);
-    virtual void draw() override;
-
-    PushButton(Vector2 pos = { 0,0 }) : Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
-        label = "Push Button";
+struct Bus : public Node {
+    Bus(std::vector<Node*>& container, Vector2 pos = { 0,0 }, Output_connector* input = nullptr) : Node(container, pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
+        inputs.push_back(Input_connector(this, 0, input));
         recompute_size();
     }
-    PushButton(const PushButton* base) : Node(base) {}
+    Bus(const Bus* base) : Node(base) {}
+
 
     virtual void add_input() override {
         if (outputs.size() == outputs.capacity()) return;
-        outputs.push_back(Output_connector(this, outputs.size())); recompute_size();
+        inputs.push_back(Input_connector(this, inputs.size()));
+        outputs.push_back(Output_connector(this, outputs.size(), false));
+        recompute_size();
     }
+
     virtual void remove_input() override {
-        if (outputs.size() > 1) {
-            Game& game = Game::getInstance();
+        Game& game = Game::getInstance();
+        if (inputs.size() > 1) {
+            inputs.pop_back();
             for (Node* node : game.nodes) {
-                for (auto& conn:node->inputs) {
-                    if (conn.target == &outputs.back()) conn.target = nullptr;
+                for (Input_connector& input : node->inputs) {
+                    if (input.target == &outputs.back()) input.target = nullptr;
                 }
             }
-            outputs.pop_back();  recompute_size();
+            outputs.pop_back();
         }
+        recompute_size();
     }
 
-    Node* copy() const override { return new PushButton(this); }
 
-    virtual std::string get_label() const override { return std::string(label); }
+    virtual std::vector<Input_connector*> connected_inputs(size_t output_idx) {
+        std::vector<Input_connector*> conned;
 
-
-    virtual Texture get_texture() const override { return{ 0 }; }
-
-    virtual void not_clicked() override {
-        for (size_t i = 0; i < outputs.size(); i++) {
-            outputs[i].state = false;
+        for (Node* node : container) {
+            Bus* bus = dynamic_cast<Bus*>(node);
+            if (bus) {
+                if (bus->label == label) {
+                    conned.push_back(&bus->inputs[output_idx]);
+                }
+            }
         }
+        return conned;
     }
-
-    virtual void clicked(Vector2 pos) override {
-        for (size_t i = 0; i < outputs.size(); i++) {
-            if(CheckCollisionPointRec(pos, getButtonRect(i))) outputs[i].state = true;
-            else outputs[i].state = false;
-        }
-    }
-
-    virtual void pretick() override {}
-    virtual void tick() override {}
-
-    virtual std::string get_type() const override { return"PushButton"; }
-
-    virtual bool isInput() const override { return true; }
-
-    virtual void recompute_size() override;
+private:
+    std::shared_ptr<std::vector<bool>> bus_values;
 };
 
-struct ToggleButton : public Node {
+struct Button :public Node {
     virtual Rectangle getButtonRect(size_t id);
     virtual void draw() override;
 
-    ToggleButton(Vector2 pos = { 0,0 }) : Node(pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
-        label = "Toggle Button";
-
+    Button(std::vector<Node*>& container, Vector2 pos = { 0,0 }, Color color = ColorBrightness(BLUE, -0.4f)) : Node(container, pos, { 0, 0 }, color) {
         recompute_size();
-        outputs[0].state = false;
     }
-    ToggleButton(const ToggleButton* base) : Node(base) {
-        for (size_t i = 0; i < outputs.size(); i++) {
-            outputs[i].state = base->outputs[i].state;
-        }
-    }
+    Button(const Button* base) : Node(base) {}
 
     virtual void add_input() override {
         if (outputs.size() == outputs.capacity()) return;
         outputs.push_back(Output_connector(this, outputs.size())); recompute_size();
     }
+
     virtual void remove_input() override {
         if (outputs.size() > 1) {
             Game& game = Game::getInstance();
@@ -570,38 +496,54 @@ struct ToggleButton : public Node {
         }
     }
 
-    Node* copy() const override { return new ToggleButton(this); }
-
     virtual std::string get_label() const override { return std::string(label); }
-
 
     virtual Texture get_texture() const override { return{ 0 }; }
 
-    virtual void not_clicked() override {}
+    virtual void not_clicked() = 0;
+    virtual void clicked(Vector2 pos) = 0;
 
-    virtual void clicked(Vector2 pos) override {
-        for (size_t i = 0; i < outputs.size(); i++) {
-            if (CheckCollisionPointRec(pos, getButtonRect(i))) outputs[i].state = !outputs[i].state;
-        }
-    }
+    virtual void pretick() override {}
+    virtual void tick() override { has_changed = false; }
 
-    virtual void pretick() {}
-    virtual void tick() override {}
-
-    //virtual json to_JSON() const override;
-
-    //virtual void load_extra_JSON(const json& nodeJson) override;
-
-    virtual std::string get_type() const override { return"ToggleButton"; }
-
-    virtual bool isInput() const { return true; }
+    virtual bool isInput() const override { return true; }
 
     virtual void recompute_size() override;
 };
 
+struct PushButton : public Button {
+    PushButton(std::vector<Node*>& container, Vector2 pos = { 0,0 }) : Button(container, pos) {
+        label = "Push Button";
+    }
+    PushButton(const PushButton* base) : Button(base) {}
+
+    Node* copy() const override { return new PushButton(this); }
+
+    virtual void not_clicked() override;
+
+    virtual void clicked(Vector2 pos) override;
+
+    virtual std::string get_type() const override { return"PushButton"; }
+};
+
+struct ToggleButton : public Button {
+    ToggleButton(std::vector<Node*>& container, Vector2 pos = { 0,0 }) : Button(container, pos) {
+        label = "Toggle Button";
+    }
+    ToggleButton(const ToggleButton* base) : Button(base) {}
+
+    Node* copy() const override { return new ToggleButton(this); }
+
+    virtual void not_clicked() override {}
+
+    virtual void clicked(Vector2 pos) override;
+
+    virtual std::string get_type() const override { return"ToggleButton"; }
+};
+
 struct StaticToggleButton : public ToggleButton {
 
-    StaticToggleButton(Vector2 pos = { 0,0 }) : ToggleButton(pos) {
+    StaticToggleButton(std::vector<Node*>& container, Vector2 pos = { 0,0 }) : ToggleButton(container, pos) {
         label = "Static Toggle Button";
     }
     StaticToggleButton(const StaticToggleButton* base) : ToggleButton(base) {
@@ -615,9 +557,8 @@ struct StaticToggleButton : public ToggleButton {
 };
 
 struct LightBulb : public Node {
-    LightBulb(Vector2 pos = { 0,0 }) : Node(pos, { 0, 0 }, YELLOW) {
+    LightBulb(std::vector<Node*>& container, Vector2 pos = { 0,0 }) : Node(container, pos, { 0, 0 }, YELLOW) {
         label = "Light Bulb";
-        strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
 
         size = Vector2{ 100, 100 };
         outputs.clear();
@@ -635,9 +576,9 @@ struct LightBulb : public Node {
 
     virtual std::string get_label() const override { return std::string(label); }
 
-    virtual Texture get_texture() const override { return {0}; }
+    virtual Texture get_texture() const override { return { 0 }; }
 
-    virtual void pretick() override {}
+    virtual void pretick() override { has_changed = false; }
 
     virtual std::string get_type() const override { return"LightBulb"; }
 
@@ -645,9 +586,8 @@ struct LightBulb : public Node {
 };
 
 struct SevenSegmentDisplay : public Node {
-    SevenSegmentDisplay(Vector2 pos = { 0,0 }) : Node(pos, { 0, 0 }, ColorBrightness(GRAY, -0.7f)) {
+    SevenSegmentDisplay(std::vector<Node*>& container, Vector2 pos = { 0,0 }) : Node(container, pos, { 0, 0 }, ColorBrightness(GRAY, -0.7f)) {
         label = "7-Segment Disp";
-        strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
 
         outputs.clear();
         inputs.clear();
@@ -678,50 +618,16 @@ protected:
     virtual void recompute_size() override;
 };
 
-struct FunctionInput_node : public Node {
-
-    FunctionInput_node(Vector2 pos = { 0,0 }) : Node(pos, { 0, 0 }, BLUE) {
-        label = "Push Button";
-
-        size = Vector2{ 200, 200 };
-    }
-    FunctionInput_node(const FunctionInput_node* base) : Node(base) {}
-
-    virtual void add_input() override {}
-    virtual void remove_input() override {}
-
-    Node* copy() const override { return new FunctionInput_node(this); }
-
-    virtual std::string get_label() const override { return std::string(label); }
-
-
-    virtual Texture get_texture() const override { return{ 0 }; }
-
-    virtual void pretick() override {}
-    virtual void tick() override {}
-
-    virtual std::string get_type() const override { return"FunctionInput_node"; }
-
-    virtual bool isInput() const override { return true; }
-};
-
 class FunctionNode : public Node {
 public:
-    FunctionNode(Vector2 pos = {0, 0}) : Node(pos, {0, 0}, GRAY) {
+    
+    FunctionNode(std::vector<Node*>& container, Vector2 pos = {0, 0}) : Node(container, pos, {0, 0}, ColorBrightness(GRAY, -0.6f)), is_single_tick(false), is_cyclic_val(true) {
         label = "Function";
-        strcpy_s(editor_state.TextBoxNodeLabel, 256, label.c_str());
     }
 
     FunctionNode(const FunctionNode* base);
 
-    ~FunctionNode() {
-        for (auto& node : nodes) {
-            delete node;
-        }
-    }
-
-
-    virtual void draw() override;
+    ~FunctionNode();
 
     virtual void add_input() override {}
     virtual void remove_input() override {}
@@ -732,6 +638,7 @@ public:
 
     virtual Texture get_texture() const override { return {0}; }
 
+    virtual bool show_node_editor();
 
     std::vector<Node*> nodes;
     
@@ -743,34 +650,46 @@ public:
 
     virtual void load_extra_JSON(const json& nodeJson) override;
 
+    virtual void draw() override;
+
     virtual void pretick() override;
 
     virtual void tick() override;
+
+    virtual bool is_cyclic() const override;
+    virtual int delay() const override;
+
+    void sort_linear();
     
     virtual std::string get_type() const override { return"FunctionNode"; }
 
 protected:
     virtual void recompute_size() override;
+    
+private:
+    bool is_single_tick;
+    bool is_cyclic_val;
+    std::string delay_str;
 };
 
 class NodeFactory {
 public:
-    static Node* createNode(const std::string& nodeName) {
+    static Node* createNode(std::vector<Node*>& container, const std::string& nodeName) {
         static std::unordered_map<std::string, std::function<Node* ()>> factoryMap = {
-            {"GateAND", []() -> Node* { return new GateAND(); }},
-            {"GateOR", []() -> Node* { return new GateOR(); }},
-            {"GateNAND", []() -> Node* { return new GateNAND(); }},
-            {"GateNOR", []() -> Node* { return new GateNOR(); }},
-            {"GateXOR", []() -> Node* { return new GateXOR(); }},
-            {"GateXNOR", []() -> Node* { return new GateXNOR(); }},
-            {"GateBUFFER", []() -> Node* { return new GateBUFFER(); }},
-            {"GateNOT", []() -> Node* { return new GateNOT(); }},
-            {"PushButton", []() -> Node* { return new PushButton(); }},
-            {"ToggleButton", []() -> Node* { return new ToggleButton(); }},
-            {"StaticToggleButton", []() -> Node* { return new StaticToggleButton(); }},
-            {"LightBulb", []() -> Node* { return new LightBulb(); }},
-            {"SevenSegmentDisplay", []() -> Node* { return new SevenSegmentDisplay(); }},
-            {"FunctionNode", []() -> Node* { return new FunctionNode(); }},
+            {"GateAND", [&container]() -> Node* { return new GateAND(container); }},
+            {"GateOR", [&container]() -> Node* { return new GateOR(container); }},
+            {"GateNAND", [&container]() -> Node* { return new GateNAND(container); }},
+            {"GateNOR", [&container]() -> Node* { return new GateNOR(container); }},
+            {"GateXOR", [&container]() -> Node* { return new GateXOR(container); }},
+            {"GateXNOR", [&container]() -> Node* { return new GateXNOR(container); }},
+            {"GateBUFFER", [&container]() -> Node* { return new GateBUFFER(container); }},
+            {"GateNOT", [&container]() -> Node* { return new GateNOT(container); }},
+            {"PushButton", [&container]() -> Node* { return new PushButton(container); }},
+            {"ToggleButton", [&container]() -> Node* { return new ToggleButton(container); }},
+            {"StaticToggleButton", [&container]() -> Node* { return new StaticToggleButton(container); }},
+            {"LightBulb", [&container]() -> Node* { return new LightBulb(container); }},
+            {"SevenSegmentDisplay", [&container]() -> Node* { return new SevenSegmentDisplay(container); }},
+            {"FunctionNode", [&container]() -> Node* { return new FunctionNode(container); }},
         };
 
         auto it = factoryMap.find(nodeName);

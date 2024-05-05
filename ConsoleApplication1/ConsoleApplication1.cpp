@@ -10,7 +10,6 @@
 //#define GUI_WINDOW_HELP_IMPLEMENTATION
 //#include "gui_window_help.h"
 
-#include "gui_node_editor.h"
 #include <fstream>
 
 enum class type {
@@ -98,32 +97,53 @@ int main()
 
     double draw_frequency = 60;
     double t = GetTime();
-    double dt = 0;
-    double prev_update_t = 0;
     double prev_draw_t = 0;
-    double curr_time = GetTime();
+
+
+    double expected_updates = 0.0;
+    double pre_update_t = 0;
+    RollingAverage roller(60);
+
+    SetTargetFPS(draw_frequency);
+
     while (!WindowShouldClose())
     {
         {
-            curr_time = GetTime();
-            dt = t - curr_time;
-            t = curr_time;
+            pre_update_t = t;
+        }
+        size_t i = 0;
+        double duration;
+        double elapsed_time = 0;
+        if (expected_updates >= 1.0) {
+            t = GetTime();
+            game.pretick();
+            game.tick();
+            i++;
+            expected_updates--;
+            duration = GetTime() - t;
+            elapsed_time += duration;
+        }
+        while (expected_updates >= 1.0 && elapsed_time < 1.0f / draw_frequency) {
+            game.pretick();
+            game.tick();
+            expected_updates--;
+            i++;
+            elapsed_time += duration;
         }
 
-        if (t - prev_update_t > 1 / game.targ_sim_hz) {
-            size_t i = 0;
-            for (; i < game.targ_sim_hz / draw_frequency; ++i) {
-                game.pretick();
-                game.tick();
-            }
-            game.real_sim_hz = i / (t - (float)prev_update_t);
-            prev_update_t = t;
-        }
-        
-        if (t - prev_draw_t > 1 / draw_frequency) {
-            game.draw();
-            prev_draw_t = t;
-        }
+
+        game.draw();
+
+        t = GetTime();
+        expected_updates += (t - pre_update_t) * game.targ_sim_hz;
+        if (expected_updates > game.targ_sim_hz * 5)
+            expected_updates = game.targ_sim_hz * 5;
+
+        roller.add(i / (t - pre_update_t));
+           
+        game.real_sim_hz = roller.getAverage();
+        i = 0;
+
     }
 
     // De-Initialization
