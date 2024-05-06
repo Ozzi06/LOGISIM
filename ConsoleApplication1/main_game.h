@@ -5,7 +5,7 @@
 
 #include "nlohmann/json.hpp"
 #include <utility>
-#include <set>
+#include <unordered_set>
 
 using json = nlohmann::json;
 
@@ -25,7 +25,7 @@ enum EditMode {
 
 struct nodeContainer {
     std::vector<Node*> nodes;
-    std::set<Node*> changed_nodes;
+    std::unordered_set<Node*> changed_nodes;
 
     void pretick();
     void tick();
@@ -59,7 +59,6 @@ public:
     bool warp = false;
     float targ_sim_hz = 16;
     float real_sim_hz = 0;
-    
 
     nodeContainer nodes_container;
 
@@ -209,7 +208,6 @@ struct Input_connector {
 struct Output_connector {
     Output_connector(Node* host, size_t index, bool state = false, uid_t id = generate_id()) : host(host), index(index), state(state), new_state(false), id(id) { }
     Node* host;
-    std::optional<std::vector<Node*>> child_nodes;
     
     void find_children();
 
@@ -231,6 +229,11 @@ struct Output_connector {
     void draw() const;
 
     json to_JSON() const;
+
+    std::vector<Node*> get_children();
+
+private:
+    std::optional<std::vector<Node*>> child_nodes;
 };
 
 struct BinaryLogicGate : public Node {
@@ -447,7 +450,6 @@ struct Bus : public Node {
         inputs.push_back(Input_connector(this, 0, input));
         recompute_size();
         find_connections();
-        
     }
     Bus(const Bus* base) : Node(base) {
         find_connections();
@@ -466,7 +468,6 @@ struct Bus : public Node {
                     if (!found_others && bus != this) {
                         if (bus->label == label) {
                             bus_values_has_updated = bus->bus_values_has_updated;
-                            has_updated_container = bus->has_updated_container;
                             bus_values = bus->bus_values;
                             connected_buss = bus->connected_buss;
                             connected_buss->insert(this);
@@ -484,9 +485,8 @@ struct Bus : public Node {
         if (found_others) return;
 
         bus_values_has_updated = std::make_shared<bool>();
-        has_updated_container = std::make_shared<bool>();
         bus_values = std::make_shared<std::vector<bool>>();
-        connected_buss = std::make_shared<std::set<Bus*>>();
+        connected_buss = std::make_shared<std::unordered_set<Bus*>>();
         connected_buss->insert(this);
         while ((*bus_values).size() < inputs.size()) {
             (*bus_values).push_back(false);
@@ -551,8 +551,8 @@ struct Bus : public Node {
 private:
     std::shared_ptr<std::vector<bool>> bus_values;
     std::shared_ptr<bool> bus_values_has_updated;
-    std::shared_ptr<bool> has_updated_container;
-    std::shared_ptr<std::set<Bus*>> connected_buss;
+    //std::shared_ptr<bool> has_updated_container;
+    std::shared_ptr<std::unordered_set<Bus*>> connected_buss;
 };
 
 struct Button :public Node {
@@ -590,10 +590,7 @@ struct Button :public Node {
     virtual void pretick() override {}
     virtual void tick() override {
         for (Output_connector& conn : outputs) {
-            if (!conn.child_nodes.has_value()) {
-                conn.find_children();
-            }
-            for (Node* child : conn.child_nodes.value())
+            for (Node* child : conn.get_children())
                 container->changed_nodes.insert(child);
         }
     }

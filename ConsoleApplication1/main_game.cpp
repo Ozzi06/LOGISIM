@@ -443,6 +443,9 @@ void Game::handle_input()
                     }
                 }
             }
+
+            for (Output_connector* outconn : selected_outputs)
+                outconn->find_children();
             
         }
 
@@ -831,11 +834,7 @@ void Node::tick()
         if (conn.new_state != conn.state) {
             conn.state = conn.new_state;
 
-            if(!conn.child_nodes.has_value()){
-                conn.find_children();
-            }
-
-            for (Node* child : conn.child_nodes.value())
+            for (Node* child : conn.get_children())
                 container->changed_nodes.insert(child);
         }
     }
@@ -1022,9 +1021,8 @@ void ToggleButton::clicked(Vector2 pos)
 {
     for (size_t i = 0; i < outputs.size(); i++) {
         if (CheckCollisionPointRec(pos, getButtonRect(i))) {
-            if (!outputs[i].child_nodes.has_value())
-                outputs[i].find_children();
-            for (Node* child_node : outputs[i].child_nodes.value()) {
+            
+            for (Node* child_node : outputs[i].get_children()) {
                 container->changed_nodes.insert(child_node);
             }
             outputs[i].state = !outputs[i].state;
@@ -1149,6 +1147,14 @@ json Output_connector::to_JSON() const {
     return json{ 
         {"Output_connector", json::object({  {"id", id}, {"state", state}})}
     };
+}
+
+std::vector<Node*> Output_connector::get_children()
+{
+    Game& game = Game::getInstance();
+    if (!child_nodes.has_value() || !game.get_efficient_simulation())
+        find_children();
+    return child_nodes.value();
 }
 
 void Input_connector::draw() const
@@ -1574,10 +1580,8 @@ void FunctionNode::pretick()
                 else
                     input_targs[x]->outputs[y].state = false;
 
-                if (!input_targs[x]->outputs[y].child_nodes.has_value())
-                    input_targs[x]->outputs[y].find_children();
 
-                for (Node* child_node : input_targs[x]->outputs[y].child_nodes.value())
+                for (Node* child_node : input_targs[x]->outputs[y].get_children())
                     nodes_container.changed_nodes.insert(child_node);
                 i++;
             }
@@ -1607,10 +1611,7 @@ void FunctionNode::tick()
                 if (outputs[i].state != output_targs[x]->inputs[y].target->state) {
                     outputs[i].state = output_targs[x]->inputs[y].target->state;
 
-                    if (!outputs[i].child_nodes.has_value()) {
-                        outputs[i].find_children();
-                    }
-                    for (Node* child : outputs[i].child_nodes.value())
+                    for (Node* child : outputs[i].get_children())
                         container->changed_nodes.insert(child);
                 }
             }
@@ -1883,9 +1884,8 @@ void PushButton::not_clicked()
 {
     for (size_t i = 0; i < outputs.size(); i++) {
         if (outputs[i].state) {
-            if (!outputs[i].child_nodes.has_value())
-                outputs[i].find_children();
-            for (Node* child_node : outputs[i].child_nodes.value()) {
+            
+            for (Node* child_node : outputs[i].get_children()) {
                 container->changed_nodes.insert(child_node);
             }
         }
@@ -1899,9 +1899,8 @@ void PushButton::clicked(Vector2 pos)
         
         if (CheckCollisionPointRec(pos, getButtonRect(i))) {
             if (!outputs[i].state) {
-                if (!outputs[i].child_nodes.has_value())
-                    outputs[i].find_children();
-                for (Node* child_node : outputs[i].child_nodes.value()) {
+                
+                for (Node* child_node : outputs[i].get_children()) {
                     container->changed_nodes.insert(child_node);
                 }
             }
@@ -1909,9 +1908,8 @@ void PushButton::clicked(Vector2 pos)
         }
         else {
             if (outputs[i].state) {
-                if (!outputs[i].child_nodes.has_value())
-                    outputs[i].find_children();
-                for (Node* child_node : outputs[i].child_nodes.value()) {
+                
+                for (Node* child_node : outputs[i].get_children()) {
                     container->changed_nodes.insert(child_node);
                 }
             }
@@ -1946,17 +1944,8 @@ void Bus::tick()
         if ((*bus_values)[i] != outputs[i].state) {
             outputs[i].state = (*bus_values)[i];
 
-            if (!*has_updated_container) {
-                for (Bus* bus_node : *connected_buss) {
-                    if (!bus_node->outputs[i].child_nodes.has_value()) {
-                        bus_node->outputs[i].find_children();
-                    }
-                    for (Node* child : bus_node->outputs[i].child_nodes.value())
-                        container->changed_nodes.insert(child);
-                }
-                *has_updated_container = true;
-            }
-
+            for (Node* child : outputs[i].get_children())
+                container->changed_nodes.insert(child);
         }
     }
 }
@@ -2018,14 +2007,26 @@ void Bus::load_extra_JSON(const json& nodeJson) {
 
 void nodeContainer::pretick()
 {
-    for (Node* node : changed_nodes)
-        node->pretick();
+    Game& game = Game::getInstance();
+    if(game.get_efficient_simulation())
+        for (Node* node : changed_nodes)
+            node->pretick();
+    else
+        for (Node* node : nodes)
+            node->pretick();
 }
 
 void nodeContainer::tick()
 {
-    std::set<Node*> temp_changed_nodes = changed_nodes;
-    changed_nodes.clear();
-    for (Node* node : temp_changed_nodes)
-        node->tick();
+    Game& game = Game::getInstance();
+    if (game.get_efficient_simulation()) {
+        std::unordered_set<Node*> temp_changed_nodes = changed_nodes;
+        changed_nodes.clear();
+        for (Node* node : temp_changed_nodes)
+            node->tick();
+    }
+    else {
+        for (Node* node : nodes)
+            node->tick();
+    }
 }

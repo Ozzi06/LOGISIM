@@ -7,6 +7,9 @@
 #include <sstream>
 #include <vector>
 #include "nlohmann/json.hpp"
+#include <limits>
+
+#define INFINITY (std::numeric_limits<double>::infinity())
 
 std::string num_toString(double number, int precision);
 
@@ -57,8 +60,34 @@ public:
         }
         return sum / double(current_size);
     }
-};
 
+    double getMax() const {
+        double max = -INFINITY;
+        for (size_t i = 0; i < current_size; i++) {
+            if (max < window[i]) max = window[i];
+        }
+        return max;
+    }
+    double getSoftmax(size_t average_window) const {
+        double max = -INFINITY;
+        for (size_t i = 0; i < current_size; i++) {
+            double sum = 0;
+            for (size_t j = 0; j < average_window && i < current_size; i++, j++) {
+                sum += window[i];
+            }
+            if (max < sum) max = sum;
+        }
+        return max;
+    }
+
+    double getMin() const {
+        double min = INFINITY;
+        for (size_t i = 0; i < current_size; i++) {
+            if (min > window[i]) min = window[i];
+        }
+        return min;
+    }
+};
 
 template<typename T>
 void moveToTop(std::vector<T>& vec, size_t pos) {
