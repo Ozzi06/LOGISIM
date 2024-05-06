@@ -5,6 +5,7 @@
 
 #include "nlohmann/json.hpp"
 #include <utility>
+#include <set>
 
 using json = nlohmann::json;
 
@@ -20,6 +21,16 @@ enum EditMode {
     EDIT,
     CONNECT,
     INTERACT,
+};
+
+struct nodeContainer {
+    std::vector<Node*> nodes;
+    std::set<Node*> changed_nodes;
+
+    void pretick();
+    void tick();
+
+    bool has_changed = true;
 };
 
 class Game {
@@ -52,8 +63,9 @@ public:
     float real_sim_hz = 0;
     
 
-    std::vector<Node*> nodes;
-    std::vector<Node*> clipboard;
+    nodeContainer nodes_container;
+
+    nodeContainer clipboard_container;
 
     std::vector< Input_connector* >selected_inputs;
     std::vector< Output_connector* >selected_outputs;
@@ -87,13 +99,13 @@ private:
 
 };
 
-void NodeNetworkFromJson(const json& nodeNetworkJson, std::vector<Node*> * nodes);
+void NodeNetworkFromJson(const json& nodeNetworkJson, nodeContainer* node_container);
 
-void NormalizeNodeNetworkPosTocLocation(std::vector<Node*>& nodes, Vector2 targpos);
+void NormalizeNodeNetworkPosTocLocation(nodeContainer* nodes, Vector2 targpos);
 
 struct Node {
 public:
-    Node(std::vector<Node*> * container, Vector2 pos = { 0,0 }, Vector2 size = { 0,0 }, Color color = { 0,0,0 }, std::vector<Input_connector> in = {}, std::vector<Output_connector> out = {});
+    Node(nodeContainer* container, Vector2 pos = { 0,0 }, Vector2 size = { 0,0 }, Color color = { 0,0,0 }, std::vector<Input_connector> in = {}, std::vector<Output_connector> out = {});
     
     Node(const Node* base);
 
@@ -165,7 +177,7 @@ public:
         return input_nodes;
     }
 
-    void move_to_container(std::vector<Node*> * new_container) {
+    void move_to_container(nodeContainer* new_container) {
         container = new_container;
     }
 
@@ -173,7 +185,7 @@ protected:
     virtual void recompute_size() {
         size = Vector2{ 100, std::max(100 + 30 * float(inputs.size()), 100 + 30 * float(outputs.size())) };
     }
-    std::vector<Node*> * container;
+    nodeContainer* container;
 
 };
 
@@ -222,7 +234,7 @@ struct Output_connector {
 };
 
 struct BinaryLogicGate : public Node {
-    BinaryLogicGate(std::vector<Node*> * container, Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}) : Node(container, pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
+    BinaryLogicGate(nodeContainer* container, Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}) : Node(container, pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         inputs.insert(inputs.end(), input_connectors.begin(), input_connectors.end());
 
         while (inputs.size() < input_count)
@@ -242,7 +254,7 @@ struct BinaryLogicGate : public Node {
 };
 
 struct GateAND : public BinaryLogicGate {
-    GateAND(std::vector<Node*> * container, Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}) : BinaryLogicGate(container, pos, input_count, input_connectors) {
+    GateAND(nodeContainer* container, Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}) : BinaryLogicGate(container, pos, input_count, input_connectors) {
         label = "AND";
     }
     GateAND(const GateAND* base) : BinaryLogicGate(base) {}
@@ -259,7 +271,7 @@ struct GateAND : public BinaryLogicGate {
 };
 
 struct GateOR : public BinaryLogicGate {
-    GateOR(std::vector<Node*> * container, Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}) : BinaryLogicGate(container, pos, input_count, input_connectors) {
+    GateOR(nodeContainer* container, Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}) : BinaryLogicGate(container, pos, input_count, input_connectors) {
         label = "OR";
     }
     GateOR(const GateOR* base) : BinaryLogicGate(base) {}
@@ -276,7 +288,7 @@ struct GateOR : public BinaryLogicGate {
 };
 
 struct GateNAND : public Node {
-    GateNAND(std::vector<Node*> * container, Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}) : Node(container, pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
+    GateNAND(nodeContainer* container, Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}) : Node(container, pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         label = "NAND";
         inputs.insert(inputs.end(), input_connectors.begin(), input_connectors.end());
 
@@ -308,7 +320,7 @@ struct GateNAND : public Node {
 };
 
 struct GateNOR : public BinaryLogicGate {
-    GateNOR(std::vector<Node*> * container, Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}) : BinaryLogicGate(container, pos, input_count, input_connectors) {
+    GateNOR(nodeContainer* container, Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}) : BinaryLogicGate(container, pos, input_count, input_connectors) {
         label = "NOR";
     }
     GateNOR(const GateNOR* base) : BinaryLogicGate(base) {}
@@ -325,7 +337,7 @@ struct GateNOR : public BinaryLogicGate {
 };
 
 struct GateXOR : public BinaryLogicGate {
-    GateXOR(std::vector<Node*> * container, Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}) : BinaryLogicGate(container, pos, input_count, input_connectors) {
+    GateXOR(nodeContainer* container, Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}) : BinaryLogicGate(container, pos, input_count, input_connectors) {
         label = "XOR";
     }
     GateXOR(const GateXOR* base) : BinaryLogicGate(base) {}
@@ -342,7 +354,7 @@ struct GateXOR : public BinaryLogicGate {
 };
 
 struct GateXNOR : public BinaryLogicGate {
-    GateXNOR(std::vector<Node*> * container, Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}) : BinaryLogicGate(container, pos, input_count, input_connectors) {
+    GateXNOR(nodeContainer* container, Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}) : BinaryLogicGate(container, pos, input_count, input_connectors) {
         label = "XNOR";
     }
     GateXNOR(const GateXNOR* base) : BinaryLogicGate(base) {}
@@ -359,7 +371,7 @@ struct GateXNOR : public BinaryLogicGate {
 };
 
 struct UnaryLogicGate : public Node {
-    UnaryLogicGate(std::vector<Node*> * container, Vector2 pos = { 0,0 }, Output_connector* input = nullptr) : Node(container, pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
+    UnaryLogicGate(nodeContainer* container, Vector2 pos = { 0,0 }, Output_connector* input = nullptr) : Node(container, pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         inputs.push_back(Input_connector(this, 0, input));
         recompute_size();
     }
@@ -373,10 +385,9 @@ struct UnaryLogicGate : public Node {
         recompute_size();
     }
     virtual void remove_input() override {
-        Game& game = Game::getInstance();
         if (inputs.size() > 1) {
             inputs.pop_back();
-            for (Node* node : game.nodes) {
+            for (Node* node : container->nodes) {
                 for (Input_connector& input : node->inputs) {
                     if (input.target == &outputs.back()) input.target = nullptr;
                 }
@@ -395,7 +406,7 @@ struct UnaryLogicGate : public Node {
 };
 
 struct GateBUFFER : public UnaryLogicGate {
-    GateBUFFER(std::vector<Node*> * container, Vector2 pos = { 0,0 }, Output_connector* input = nullptr) : UnaryLogicGate(container, pos, input) {
+    GateBUFFER(nodeContainer* container, Vector2 pos = { 0,0 }, Output_connector* input = nullptr) : UnaryLogicGate(container, pos, input) {
         label = "BUFFER";
     }
     GateBUFFER(const GateBUFFER* base) : UnaryLogicGate(base) {}
@@ -413,7 +424,7 @@ struct GateBUFFER : public UnaryLogicGate {
 };
 
 struct GateNOT : public UnaryLogicGate {
-    GateNOT(std::vector<Node*> * container, Vector2 pos = { 0,0 }, Output_connector* input = nullptr) : UnaryLogicGate(container, pos, input) {
+    GateNOT(nodeContainer* container, Vector2 pos = { 0,0 }, Output_connector* input = nullptr) : UnaryLogicGate(container, pos, input) {
         label = "NOT";
     }
     GateNOT(const GateNOT* base) : UnaryLogicGate(base) {}
@@ -431,7 +442,7 @@ struct GateNOT : public UnaryLogicGate {
 };
 
 struct Bus : public Node {
-    Bus(std::vector<Node*> * container, Vector2 pos = { 0,0 }, Output_connector* input = nullptr) : Node(container, pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
+    Bus(nodeContainer* container, Vector2 pos = { 0,0 }, Output_connector* input = nullptr) : Node(container, pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         label = "BUS_0";
         inputs.push_back(Input_connector(this, 0, input));
         recompute_size();
@@ -443,7 +454,7 @@ struct Bus : public Node {
     }
 
     void find_connections() {
-        for (Node* node : *container) {
+        for (Node* node : container->nodes) {
             if (node) {
                 Bus* bus = dynamic_cast<Bus*>(node);
                 if (bus && bus != this) {
@@ -477,10 +488,9 @@ struct Bus : public Node {
     }
 
     virtual void remove_input() override {
-        Game& game = Game::getInstance();
         if (inputs.size() > 1) {
             inputs.pop_back();
-            for (Node* node : game.nodes) {
+            for (Node* node : container->nodes) {
                 for (Input_connector& input : node->inputs) {
                     if (input.target == &outputs.back()) input.target = nullptr;
                 }
@@ -514,7 +524,7 @@ struct Bus : public Node {
     virtual std::vector<Input_connector*> connected_inputs(size_t output_idx) {
         std::vector<Input_connector*> conned;
 
-        for (Node* node : *container) {
+        for (Node* node : container->nodes) {
             Bus* bus = dynamic_cast<Bus*>(node);
             if (bus) {
                 if (bus->label == label && bus->inputs.size() > output_idx) {
@@ -533,7 +543,7 @@ struct Button :public Node {
     virtual Rectangle getButtonRect(size_t id);
     virtual void draw() override;
 
-    Button(std::vector<Node*> * container, Vector2 pos = { 0,0 }, Color color = ColorBrightness(BLUE, -0.4f)) : Node(container, pos, { 0, 0 }, color) {
+    Button(nodeContainer* container, Vector2 pos = { 0,0 }, Color color = ColorBrightness(BLUE, -0.4f)) : Node(container, pos, { 0, 0 }, color) {
         recompute_size();
     }
     Button(const Button* base) : Node(base) {}
@@ -545,8 +555,7 @@ struct Button :public Node {
 
     virtual void remove_input() override {
         if (outputs.size() > 1) {
-            Game& game = Game::getInstance();
-            for (Node* node : game.nodes) {
+            for (Node* node : container->nodes) {
                 for (auto& conn : node->inputs) {
                     if (conn.target == &outputs.back()) conn.target = nullptr;
                 }
@@ -571,7 +580,7 @@ struct Button :public Node {
 };
 
 struct PushButton : public Button {
-    PushButton(std::vector<Node*> * container, Vector2 pos = { 0,0 }) : Button(container, pos) {
+    PushButton(nodeContainer* container, Vector2 pos = { 0,0 }) : Button(container, pos) {
         label = "Push Button";
     }
     PushButton(const PushButton* base) : Button(base) {}
@@ -586,7 +595,7 @@ struct PushButton : public Button {
 };
 
 struct ToggleButton : public Button {
-    ToggleButton(std::vector<Node*> * container, Vector2 pos = { 0,0 }) : Button(container, pos) {
+    ToggleButton(nodeContainer* container, Vector2 pos = { 0,0 }) : Button(container, pos) {
         label = "Toggle Button";
     }
     ToggleButton(const ToggleButton* base) : Button(base) {}
@@ -602,7 +611,7 @@ struct ToggleButton : public Button {
 
 struct StaticToggleButton : public ToggleButton {
 
-    StaticToggleButton(std::vector<Node*> * container, Vector2 pos = { 0,0 }) : ToggleButton(container, pos) {
+    StaticToggleButton(nodeContainer* container, Vector2 pos = { 0,0 }) : ToggleButton(container, pos) {
         label = "Static Toggle Button";
     }
     StaticToggleButton(const StaticToggleButton* base) : ToggleButton(base) {
@@ -616,7 +625,7 @@ struct StaticToggleButton : public ToggleButton {
 };
 
 struct LightBulb : public Node {
-    LightBulb(std::vector<Node*> * container, Vector2 pos = { 0,0 }) : Node(container, pos, { 0, 0 }, YELLOW) {
+    LightBulb(nodeContainer* container, Vector2 pos = { 0,0 }) : Node(container, pos, { 0, 0 }, YELLOW) {
         label = "Light Bulb";
 
         size = Vector2{ 100, 100 };
@@ -645,7 +654,7 @@ struct LightBulb : public Node {
 };
 
 struct SevenSegmentDisplay : public Node {
-    SevenSegmentDisplay(std::vector<Node*> * container, Vector2 pos = { 0,0 }) : Node(container, pos, { 0, 0 }, ColorBrightness(GRAY, -0.7f)) {
+    SevenSegmentDisplay(nodeContainer* container, Vector2 pos = { 0,0 }) : Node(container, pos, { 0, 0 }, ColorBrightness(GRAY, -0.7f)) {
         label = "7-Segment Disp";
 
         outputs.clear();
@@ -680,7 +689,7 @@ protected:
 class FunctionNode : public Node {
 public:
     
-    FunctionNode(std::vector<Node*> * container, Vector2 pos = {0, 0}) : Node(container, pos, {0, 0}, ColorBrightness(GRAY, -0.6f)), is_single_tick(false) {
+    FunctionNode(nodeContainer* container, Vector2 pos = {0, 0}) : Node(container, pos, {0, 0}, ColorBrightness(GRAY, -0.6f)), is_single_tick(false) {
         label = "Function";
     }
 
@@ -699,7 +708,7 @@ public:
 
     virtual bool show_node_editor();
 
-    std::vector<Node*> nodes;
+    nodeContainer nodes_container;
     
     std::vector<Node*> input_targs;
     std::vector<Node*> output_targs;
@@ -733,23 +742,23 @@ private:
 
 class NodeFactory {
 public:
-    static Node* createNode(std::vector<Node*> * container, const std::string& nodeName) {
-        static std::unordered_map<std::string, std::function<Node* (std::vector<Node*>* container)>> factoryMap = {
-            {"GateAND", [](std::vector<Node*>* container) -> Node* { return new GateAND(container); }},
-            {"GateOR", [](std::vector<Node*>* container) -> Node* { return new GateOR(container); }},
-            {"GateNAND", [](std::vector<Node*>* container) -> Node* { return new GateNAND(container); }},
-            {"GateNOR", [](std::vector<Node*>* container) -> Node* { return new GateNOR(container); }},
-            {"GateXOR", [](std::vector<Node*>* container) -> Node* { return new GateXOR(container); }},
-            {"GateXNOR", [](std::vector<Node*>* container) -> Node* { return new GateXNOR(container); }},
-            {"GateBUFFER", [](std::vector<Node*>* container) -> Node* { return new GateBUFFER(container); }},
-            {"GateNOT", [](std::vector<Node*>* container) -> Node* { return new GateNOT(container); }},
-            {"PushButton", [](std::vector<Node*>* container) -> Node* { return new PushButton(container); }},
-            {"ToggleButton", [](std::vector<Node*>* container) -> Node* { return new ToggleButton(container); }},
-            {"StaticToggleButton", [](std::vector<Node*>* container) -> Node* { return new StaticToggleButton(container); }},
-            {"LightBulb", [](std::vector<Node*>* container) -> Node* { return new LightBulb(container); }},
-            {"SevenSegmentDisplay", [](std::vector<Node*>* container) -> Node* { return new SevenSegmentDisplay(container); }},
-            {"FunctionNode", [](std::vector<Node*>* container) -> Node* { return new FunctionNode(container); }},
-            {"Bus", [](std::vector<Node*>* container) -> Node* { return new Bus(container); }},
+    static Node* createNode(nodeContainer* container, const std::string& nodeName) {
+        static std::unordered_map<std::string, std::function<Node* (nodeContainer* container)>> factoryMap = {
+            {"GateAND", [](nodeContainer* container) -> Node* { return new GateAND(container); }},
+            {"GateOR", [](nodeContainer* container) -> Node* { return new GateOR(container); }},
+            {"GateNAND", [](nodeContainer* container) -> Node* { return new GateNAND(container); }},
+            {"GateNOR", [](nodeContainer* container) -> Node* { return new GateNOR(container); }},
+            {"GateXOR", [](nodeContainer* container) -> Node* { return new GateXOR(container); }},
+            {"GateXNOR", [](nodeContainer* container) -> Node* { return new GateXNOR(container); }},
+            {"GateBUFFER", [](nodeContainer* container) -> Node* { return new GateBUFFER(container); }},
+            {"GateNOT", [](nodeContainer* container) -> Node* { return new GateNOT(container); }},
+            {"PushButton", [](nodeContainer* container) -> Node* { return new PushButton(container); }},
+            {"ToggleButton", [](nodeContainer* container) -> Node* { return new ToggleButton(container); }},
+            {"StaticToggleButton", [](nodeContainer* container) -> Node* { return new StaticToggleButton(container); }},
+            {"LightBulb", [](nodeContainer* container) -> Node* { return new LightBulb(container); }},
+            {"SevenSegmentDisplay", [](nodeContainer* container) -> Node* { return new SevenSegmentDisplay(container); }},
+            {"FunctionNode", [](nodeContainer* container) -> Node* { return new FunctionNode(container); }},
+            {"Bus", [](nodeContainer* container) -> Node* { return new Bus(container); }},
         };
 
         auto it = factoryMap.find(nodeName);

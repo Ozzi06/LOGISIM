@@ -7,11 +7,13 @@
 #include <filesystem>
 #include <iostream>
 
+#include <thread>
+
 #include <algorithm>
 #include "vector_tools.h"
 #include "raygui.h"
 
-Node::Node(std::vector<Node*> * container, Vector2 pos, Vector2 size, Color color, std::vector<Input_connector> in, std::vector<Output_connector> out) : container(container), size(size), color(color), is_selected(false), inputs(in), outputs(out), pos(pos)
+Node::Node(nodeContainer *container, Vector2 pos, Vector2 size, Color color, std::vector<Input_connector> in, std::vector<Output_connector> out) : container(container), size(size), color(color), is_selected(false), inputs(in), outputs(out), pos(pos)
 {
     reserve_outputs();
     if (outputs.size() == 0)
@@ -40,7 +42,7 @@ void Game::draw() {
 
     BeginMode2D(camera);
 
-    for (Node* node : nodes) {
+    for (Node* node : nodes_container.nodes) {
         node->draw();
     }
 
@@ -59,7 +61,7 @@ void Game::draw() {
     if (GuiUi()) hovering_above_gui = true;
 
     if (edit_mode == EDIT) {
-        for (Node* node : nodes) {
+        for (Node* node : nodes_container.nodes) {
             if (node->is_selected) {
                 if (node->show_node_editor()) hovering_above_gui = true;
             }
@@ -75,21 +77,17 @@ void Game::draw() {
 
 void Game::pretick()
 {
-    for (Node* node : nodes) {
-        node->pretick();
-    }
+    nodes_container.pretick();
 }
 
 void Game::tick()
 {
-    for (Node* node : nodes) {
-        node->tick();
-    }
+    nodes_container.tick();
 }
 
 void Game::unselect_all()
 {
-    for (Node* node : nodes) {
+    for (Node* node : nodes_container.nodes) {
         node->is_selected = false;
     }
     selected_inputs.clear();
@@ -98,9 +96,9 @@ void Game::unselect_all()
 
 void Game::remove_node(Node* node)
 {
-    nodes.erase(std::remove(nodes.begin(), nodes.end(), node), nodes.end());
+    nodes_container.nodes.erase(std::remove(nodes_container.nodes.begin(), nodes_container.nodes.end(), node), nodes_container.nodes.end());
 
-    for (Node* gate : nodes) {
+    for (Node* gate : nodes_container.nodes) {
         for (Input_connector& inp : gate->inputs) {
             for (Output_connector& out : node->outputs) {
                 if (inp.target == &out) {
@@ -115,10 +113,10 @@ void Game::remove_node(Node* node)
 void Game::delete_selected_nodes() {
 
     // Delete selected objects and set their pointers to nullptr
-    for (Node*& node : nodes) {
+    for (Node*& node : nodes_container.nodes) {
         if (node != nullptr && node->is_selected) {
 
-            for (Node* gate : nodes) {
+            for (Node* gate : nodes_container.nodes) {
                 if (gate == nullptr) continue;
                 for (Input_connector& inp : gate->inputs) {
                     for (Output_connector& out : node->outputs) {
@@ -136,30 +134,30 @@ void Game::delete_selected_nodes() {
     }
 
     // Remove nullptrs from the vector
-    nodes.erase(std::remove(nodes.begin(), nodes.end(), nullptr), nodes.end());
+    nodes_container.nodes.erase(std::remove(nodes_container.nodes.begin(), nodes_container.nodes.end(), nullptr), nodes_container.nodes.end());
 }
 
 void Game::copy_selected_nodes()
 {
-    for (Node* node : clipboard) {
+    for (Node* node : clipboard_container.nodes) {
         delete node;
     }
-    clipboard.clear();
+    clipboard_container.nodes.clear();
 
-    size_t* idxs = new size_t[nodes.size()];
+    size_t* idxs = new size_t[nodes_container.nodes.size()];
 
     size_t idx = 0;
-    for (size_t i = 0; i < nodes.size(); ++i) {
-        if (nodes[i]->is_selected) {
-            clipboard.push_back(nodes[i]->copy());
+    for (size_t i = 0; i < nodes_container.nodes.size(); ++i) {
+        if (nodes_container.nodes[i]->is_selected) {
+            clipboard_container.nodes.push_back(nodes_container.nodes[i]->copy());
             idxs[i] = idx;
             ++idx;
         }
     }
 
-    for (size_t i = 0; i < clipboard.size(); ++i) {
+    for (size_t i = 0; i < clipboard_container.nodes.size(); ++i) {
 
-        for (Input_connector& input : clipboard[i]->inputs) {
+        for (Input_connector& input : clipboard_container.nodes[i]->inputs) {
             if (input.target && input.target->host->is_selected) {
 
                 size_t target_idx = -1;
@@ -169,10 +167,10 @@ void Game::copy_selected_nodes()
 
                 assert(target_idx != -1);
 
-                for (size_t j = 0; j < nodes.size(); ++j) {
+                for (size_t j = 0; j < nodes_container.nodes.size(); ++j) {
 
-                    if (nodes[j] == input.target->host) {
-                        input.target = &(clipboard[idxs[j]]->outputs[target_idx]);
+                    if (nodes_container.nodes[j] == input.target->host) {
+                        input.target = &(clipboard_container.nodes[idxs[j]]->outputs[target_idx]);
                     }
                 }
 
@@ -187,15 +185,15 @@ void Game::copy_selected_nodes()
 void Game::paste_nodes()
 {
 
-    size_t i = nodes.size();
+    size_t i = nodes_container.nodes.size();
 
-    nodes.insert(nodes.end(), clipboard.begin(), clipboard.end());
-    clipboard.clear();
+    nodes_container.nodes.insert(nodes_container.nodes.end(), clipboard_container.nodes.begin(), clipboard_container.nodes.end());
+    clipboard_container.nodes.clear();
 
     unselect_all();
 
-    for (; i < nodes.size(); ++i) {
-        nodes[i]->is_selected = true;
+    for (; i < nodes_container.nodes.size(); ++i) {
+        nodes_container.nodes[i]->is_selected = true;
     }
 
     copy_selected_nodes();
@@ -250,7 +248,7 @@ void Game::handle_input()
 
             if (moving_nodes && !area_selected) {
 
-                for (Node* node : nodes) {
+                for (Node* node : nodes_container.nodes) {
                     if (node->is_selected) {
                         node->pos = node->pos - movement;
                     }
@@ -265,7 +263,7 @@ void Game::handle_input()
                 else
                     movement = GetScreenToWorld2D(GetMousePosition(), camera) - first_corner;
 
-                for (Node* node : nodes) {
+                for (Node* node : nodes_container.nodes) {
                     if (node->is_selected) {
                         node->pos = node->pos + movement;
                     }
@@ -277,28 +275,28 @@ void Game::handle_input()
             if (!moving_nodes) {
 
                 if (!IsKeyDown(KEY_LEFT_CONTROL)) {
-                    for (Node* node : nodes) {
+                    for (Node* node : nodes_container.nodes) {
                         node->is_selected = false;
                     }
                 }
-                for (auto it = nodes.rbegin(); it != nodes.rend(); ++it) {
+                for (auto it = nodes_container.nodes.rbegin(); it != nodes_container.nodes.rend(); ++it) {
                     Node* node = *it;
                     if (CheckCollisionPointRec(first_corner, { node->pos.x - node->size.x / 2.0f - 10, node->pos.y - node->size.y / 2.0f - 10, node->size.x + 20, node->size.y + 20 })) {
                         node->is_selected = true;
                         auto forwit = it.base(); forwit--;
-                        moveToBottom(nodes, forwit);
+                        moveToBottom(nodes_container.nodes, forwit);
                         break;
                     }
                 }
             }
             else if (area_selected) {
                 if (!IsKeyDown(KEY_LEFT_CONTROL)) {
-                    for (Node* node : nodes) {
+                    for (Node* node : nodes_container.nodes) {
                         node->is_selected = false;
                     }
                 }
                 Rectangle area = RectFrom2Points(GetScreenToWorld2D(GetMousePosition(), camera), first_corner);
-                for (auto node:nodes) {
+                for (auto node: nodes_container.nodes) {
 
                     if (CheckCollisionRecs({ node->pos.x - node->size.x / 2.0f - 10, node->pos.y - node->size.y / 2.0f - 10, node->size.x + 20, node->size.y + 20 }, area)) {
                         node->is_selected = true;
@@ -347,15 +345,15 @@ void Game::handle_input()
         if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
             if (!moved_mouse) {
 
-                for (Node* node : nodes) {
+                for (Node* node : nodes_container.nodes) {
                     node->is_selected = false;
                 }
-                for (auto it = nodes.rbegin(); it != nodes.rend(); ++it) {
+                for (auto it = nodes_container.nodes.rbegin(); it != nodes_container.nodes.rend(); ++it) {
                     Node* node = *it;
                     if (CheckCollisionPointRec(press_pos, { node->pos.x - node->size.x / 2.0f - 10, node->pos.y - node->size.y / 2.0f - 10, node->size.x + 20, node->size.y + 20 })) {
                         node->is_selected = true; 
                         auto forwit = it.base(); forwit--;
-                        moveToBottom(nodes, forwit);
+                        moveToBottom(nodes_container.nodes, forwit);
                         break;
                     }
                 }
@@ -391,7 +389,7 @@ void Game::handle_input()
             if (!moved_mouse) {
                 bool did_connect = false;
 
-                for (auto it = nodes.rbegin(); it != nodes.rend(); ++it) {
+                for (auto it = nodes_container.nodes.rbegin(); it != nodes_container.nodes.rend(); ++it) {
                     Node* node = *it;
 
                     Output_connector* outcon = node->select_output(GetScreenToWorld2D(GetMousePosition(), camera));
@@ -411,7 +409,7 @@ void Game::handle_input()
             else if (area_selected) {
 
                 Rectangle area = RectFrom2Points(GetScreenToWorld2D(GetMousePosition(), camera), first_corner);
-                for (Node* node : nodes) {
+                for (Node* node : nodes_container.nodes) {
                     auto selout = node->select_outputs(area);
                     selected_outputs.insert(selected_outputs.end(), selout.begin(), selout.end());
 
@@ -453,7 +451,7 @@ void Game::handle_input()
                 input->target = nullptr;
             }
             if (!selected_outputs.empty()) {
-                for (Node* node : nodes) {
+                for (Node* node : nodes_container.nodes) {
                     for (Input_connector& incon : node->inputs) {
                         // Check if incon.target is in selected_outputs
                         for (auto& selected_output : selected_outputs) {
@@ -479,7 +477,7 @@ void Game::handle_input()
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             static Vector2 press_pos;
             press_pos = GetScreenToWorld2D(GetMousePosition(), camera);
-            for (auto it = nodes.rbegin(); it != nodes.rend(); ++it) {
+            for (auto it = nodes_container.nodes.rbegin(); it != nodes_container.nodes.rend(); ++it) {
                 Node* node = *it;
                 if (CheckCollisionPointRec(press_pos, { node->pos.x - node->size.x / 2.0f - 10, node->pos.y - node->size.y / 2.0f - 10, node->size.x + 20, node->size.y + 20 })) {
                     node->clicked(press_pos);
@@ -488,7 +486,7 @@ void Game::handle_input()
             }
         }
         if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
-            for (Node* node : nodes) {
+            for (Node* node : nodes_container.nodes) {
                 node->not_clicked();
             }
         }
@@ -520,7 +518,7 @@ void Game::save(std::string filePath)
         {"nodes", json::array()}
     };
 
-    for(Node* node : nodes)
+    for(Node* node : nodes_container.nodes)
         myJson["nodes"].push_back(node->to_JSON());
 
     std::ofstream outputFile(filePath);
@@ -540,27 +538,27 @@ void Game::save(std::string filePath)
 
 }
 
-void NodeNetworkFromJson(const json& nodeNetworkJson, std::vector<Node*> * nodes) {
+void NodeNetworkFromJson(const json& nodeNetworkJson, nodeContainer* node_container) {
     for (const auto& node : nodeNetworkJson) {
         // Each node is a JSON object where the key is the gate type
         for (auto it = node.begin(); it != node.end(); ++it) {
             std::string nodeType = it.key(); // Get the gate type (e.g., "GateAND")
             json nodeJson = it.value(); // Get the JSON object representing the node
 
-            Node* node = NodeFactory::createNode(nodes, nodeType);
+            Node* node = NodeFactory::createNode(node_container, nodeType);
             assert(node && "node not created");
             node->load_JSON(nodeJson);
-            nodes->push_back(node);
+            node_container->nodes.push_back(node);
         }
     }
 
-    for (Node* node : *nodes) {
+    for (Node* node : node_container->nodes) {
         for (Input_connector& input : node->inputs) {
 
             bool found = false;
             uid_t id = input.target_id;
             if (id) {
-                for (Node* node2 : *nodes) {
+                for (Node* node2 : node_container->nodes) {
                     if (found) break;
                     for (Output_connector& output : node2->outputs) {
                         if (output.id == id) {
@@ -576,11 +574,11 @@ void NodeNetworkFromJson(const json& nodeNetworkJson, std::vector<Node*> * nodes
     }
 }
 
-void NormalizeNodeNetworkPosTocLocation(std::vector<Node*>& nodes, Vector2 targpos)
+void NormalizeNodeNetworkPosTocLocation(nodeContainer* node_Container, Vector2 targpos)
 {
-    if (nodes.empty()) return;
-    Vector2 origin1 = nodes[0]->pos;
-    for (Node* node : nodes) {
+    if (node_Container->nodes.empty()) return;
+    Vector2 origin1 = node_Container->nodes[0]->pos;
+    for (Node* node : node_Container->nodes) {
         node->pos = node->pos - origin1 + targpos;
     }
 }
@@ -600,8 +598,8 @@ void Game::load(std::string filePath)
     saveFile >> save;
     saveFile.close();
     
-    nodes.clear();
-    NodeNetworkFromJson(save["nodes"], &nodes);
+    nodes_container.nodes.clear();
+    NodeNetworkFromJson(save["nodes"], &nodes_container);
     if (save.contains("camera"))
         camera = save.at("camera").get<Camera2D>();
 }
@@ -888,7 +886,6 @@ void GateNOT::pretick()
             outputs[i].new_state = !inputs[i].target->state;
         else
             outputs[i].new_state = true;
-
     }
 }
 
@@ -1192,19 +1189,19 @@ json Input_connector::to_JSON() const {
 
 FunctionNode::FunctionNode(const FunctionNode* base): Node(base), is_single_tick(base->is_single_tick), is_cyclic_val(base->is_cyclic_val)
 {
-    nodes.clear();
-    size_t* idxs = new size_t[base->nodes.size()];
+    nodes_container.nodes.clear();
+    size_t* idxs = new size_t[base->nodes_container.nodes.size()];
 
     size_t idx = 0;
-    for (size_t i = 0; i < base->nodes.size(); ++i) {
-        nodes.push_back(base->nodes[i]->copy());
+    for (size_t i = 0; i < base->nodes_container.nodes.size(); ++i) {
+        nodes_container.nodes.push_back(base->nodes_container.nodes[i]->copy());
         idxs[i] = idx;
         ++idx;
     }
 
-    for (size_t i = 0; i < nodes.size(); ++i) {
+    for (size_t i = 0; i < nodes_container.nodes.size(); ++i) {
 
-        for (Input_connector& input : nodes[i]->inputs) {
+        for (Input_connector& input : nodes_container.nodes[i]->inputs) {
             if (input.target) {
 
                 size_t target_idx = -1;
@@ -1214,10 +1211,10 @@ FunctionNode::FunctionNode(const FunctionNode* base): Node(base), is_single_tick
 
                 assert(target_idx != -1);
 
-                for (size_t j = 0; j < base->nodes.size(); ++j) {
+                for (size_t j = 0; j < base->nodes_container.nodes.size(); ++j) {
 
-                    if (base->nodes[j] == input.target->host) {
-                        input.target = &(nodes[idxs[j]]->outputs[target_idx]);
+                    if (base->nodes_container.nodes[j] == input.target->host) {
+                        input.target = &(nodes_container.nodes[idxs[j]]->outputs[target_idx]);
                     }
                 }
 
@@ -1227,7 +1224,7 @@ FunctionNode::FunctionNode(const FunctionNode* base): Node(base), is_single_tick
     delete[] idxs;
 
     // populate and sort the arrays for where to route the input and output connectors on the function node
-    for (Node* node : nodes) {
+    for (Node* node : nodes_container.nodes) {
         if (node->isInput()) {
             input_targs.push_back(node);
         }
@@ -1249,7 +1246,7 @@ FunctionNode::FunctionNode(const FunctionNode* base): Node(base), is_single_tick
 
 FunctionNode::~FunctionNode()
 {
-    for (Node* node : nodes) {
+    for (Node* node : nodes_container.nodes) {
         delete node;
     }
 }
@@ -1425,7 +1422,7 @@ json FunctionNode::to_JSON() const
         }
     };
 
-    for (Node* node : nodes)
+    for (Node* node : nodes_container.nodes)
         myJson[get_type()]["nodes"].push_back(node->to_JSON());
 
     return myJson;
@@ -1435,16 +1432,16 @@ void FunctionNode::load_extra_JSON(const json& nodeJson)
 {
     try {
         // load all the nodes
-        nodes.clear();
+        nodes_container.nodes.clear();
         if (nodeJson.contains(get_type()))
-            NodeNetworkFromJson(nodeJson.at(get_type()).at("nodes"), &nodes);
+            NodeNetworkFromJson(nodeJson.at(get_type()).at("nodes"), &nodes_container);
         else if (nodeJson.contains("nodes"))
-            NodeNetworkFromJson(nodeJson.at("nodes"), &nodes);
+            NodeNetworkFromJson(nodeJson.at("nodes"), &nodes_container);
         else
             std::cerr << "JSON parsing error: \n";
 
         // populate and sort the arrays for where to route the input and output connectors on the function node
-        for (Node* node : nodes) {
+        for (Node* node : nodes_container.nodes) {
 
             if (node->isInput()) {
                 input_targs.push_back(node);
@@ -1584,11 +1581,14 @@ void FunctionNode::pretick()
 {
     Game& game = Game::getInstance();
     {
+        bool innef_sim = !game.get_efficient_simulation();
+
         size_t i = 0;
         for (size_t x = 0; x < input_targs.size(); x++) {
-            for (size_t y = 0; y < input_targs[x]->outputs.size(); y++) {
+            for (size_t y = 0; y < input_targs[x]->outputs.size(); y++) { //loop over all output nodes of input_targs to get all inputs to the node
+
                 if (inputs[i].target) {
-                    if (inputs[i].target->host->has_changed) {
+                    if (inputs[i].target->host->has_changed || innef_sim) {
                         has_changed = true;
                         input_targs[x]->outputs[y].state = inputs[i].target->state;
                         input_targs[x]->outputs[y].host->has_changed = true;
@@ -1600,23 +1600,14 @@ void FunctionNode::pretick()
             }
         }
     }
-    
-    if (is_single_tick) {
 
-        if (has_changed) {
-            for (Node* node : nodes) {
-                node->pretick();
-                node->tick();
-            }
+    if (has_changed) {
+        if (is_single_tick) {
+            nodes_container.pretick();
+            nodes_container.tick();
         }
-    }
-    else {
-
-        if (has_changed ||!game.get_efficient_simulation()) {
-            for (Node* node : nodes) {
-                node->pretick();
-            }
-        }
+        else
+            nodes_container.pretick();
     }
 }
 
@@ -1626,7 +1617,7 @@ void FunctionNode::tick()
     if (is_single_tick) {
         if (has_changed || !game.get_efficient_simulation()) {
             has_changed = false;
-            for (Node* node : nodes) {
+            for (Node* node : nodes_container.nodes) {
                 if (node->has_changed) has_changed = true;
             }
             {
@@ -1647,9 +1638,10 @@ void FunctionNode::tick()
         }
         return;
     }
+
     if (has_changed || !game.get_efficient_simulation()) {
         has_changed = false;
-        for (Node* node : nodes) {
+        for (Node* node : nodes_container.nodes) {
             node->tick();
             if (node->has_changed) has_changed = true;
         }
@@ -1708,7 +1700,7 @@ bool FunctionNode::is_cyclic() const
         }
 
         marked_outconns[outconn] = NodeState::Visiting;
-        
+
         for (Input_connector* inconn : outconn->host->connected_inputs(outconn->index)) {
             DFS(inconn->target);
             if (hasCycle) return;
@@ -1771,7 +1763,7 @@ int FunctionNode::delay() const
 
 void FunctionNode::sort_linear()
 {
-    if (is_cyclic()) return ;
+    if (is_cyclic()) return;
 
     std::unordered_map<Output_connector*, int> marked_outconns;
     int max_delay = 1;
@@ -1806,7 +1798,7 @@ void FunctionNode::sort_linear()
         }
     }
 
-    std::sort(nodes.begin(), nodes.end(), [&](Node* a, Node* b) {
+    std::sort(nodes_container.nodes.begin(), nodes_container.nodes.end(), [&](Node* a, Node* b) {
         size_t max_a = 0;
         for (Output_connector& out : a->outputs) {
             if (marked_outconns[&out] > max_a) max_a = marked_outconns[&out];
@@ -2026,4 +2018,12 @@ void Bus::load_extra_JSON(const json& nodeJson) {
         }
 
     }
+}
+
+void nodeContainer::pretick()
+{
+}
+
+void nodeContainer::tick()
+{
 }

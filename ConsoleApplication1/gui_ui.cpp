@@ -124,8 +124,8 @@ bool NodeSelectionMenu() {
                     json save;
                     saveFile >> save;
                     saveFile.close();
-                    game.nodes.push_back(new FunctionNode(&game.nodes, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
-                    auto it = game.nodes.end();
+                    game.nodes_container.nodes.push_back(new FunctionNode(&game.nodes_container, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
+                    auto it = game.nodes_container.nodes.end();
                     it--;
                     (*it)->load_JSON(save);
                 }
@@ -155,16 +155,16 @@ bool NodeSelectionMenu() {
                     saveFile >> save;
                     saveFile.close();
 
-                    std::vector<Node*> subassembly; 
+                    nodeContainer subassembly; 
                     NodeNetworkFromJson(save.at("nodes"), &subassembly);
 
-                    NormalizeNodeNetworkPosTocLocation(subassembly, game.camera.target);
+                    NormalizeNodeNetworkPosTocLocation(&subassembly, game.camera.target);
 
-                    for (Node* node : subassembly) {
-                        node->move_to_container(&game.nodes);
+                    for (Node* node : subassembly.nodes) {
+                        node->move_to_container(&game.nodes_container);
                     }
 
-                    game.nodes.insert(game.nodes.end(), subassembly.begin(), subassembly.end());
+                    game.nodes_container.nodes.insert(game.nodes_container.nodes.end(), subassembly.nodes.begin(), subassembly.nodes.end());
                 }
             }
         ouside_if2:
@@ -181,7 +181,7 @@ bool NodeSelectionMenu() {
             curr_el_h = 30;
             const char* label = "PushButton";
             if (GuiButton(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, label)) {
-                game.nodes.push_back(new PushButton(&game.nodes, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
+                game.nodes_container.nodes.push_back(new PushButton(&game.nodes_container, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
             }
             current_depth += curr_el_h;
         }
@@ -196,7 +196,7 @@ bool NodeSelectionMenu() {
             curr_el_h = 30;
             const char* label = "ToggleButton";
             if (GuiButton(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, label)) {
-                game.nodes.push_back(new ToggleButton(&game.nodes, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
+                game.nodes_container.nodes.push_back(new ToggleButton(&game.nodes_container, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
             }
             current_depth += curr_el_h;
         }
@@ -211,7 +211,7 @@ bool NodeSelectionMenu() {
             curr_el_h = 30;
             const char* label = "StaticToggleButton";
             if (GuiButton(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, label)) {
-                game.nodes.push_back(new StaticToggleButton(&game.nodes, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
+                game.nodes_container.nodes.push_back(new StaticToggleButton(&game.nodes_container, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
             }
             current_depth += curr_el_h;
         }
@@ -226,7 +226,7 @@ bool NodeSelectionMenu() {
             curr_el_h = 30;
             const char* label = "SevenSegmentDisplay";
             if (GuiButton(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, label)) {
-                game.nodes.push_back(new SevenSegmentDisplay(&game.nodes, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
+                game.nodes_container.nodes.push_back(new SevenSegmentDisplay(&game.nodes_container, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
             }
             current_depth += curr_el_h;
         }
@@ -241,7 +241,7 @@ bool NodeSelectionMenu() {
             curr_el_h = 30;
             const char* label = "LightBulb";
             if (GuiButton(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, label)) {
-                game.nodes.push_back(new LightBulb(&game.nodes, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
+                game.nodes_container.nodes.push_back(new LightBulb(&game.nodes_container, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
             }
             current_depth += curr_el_h;
         }
@@ -256,7 +256,7 @@ bool NodeSelectionMenu() {
             curr_el_h = 30;
             const char* label = "GateAND";
             if (GuiButton(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, label)) {
-                game.nodes.push_back(new GateAND(&game.nodes, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
+                game.nodes_container.nodes.push_back(new GateAND(&game.nodes_container, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
             }
             current_depth += curr_el_h;
         }
@@ -271,7 +271,7 @@ bool NodeSelectionMenu() {
             curr_el_h = 30;
             const char* label = "GateOR";
             if (GuiButton(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, label)) {
-                game.nodes.push_back(new GateOR(&game.nodes, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
+                game.nodes_container.nodes.push_back(new GateOR(&game.nodes_container, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
             }
             current_depth += curr_el_h;
         }
@@ -286,7 +286,7 @@ bool NodeSelectionMenu() {
             curr_el_h = 30;
             const char* label = "GateNAND";
             if (GuiButton(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, label)) {
-                game.nodes.push_back(new GateNAND(&game.nodes, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
+                game.nodes_container.nodes.push_back(new GateNAND(&game.nodes_container, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
             }
             current_depth += curr_el_h;
         }
@@ -301,7 +301,7 @@ bool NodeSelectionMenu() {
             curr_el_h = 30;
             const char* label = "GateNOR";
             if (GuiButton(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, label)) {
-                game.nodes.push_back(new GateNOR(&game.nodes, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
+                game.nodes_container.nodes.push_back(new GateNOR(&game.nodes_container, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
             }
             current_depth += curr_el_h;
         }
@@ -316,7 +316,7 @@ bool NodeSelectionMenu() {
             curr_el_h = 30;
             const char* label = "GateXOR";
             if (GuiButton(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, label)) {
-                game.nodes.push_back(new GateXOR(&game.nodes, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
+                game.nodes_container.nodes.push_back(new GateXOR(&game.nodes_container, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
             }
             current_depth += curr_el_h;
         }
@@ -331,7 +331,7 @@ bool NodeSelectionMenu() {
             curr_el_h = 30;
             const char* label = "GateXNOR";
             if (GuiButton(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, label)) {
-                game.nodes.push_back(new GateXNOR(&game.nodes, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
+                game.nodes_container.nodes.push_back(new GateXNOR(&game.nodes_container, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
             }
             current_depth += curr_el_h;
         }
@@ -346,7 +346,7 @@ bool NodeSelectionMenu() {
             curr_el_h = 30;
             const char* label = "Bus";
             if (GuiButton(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, label)) {
-                game.nodes.push_back(new Bus(&game.nodes, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
+                game.nodes_container.nodes.push_back(new Bus(&game.nodes_container, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
             }
             current_depth += curr_el_h;
         }
@@ -361,7 +361,7 @@ bool NodeSelectionMenu() {
             curr_el_h = 30;
             const char* label = "GateBUFFER";
             if (GuiButton(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, label)) {
-                game.nodes.push_back(new GateBUFFER(&game.nodes, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
+                game.nodes_container.nodes.push_back(new GateBUFFER(&game.nodes_container, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
             }
             current_depth += curr_el_h;
         }
@@ -376,7 +376,7 @@ bool NodeSelectionMenu() {
             curr_el_h = 30;
             const char* label = "GateNOT";
             if (GuiButton(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, label)) {
-                game.nodes.push_back(new GateNOT(&game.nodes, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
+                game.nodes_container.nodes.push_back(new GateNOT(&game.nodes_container, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
             }
             current_depth += curr_el_h;
         }

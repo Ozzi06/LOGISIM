@@ -7,8 +7,6 @@
 #include "raygui.h"
 #include "vector_tools.h"
 #include "main_game.h"
-//#define GUI_WINDOW_HELP_IMPLEMENTATION
-//#include "gui_window_help.h"
 
 #include <fstream>
 
@@ -108,9 +106,7 @@ int main()
 
     while (!WindowShouldClose())
     {
-        {
-            pre_update_t = t;
-        }
+        pre_update_t = t;
         size_t i = 0;
         double duration;
         double elapsed_time = 0;
