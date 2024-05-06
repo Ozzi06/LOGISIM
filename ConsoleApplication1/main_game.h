@@ -29,8 +29,6 @@ struct nodeContainer {
 
     void pretick();
     void tick();
-
-    bool has_changed = true;
 };
 
 class Game {
@@ -127,8 +125,6 @@ public:
         label = newlabel;
     }
 
-    bool has_changed = true;
-
     bool is_selected;
     Vector2 pos;
     Vector2 size;
@@ -181,12 +177,12 @@ public:
         container = new_container;
     }
 
+    nodeContainer* container;
+
 protected:
     virtual void recompute_size() {
         size = Vector2{ 100, std::max(100 + 30 * float(inputs.size()), 100 + 30 * float(outputs.size())) };
     }
-    nodeContainer* container;
-
 };
 
 struct Input_connector {
@@ -213,6 +209,10 @@ struct Input_connector {
 struct Output_connector {
     Output_connector(Node* host, size_t index, bool state = false, uid_t id = generate_id()) : host(host), index(index), state(state), new_state(false), id(id) { }
     Node* host;
+    std::optional<std::vector<Node*>> child_nodes;
+    
+    void find_children();
+
     size_t index;
     bool state;
     bool new_state;
@@ -454,24 +454,40 @@ struct Bus : public Node {
     }
 
     void find_connections() {
+        if (connected_buss) {
+            connected_buss->erase(this);
+        }
+        bool found_others = false;
+
         for (Node* node : container->nodes) {
             if (node) {
                 Bus* bus = dynamic_cast<Bus*>(node);
-                if (bus && bus != this) {
-                    if (bus->label == label) {
-                        bus_values_has_updated = bus->bus_values_has_updated;
-                        bus_values = bus->bus_values;
-                        while ((*bus_values).size() < inputs.size()) {
-                            (*bus_values).push_back(false);
+                if (bus) {
+                    if (!found_others && bus != this) {
+                        if (bus->label == label) {
+                            bus_values_has_updated = bus->bus_values_has_updated;
+                            has_updated_container = bus->has_updated_container;
+                            bus_values = bus->bus_values;
+                            connected_buss = bus->connected_buss;
+                            connected_buss->insert(this);
+
+                            while ((*bus_values).size() < inputs.size()) {
+                                (*bus_values).push_back(false);
+                            }
+                            found_others = true;
                         }
-                        return;
                     }
                 }
             }
         }
 
+        if (found_others) return;
+
         bus_values_has_updated = std::make_shared<bool>();
+        has_updated_container = std::make_shared<bool>();
         bus_values = std::make_shared<std::vector<bool>>();
+        connected_buss = std::make_shared<std::set<Bus*>>();
+        connected_buss->insert(this);
         while ((*bus_values).size() < inputs.size()) {
             (*bus_values).push_back(false);
         }
@@ -483,8 +499,6 @@ struct Bus : public Node {
         outputs.push_back(Output_connector(this, outputs.size(), false));
         recompute_size();
         find_connections();
-
-
     }
 
     virtual void remove_input() override {
@@ -537,6 +551,8 @@ struct Bus : public Node {
 private:
     std::shared_ptr<std::vector<bool>> bus_values;
     std::shared_ptr<bool> bus_values_has_updated;
+    std::shared_ptr<bool> has_updated_container;
+    std::shared_ptr<std::set<Bus*>> connected_buss;
 };
 
 struct Button :public Node {
@@ -572,7 +588,15 @@ struct Button :public Node {
     virtual void clicked(Vector2 pos) = 0;
 
     virtual void pretick() override {}
-    virtual void tick() override { has_changed = false; }
+    virtual void tick() override {
+        for (Output_connector& conn : outputs) {
+            if (!conn.child_nodes.has_value()) {
+                conn.find_children();
+            }
+            for (Node* child : conn.child_nodes.value())
+                container->changed_nodes.insert(child);
+        }
+    }
 
     virtual bool isInput() const override { return true; }
 
@@ -646,7 +670,7 @@ struct LightBulb : public Node {
 
     virtual Texture get_texture() const override { return { 0 }; }
 
-    virtual void pretick() override { has_changed = false; }
+    virtual void pretick() override {}
 
     virtual std::string get_type() const override { return"LightBulb"; }
 
@@ -712,7 +736,7 @@ public:
     
     std::vector<Node*> input_targs;
     std::vector<Node*> output_targs;
-     
+    
 
     virtual json to_JSON() const override;
 

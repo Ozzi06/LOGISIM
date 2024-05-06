@@ -702,31 +702,6 @@ bool Node::show_node_editor()
 
         current_depth += curr_el_h;
     }
-
-    {   // Spacing line
-        curr_el_h = 15;
-        GuiLine(Rectangle{ Pos.x, Pos.y + current_depth, area_width, curr_el_h }, NULL);
-        current_depth += curr_el_h;
-    }
-
-    {   // Has_changed
-        curr_el_h = 32;
-        float current_x = Pos.x + margin;
-
-        GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "has_changed:");
-        current_x += 64 + margin;
-
-        if (has_changed) {
-            GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "true");
-            current_x += 64 + margin;
-        }
-        else {
-            GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "false");
-            current_x += 64 + margin;
-        }
-
-        current_depth += curr_el_h;
-    }
     
     {   // Spacing line
         curr_el_h = 15;
@@ -852,11 +827,16 @@ std::vector<Output_connector*> Node::select_outputs(Rectangle select_area)
 
 void Node::tick()
 {
-    has_changed = false;
     for (Output_connector& conn : outputs) {
         if (conn.new_state != conn.state) {
-            has_changed = true;
             conn.state = conn.new_state;
+
+            if(!conn.child_nodes.has_value()){
+                conn.find_children();
+            }
+
+            for (Node* child : conn.child_nodes.value())
+                container->changed_nodes.insert(child);
         }
     }
 }
@@ -1040,11 +1020,14 @@ void Button::recompute_size()
 
 void ToggleButton::clicked(Vector2 pos)
 {
-    has_changed = false;
     for (size_t i = 0; i < outputs.size(); i++) {
-        if (CheckCollisionPointRec(pos, getButtonRect(i))) { 
+        if (CheckCollisionPointRec(pos, getButtonRect(i))) {
+            if (!outputs[i].child_nodes.has_value())
+                outputs[i].find_children();
+            for (Node* child_node : outputs[i].child_nodes.value()) {
+                container->changed_nodes.insert(child_node);
+            }
             outputs[i].state = !outputs[i].state;
-            has_changed = true;
         }
     }
 }
@@ -1115,6 +1098,26 @@ void Node::load_JSON(const json& nodeJson) {
     }
 
     load_extra_JSON(nodeJson);
+}
+
+void Output_connector::find_children()
+{
+    if (!child_nodes.has_value())
+        child_nodes.emplace();
+    else
+        child_nodes.value().clear();
+
+    for (Node* node : host->container->nodes) {
+        for (Input_connector& inconn : node->inputs) {
+            if (inconn.target == this) {
+                // Check if the node is already in the list to avoid duplicates
+                if (std::find(child_nodes->begin(), child_nodes->end(), node) == child_nodes->end()) {
+                    child_nodes->push_back(node);
+                    break;
+                }
+            }
+        }
+    }
 }
 
 void Output_connector::draw() const
@@ -1339,25 +1342,6 @@ bool FunctionNode::show_node_editor()
         current_depth += curr_el_h;
     }
 
-    {   // Has_changed
-        curr_el_h = 32;
-        float current_x = Pos.x + margin;
-
-        GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "has_changed:");
-        current_x += 64 + margin;
-
-        if (has_changed) {
-            GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "true");
-            current_x += 64 + margin;
-        }
-        else {
-            GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "false");
-            current_x += 64 + margin;
-        }
-
-        current_depth += curr_el_h;
-    }
-
     {   // Spacing line
         curr_el_h = 15;
         GuiLine(Rectangle{ Pos.x, Pos.y + current_depth, area_width, curr_el_h }, NULL);
@@ -1579,89 +1563,65 @@ void FunctionNode::draw()
 
 void FunctionNode::pretick()
 {
-    Game& game = Game::getInstance();
     {
-        bool innef_sim = !game.get_efficient_simulation();
-
         size_t i = 0;
         for (size_t x = 0; x < input_targs.size(); x++) {
             for (size_t y = 0; y < input_targs[x]->outputs.size(); y++) { //loop over all output nodes of input_targs to get all inputs to the node
 
                 if (inputs[i].target) {
-                    if (inputs[i].target->host->has_changed || innef_sim) {
-                        has_changed = true;
-                        input_targs[x]->outputs[y].state = inputs[i].target->state;
-                        input_targs[x]->outputs[y].host->has_changed = true;
-                    }
+                    input_targs[x]->outputs[y].state = inputs[i].target->state;
                 }
                 else
                     input_targs[x]->outputs[y].state = false;
+
+                if (!input_targs[x]->outputs[y].child_nodes.has_value())
+                    input_targs[x]->outputs[y].find_children();
+
+                for (Node* child_node : input_targs[x]->outputs[y].child_nodes.value())
+                    nodes_container.changed_nodes.insert(child_node);
                 i++;
             }
         }
     }
 
-    if (has_changed) {
-        if (is_single_tick) {
-            nodes_container.pretick();
-            nodes_container.tick();
-        }
-        else
-            nodes_container.pretick();
+    if (is_single_tick) {
+        nodes_container.pretick();
+        nodes_container.tick();
     }
+    else
+        nodes_container.pretick();
 }
 
 void FunctionNode::tick()
 {
-    Game& game = Game::getInstance();
-    if (is_single_tick) {
-        if (has_changed || !game.get_efficient_simulation()) {
-            has_changed = false;
-            for (Node* node : nodes_container.nodes) {
-                if (node->has_changed) has_changed = true;
-            }
-            {
-                size_t i = 0;
-                for (size_t x = 0; x < output_targs.size(); x++) {
-                    for (size_t y = 0; y < output_targs[x]->inputs.size(); y++) {
-                        if (output_targs[x]->inputs[y].target) {
-                            if (outputs[i].state != output_targs[x]->inputs[y].target->state) {
-                                outputs[i].state = output_targs[x]->inputs[y].target->state;
-                                has_changed = true;
-                            }
-                        }
-                        else outputs[i].new_state = false;
-                        i++;
-                    }
-                }
-            }
-        }
-        return;
+    if (!is_single_tick) {
+        nodes_container.tick();
     }
 
-    if (has_changed || !game.get_efficient_simulation()) {
-        has_changed = false;
-        for (Node* node : nodes_container.nodes) {
-            node->tick();
-            if (node->has_changed) has_changed = true;
-        }
+    // set all output connectors based on the inputs of the output_nodes in the container
+    size_t i = 0;
+    for (size_t x = 0; x < output_targs.size(); x++) {
+        for (size_t y = 0; y < output_targs[x]->inputs.size(); y++) {
 
-        {
-            size_t i = 0;
-            for (size_t x = 0; x < output_targs.size(); x++) {
-                for (size_t y = 0; y < output_targs[x]->inputs.size(); y++) {
-                    if (output_targs[x]->inputs[y].target) {
-                        if (outputs[i].state != output_targs[x]->inputs[y].target->state) {
-                            outputs[i].state = output_targs[x]->inputs[y].target->state;
-                            has_changed = true;
-                        }
+            if (output_targs[x]->inputs[y].target) {
+                if (outputs[i].state != output_targs[x]->inputs[y].target->state) {
+                    outputs[i].state = output_targs[x]->inputs[y].target->state;
+
+                    if (!outputs[i].child_nodes.has_value()) {
+                        outputs[i].find_children();
                     }
-                    else outputs[i].new_state = false;
-                    i++;
+                    for (Node* child : outputs[i].child_nodes.value())
+                        container->changed_nodes.insert(child);
                 }
             }
+            else outputs[i].state = false;
+
+            i++;
         }
     }
+
+    if(!nodes_container.changed_nodes.empty())
+        container->changed_nodes.insert(this);
 }
 
 bool FunctionNode::is_cyclic() const
@@ -1921,21 +1881,42 @@ void SevenSegmentDisplay::recompute_size()
 
 void PushButton::not_clicked()
 {
-    has_changed = false;
     for (size_t i = 0; i < outputs.size(); i++) {
-        if (outputs[i].state) has_changed = true;
+        if (outputs[i].state) {
+            if (!outputs[i].child_nodes.has_value())
+                outputs[i].find_children();
+            for (Node* child_node : outputs[i].child_nodes.value()) {
+                container->changed_nodes.insert(child_node);
+            }
+        }
         outputs[i].state = false;
     }
 }
 
 void PushButton::clicked(Vector2 pos)
 {
-    has_changed = false;
     for (size_t i = 0; i < outputs.size(); i++) {
-        if (!outputs[i].state) has_changed = true;
-        if (CheckCollisionPointRec(pos, getButtonRect(i))) outputs[i].state = true;
-        else outputs[i].state = false;
-
+        
+        if (CheckCollisionPointRec(pos, getButtonRect(i))) {
+            if (!outputs[i].state) {
+                if (!outputs[i].child_nodes.has_value())
+                    outputs[i].find_children();
+                for (Node* child_node : outputs[i].child_nodes.value()) {
+                    container->changed_nodes.insert(child_node);
+                }
+            }
+            outputs[i].state = true;
+        }
+        else {
+            if (outputs[i].state) {
+                if (!outputs[i].child_nodes.has_value())
+                    outputs[i].find_children();
+                for (Node* child_node : outputs[i].child_nodes.value()) {
+                    container->changed_nodes.insert(child_node);
+                }
+            }
+            outputs[i].state = false;
+        }
     }
 }
 
@@ -1951,16 +1932,31 @@ void Bus::pretick()
             (*bus_values)[i] = true;
     }
     *bus_values_has_updated = true;
+
+    for (Bus* bus_node : *connected_buss) {
+        container->changed_nodes.insert(bus_node);
+    }
 }
 
 void Bus::tick()
 {
-    has_changed = false;
+
     *bus_values_has_updated = false;
     for (size_t i = 0; i < outputs.size(); i++) {
         if ((*bus_values)[i] != outputs[i].state) {
-            has_changed = true;
             outputs[i].state = (*bus_values)[i];
+
+            if (!*has_updated_container) {
+                for (Bus* bus_node : *connected_buss) {
+                    if (!bus_node->outputs[i].child_nodes.has_value()) {
+                        bus_node->outputs[i].find_children();
+                    }
+                    for (Node* child : bus_node->outputs[i].child_nodes.value())
+                        container->changed_nodes.insert(child);
+                }
+                *has_updated_container = true;
+            }
+
         }
     }
 }
@@ -2022,8 +2018,14 @@ void Bus::load_extra_JSON(const json& nodeJson) {
 
 void nodeContainer::pretick()
 {
+    for (Node* node : changed_nodes)
+        node->pretick();
 }
 
 void nodeContainer::tick()
 {
+    std::set<Node*> temp_changed_nodes = changed_nodes;
+    changed_nodes.clear();
+    for (Node* node : temp_changed_nodes)
+        node->tick();
 }
