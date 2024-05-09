@@ -149,6 +149,7 @@
     <ClCompile Include="file_dialogs.cpp" />
     <ClCompile Include="gui_ui.cpp" />
     <ClCompile Include="main_game.cpp" />
+    <ClCompile Include="Nodes\simulation_nodes.cpp" />
     <ClCompile Include="random_id.cpp" />
     <ClCompile Include="vector_tools.cpp" />
   </ItemGroup>
@@ -160,6 +161,7 @@
     <ClInclude Include="gui_ui.h" />
     <ClInclude Include="main_game.h" />
     <ClInclude Include="nlohmann\json.hpp" />
+    <ClInclude Include="Nodes\simulation_nodes.h" />
     <ClInclude Include="random_id.h" />
     <ClInclude Include="vector_tools.h" />
   </ItemGroup>

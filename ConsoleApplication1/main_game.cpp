@@ -13,14 +13,23 @@
 #include "vector_tools.h"
 #include "raygui.h"
 
-Node::Node(nodeContainer *container, Vector2 pos, Vector2 size, Color color, std::vector<Input_connector> in, std::vector<Output_connector> out) : container(container), size(size), color(color), is_selected(false), inputs(in), outputs(out), pos(pos)
+Node::Node(
+    NodeContainer *container, 
+    Vector2 pos, 
+    Vector2 size, 
+    Color color, 
+    std::vector<Input_connector> in, 
+    std::vector<Output_connector> out
+): 
+    container(container), size(size), color(color),
+    is_selected(false), inputs(in), outputs(out), pos(pos)
 {
     reserve_outputs();
     if (outputs.size() == 0)
         outputs.push_back(*new Output_connector(this, 0));
 }
 
-Node::Node(const Node* base) : container(base->container), is_selected(false), pos(base->pos), 
+Node::Node(const Node* base) : container(base->container), is_selected(false), pos(base->pos),
                         size(base->size), color(base->color), label(base->label)
 {
     reserve_outputs();
@@ -538,7 +547,7 @@ void Game::save(std::string filePath)
 
 }
 
-void NodeNetworkFromJson(const json& nodeNetworkJson, nodeContainer* node_container) {
+void NodeNetworkFromJson(const json& nodeNetworkJson, NodeContainer* node_container) {
     for (const auto& node : nodeNetworkJson) {
         // Each node is a JSON object where the key is the gate type
         for (auto it = node.begin(); it != node.end(); ++it) {
@@ -574,7 +583,7 @@ void NodeNetworkFromJson(const json& nodeNetworkJson, nodeContainer* node_contai
     }
 }
 
-void NormalizeNodeNetworkPosTocLocation(nodeContainer* node_Container, Vector2 targpos)
+void NormalizeNodeNetworkPosTocLocation(NodeContainer* node_Container, Vector2 targpos)
 {
     if (node_Container->nodes.empty()) return;
     Vector2 origin1 = node_Container->nodes[0]->pos;
@@ -2020,10 +2029,18 @@ void Bus::load_extra_JSON(const json& nodeJson) {
     }
 }
 
-void nodeContainer::pretick()
+void NodeContainer::pretick()
 {
+    for (LogicNode& node : nodes) {
+        node.pretick();
+    }
 }
 
-void nodeContainer::tick()
+bool NodeContainer::tick()
 {
+    bool did_update = false;
+    for (LogicNode& node : nodes) {
+        if(node.tick()) did_update = true;
+    }
+    return did_update;
 }

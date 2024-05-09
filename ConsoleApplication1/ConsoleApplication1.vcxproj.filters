@@ -33,6 +33,9 @@
     <ClCompile Include="file_dialogs.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Nodes\simulation_nodes.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Image Include="sprites\logic_gates\AND.png">
@@ -56,6 +59,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="file_dialogs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Nodes\simulation_nodes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
