@@ -24,6 +24,16 @@ enum EditMode {
     INTERACT,
 };
 
+class NodeContainer {
+public:
+    LogicNodeContainer* container;
+    std::vector<Node*> nodes;
+
+    void createLogicNetwork();
+
+    void remove_node(const Node* node);
+};
+
 class Game {
 private:
     // Private constructor to prevent instantiation
@@ -97,7 +107,7 @@ void NormalizeNodeNetworkPosTocLocation(NodeContainer* nodes, Vector2 targpos);
 struct Node {
 public:
     Node(
-        NodeContainer* container, Vector2 pos = { 0,0 }, Vector2 size = { 0,0 }, 
+        NodeContainer* container, Vector2 pos = { 0,0 }, Vector2 size = { 0,0 },
         Color color = { 0,0,0 }, std::vector<Input_connector> in = {}, 
         std::vector<Output_connector> out = {});
     
@@ -106,6 +116,11 @@ public:
     virtual ~Node() {}
 
     LogicNode* logicNode;
+    void detatch_logic_node() { logicNode = nullptr; }
+    bool add_logic_node();
+    bool connect_logic_node();
+
+    NodeContainer* container;
 
     virtual size_t get_max_outputs() const { return sizeof(LogicNode::outputs); }
     virtual void reserve_outputs() { outputs.reserve(get_max_outputs()); }
@@ -150,9 +165,15 @@ public:
 
     virtual std::string get_type() const = 0;
 
+    static bool tick_func(LogicNode& node) {
+        bool has_changed = node.outputs != node.new_outputs;
+        node.outputs = node.new_outputs;
+        return has_changed;
+    }
+    
     virtual pretick_ptr get_pretick_ptr() const = 0;
-    virtual tick_ptr get_tick_ptr() const = 0;
-    virtual tick_ptr get_destructor_ptr() const = 0;
+    virtual tick_ptr get_tick_ptr() const { return &tick_func; }
+    virtual destructor_ptr get_destructor_ptr() const = 0;
 
     virtual json to_JSON() const;
 
@@ -174,7 +195,7 @@ public:
         return input_nodes;
     }
 
-    void move_to_container(NodeContainer* new_container) {
+    void move_to_container(LogicNodeContainer* new_container) {
         container = new_container;
     }
 
@@ -241,7 +262,8 @@ struct Output_connector {
 };
 
 struct BinaryLogicGate : public Node {
-    BinaryLogicGate(NodeContainer* container, Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}) : Node(container, pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
+    BinaryLogicGate(NodeContainer* container, Vector2 pos = { 0,0 }, size_t input_count = 2, 
+        std::vector<Input_connector> input_connectors = {}) : Node(container, pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         inputs.insert(inputs.end(), input_connectors.begin(), input_connectors.end());
 
         while (inputs.size() < input_count)
@@ -258,6 +280,11 @@ struct BinaryLogicGate : public Node {
     virtual void remove_input() override {
         if (inputs.size() > 1) inputs.pop_back();  recompute_size();
     }
+
+    static void destructor_func(LogicNode&) {} // used to manage external pointers, this class has none
+
+    virtual destructor_ptr get_destructor_ptr() const { return &destructor_func; }
+
 };
 
 struct GateAND : public BinaryLogicGate {
@@ -265,6 +292,17 @@ struct GateAND : public BinaryLogicGate {
         label = "AND";
     }
     GateAND(const GateAND* base) : BinaryLogicGate(base) {}
+
+    static void pretick_func(LogicNode& node) {
+        node.new_outputs = 1U;
+        for (size_t i = 0; i < 32; ++i) {
+            if (!node.get_input_target_val(i)) { 
+                node.new_outputs = 0U; 
+                break; 
+            }
+        }
+    }
+    virtual pretick_ptr get_pretick_ptr() const override { return &pretick_func; }
 
     Node* copy() const override { return new GateAND(this); }
 
@@ -282,6 +320,17 @@ struct GateOR : public BinaryLogicGate {
         label = "OR";
     }
     GateOR(const GateOR* base) : BinaryLogicGate(base) {}
+
+    static void pretick_func(LogicNode& node) {
+        node.new_outputs = 0U;
+        for (size_t i = 0; i < 32; ++i) {
+            if (!node.get_input_target_val(i)) {
+                node.new_outputs = 1U;
+                break;
+            }
+        }
+    }
+    virtual pretick_ptr get_pretick_ptr() const override { return &pretick_func; }
 
     Node* copy() const override { return new GateOR(this); }
 
@@ -459,6 +508,8 @@ struct Bus : public Node {
     Bus(const Bus* base) : Node(base) {
         find_connections();
     }
+
+    
 
     void find_connections() {
         for (Node* node : container->nodes) {
@@ -765,7 +816,7 @@ public:
             {"LightBulb", [](NodeContainer* container) -> Node* { return new LightBulb(container); }},
             {"SevenSegmentDisplay", [](NodeContainer* container) -> Node* { return new SevenSegmentDisplay(container); }},
             {"FunctionNode", [](NodeContainer* container) -> Node* { return new FunctionNode(container); }},
-            {"Bus", [](NodeContainer* container) -> Node* { return new Bus(container); }},
+            {"Bus", [](LogicNodeContainer* container) -> Node* { return new Bus(container); }},
         };
 
         auto it = factoryMap.find(nodeName);

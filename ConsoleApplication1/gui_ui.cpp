@@ -155,7 +155,7 @@ bool NodeSelectionMenu() {
                     saveFile >> save;
                     saveFile.close();
 
-                    NodeContainer subassembly; 
+                    LogicNodeContainer subassembly; 
                     NodeNetworkFromJson(save.at("nodes"), &subassembly);
 
                     NormalizeNodeNetworkPosTocLocation(&subassembly, game.camera.target);

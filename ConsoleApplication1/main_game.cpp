@@ -41,6 +41,18 @@ Node::Node(const Node* base) : container(base->container), is_selected(false), p
     }
 }
 
+bool Node::add_logic_node()
+{
+    if (!container->container) return false;
+    if (logicNode) return false;
+
+    container->container->add_node(
+        get_pretick_ptr(),
+        get_tick_ptr(),
+        get_destructor_ptr()
+    );
+}
+
 void Game::draw() {
     // Draw world
     screenWidth = GetScreenWidth();
@@ -86,12 +98,12 @@ void Game::draw() {
 
 void Game::pretick()
 {
-    nodes_container.pretick();
+    nodes_container.container->pretick();
 }
 
 void Game::tick()
 {
-    nodes_container.tick();
+    nodes_container.container->tick();
 }
 
 void Game::unselect_all()
@@ -857,17 +869,6 @@ std::vector<Output_connector*> Node::select_outputs(Rectangle select_area)
     }
 
     return outcons;
-}
-
-void Node::tick()
-{
-    has_changed = false;
-    for (Output_connector& conn : outputs) {
-        if (conn.new_state != conn.state) {
-            has_changed = true;
-            conn.state = conn.new_state;
-        }
-    }
 }
 
 Texture GateAND::texture = Texture{ 0 };
@@ -2029,18 +2030,43 @@ void Bus::load_extra_JSON(const json& nodeJson) {
     }
 }
 
-void NodeContainer::pretick()
+void LogicNodeContainer::pretick()
 {
     for (LogicNode& node : nodes) {
         node.pretick();
     }
 }
 
-bool NodeContainer::tick()
+bool LogicNodeContainer::tick()
 {
     bool did_update = false;
     for (LogicNode& node : nodes) {
         if(node.tick()) did_update = true;
     }
     return did_update;
+}
+
+void NodeContainer::createLogicNetwork()
+{
+    for (Node* node : nodes) {
+        node->detatch_logic_node();
+    }
+    delete container;
+    container = nullptr;
+    container = new LogicNodeContainer();
+
+    for (Node* node : nodes) {
+        node->add_logic_node();
+    }
+
+    for (Node* node : nodes) {
+        container->connect_node()
+    }
+}
+
+void NodeContainer::remove_node(const Node* node)
+{
+    for (Node* list_node : nodes) {
+        if (list_node == node) 
+    }
 }
