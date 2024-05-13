@@ -41,16 +41,31 @@ Node::Node(const Node* base) : container(base->container), is_selected(false), p
     }
 }
 
-bool Node::add_logic_node()
+void Node::add_logic_node()
 {
-    if (!container->container) return false;
-    if (logicNode) return false;
+    assert(container->container);
+    assert(logicNode);
 
     container->container->add_node(
         get_pretick_ptr(),
         get_tick_ptr(),
         get_destructor_ptr()
     );
+}
+
+bool Node::connect_logic_node_inputs()
+{
+    if (!logicNode) assert("attempted to connect nullptr");
+    bool sucess = true;
+    for (Input_connector& inconn: inputs) {
+        if (inconn.target) {
+            sucess = logicNode->container->connect_node(
+                inconn.target->host->logicNode, inconn.target->index, 
+                logicNode, inconn.index);
+            if (!sucess) break;;
+        }
+    }
+    return sucess;
 }
 
 void Game::draw() {
@@ -889,16 +904,6 @@ Texture GateNOT::texture = Texture{ 0 };
 
 Game Game::instance;
 
-void GateNOT::pretick()
-{
-    for (size_t i = 0; i < inputs.size(); i++) {
-        if (inputs[i].target)
-            outputs[i].new_state = !inputs[i].target->state;
-        else
-            outputs[i].new_state = true;
-    }
-}
-
 void GateAND::pretick()
 {
     if (inputs.empty()) { outputs[0].new_state = false; return; }
@@ -910,16 +915,6 @@ void GateAND::pretick()
     outputs[0].new_state = retval;
 
     return;
-}
-
-void GateBUFFER::pretick()
-{
-    for (size_t i = 0; i < inputs.size(); i++) {
-        if (inputs[i].target)
-            outputs[i].new_state = inputs[i].target->state;
-        else
-            outputs[i].new_state = false;
-    }
 }
 
 void GateOR::pretick()
@@ -1973,6 +1968,26 @@ void Bus::tick()
             outputs[i].state = (*bus_values)[i];
         }
     }
+}
+
+void Bus::add_logic_node()
+{
+    assert(container->container);
+    assert(logicNode);
+
+    container->container->add_node(
+        get_pretick_ptr(),
+        get_tick_ptr(),
+        get_destructor_ptr()
+    );
+
+    if (*bus_data_idx == UINT16_MAX) {
+        *bus_data_idx = logicNode->add_external_ptr(new shared_bus_data{ false, 0 });
+    }
+    else {
+        logicNode->external_ptr_idx = *bus_data_idx;
+    }
+
 }
 
 json Bus::to_JSON() const {

@@ -117,8 +117,8 @@ public:
 
     LogicNode* logicNode;
     void detatch_logic_node() { logicNode = nullptr; }
-    bool add_logic_node();
-    bool connect_logic_node();
+    virtual void add_logic_node();
+    bool connect_logic_node_inputs();
 
     NodeContainer* container;
 
@@ -137,8 +137,6 @@ public:
     virtual void change_label(const char* newlabel) {
         label = newlabel;
     }
-
-    bool has_changed = true;
 
     bool is_selected;
     Vector2 pos;
@@ -170,10 +168,11 @@ public:
         node.outputs = node.new_outputs;
         return has_changed;
     }
+    static void destr_func(LogicNode& node) {}
     
     virtual pretick_ptr get_pretick_ptr() const = 0;
     virtual tick_ptr get_tick_ptr() const { return &tick_func; }
-    virtual destructor_ptr get_destructor_ptr() const = 0;
+    virtual destructor_ptr get_destructor_ptr() const { return &destr_func; }
 
     virtual json to_JSON() const;
 
@@ -195,7 +194,7 @@ public:
         return input_nodes;
     }
 
-    void move_to_container(LogicNodeContainer* new_container) {
+    void move_to_container(NodeContainer* new_container) {
         container = new_container;
     }
 
@@ -324,12 +323,13 @@ struct GateOR : public BinaryLogicGate {
     static void pretick_func(LogicNode& node) {
         node.new_outputs = 0U;
         for (size_t i = 0; i < 32; ++i) {
-            if (!node.get_input_target_val(i)) {
+            if (node.get_input_target_val(i)) {
                 node.new_outputs = 1U;
                 break;
             }
         }
     }
+
     virtual pretick_ptr get_pretick_ptr() const override { return &pretick_func; }
 
     Node* copy() const override { return new GateOR(this); }
@@ -354,6 +354,18 @@ struct GateNAND : public Node {
         size = Vector2{ 100, 100 + 30 * float(inputs.size()) };
     }
     GateNAND(const GateNAND* base) : Node(base) {}
+
+
+    static void pretick_func(LogicNode& node) {
+        node.new_outputs = 0U;
+        for (size_t i = 0; i < 32; ++i) {
+            if (!node.get_input_target_val(i)) {
+                node.new_outputs = 1U;
+                break;
+            }
+        }
+    }
+    virtual pretick_ptr get_pretick_ptr() const override { return &pretick_func; }
 
     virtual void add_input() override {
         inputs.push_back(Input_connector(this, inputs.size())); recompute_size();
@@ -381,6 +393,18 @@ struct GateNOR : public BinaryLogicGate {
     }
     GateNOR(const GateNOR* base) : BinaryLogicGate(base) {}
 
+
+    static void pretick_func(LogicNode& node) {
+        node.new_outputs = 1U;
+        for (size_t i = 0; i < 32; ++i) {
+            if (node.get_input_target_val(i)) {
+                node.new_outputs = 0U;
+                break;
+            }
+        }
+    }
+    virtual pretick_ptr get_pretick_ptr() const override { return &pretick_func; }
+
     Node* copy() const override { return new GateNOR(this); }
 
     static Texture texture;
@@ -400,6 +424,14 @@ struct GateXOR : public BinaryLogicGate {
 
     Node* copy() const override { return new GateXOR(this); }
 
+    static void pretick_func(LogicNode& node) {
+        node.new_outputs = 0U;
+        for (size_t i = 0; i < 32; ++i) {
+            node.new_outputs ^= node.get_input_target_val(i);
+        }
+    }
+    virtual pretick_ptr get_pretick_ptr() const override { return &pretick_func; }
+
     static Texture texture;
 
     virtual Texture get_texture() const override { return texture; }
@@ -416,6 +448,14 @@ struct GateXNOR : public BinaryLogicGate {
     GateXNOR(const GateXNOR* base) : BinaryLogicGate(base) {}
 
     Node* copy() const override { return new GateXNOR(this); }
+
+    static void pretick_func(LogicNode& node) {
+        node.new_outputs = 1U;
+        for (size_t i = 0; i < 32; ++i) {
+            node.new_outputs ^= node.get_input_target_val(i);
+        }
+    }
+    virtual pretick_ptr get_pretick_ptr() const override { return &pretick_func; }
 
     static Texture texture;
 
@@ -469,12 +509,18 @@ struct GateBUFFER : public UnaryLogicGate {
 
     Node* copy() const override { return new GateBUFFER(this); }
 
+    static void pretick_func(LogicNode& node) {
+        node.new_outputs = 0U;
+        for (size_t i = 0; i < 32; ++i) {
+            node.new_outputs |= node.get_input_target_val(i);
+        }
+    }
+    virtual pretick_ptr get_pretick_ptr() const override { return &pretick_func; }
+
     virtual std::string get_label() const override { return std::string(label); }
 
     static Texture texture;
     virtual Texture get_texture() const override { return texture; }
-
-    virtual void pretick() override;
 
     virtual std::string get_type() const override { return"GateBUFFER"; }
 };
@@ -487,12 +533,18 @@ struct GateNOT : public UnaryLogicGate {
 
     Node* copy() const override { return new GateNOT(this); }
 
+    static void pretick_func(LogicNode& node) {
+        node.new_outputs = 0U;
+        for (size_t i = 0; i < 32; ++i) {
+            node.new_outputs |= !node.get_input_target_val(i);
+        }
+    }
+    virtual pretick_ptr get_pretick_ptr() const override { return &pretick_func; }
+
     virtual std::string get_label() const override { return std::string(label); }
 
     static Texture texture;
     virtual Texture get_texture() const override { return texture; }
-
-    virtual void pretick() override;
 
     virtual std::string get_type() const override { return"GateNOT"; }
 };
@@ -509,7 +561,12 @@ struct Bus : public Node {
         find_connections();
     }
 
-    
+    struct shared_bus_data {
+        bool has_reset;
+        uint32_t outputs;
+    };
+
+    virtual void add_logic_node() override;
 
     void find_connections() {
         for (Node* node : container->nodes) {
@@ -517,23 +574,40 @@ struct Bus : public Node {
                 Bus* bus = dynamic_cast<Bus*>(node);
                 if (bus && bus != this) {
                     if (bus->label == label) {
-                        bus_values_has_updated = bus->bus_values_has_updated;
-                        bus_values = bus->bus_values;
-                        while ((*bus_values).size() < inputs.size()) {
-                            (*bus_values).push_back(false);
-                        }
+                        bus_data_idx = bus->bus_data_idx;
                         return;
                     }
                 }
             }
         }
 
-        bus_values_has_updated = std::make_shared<bool>();
-        bus_values = std::make_shared<std::vector<bool>>();
-        while ((*bus_values).size() < inputs.size()) {
-            (*bus_values).push_back(false);
-        }
+        bus_data_idx = std::make_shared<uint16_t>();
+        (*bus_data_idx) = UINT16_MAX;
+        
     }
+
+    static void pretick_func(LogicNode& node) {
+        if (!*bus_values_has_updated) {
+            for (size_t i = 0; i < (*bus_values).size(); i++) {
+                (*bus_values)[i] = false;
+            }
+        }
+        for (size_t i = 0; i < inputs.size(); i++) {
+            if (inputs[i].target && inputs[i].target->state)
+                (*bus_values)[i] = true;
+        }
+        *bus_values_has_updated = true;
+    }
+    static bool tick_func(LogicNode& node) {
+        bool has_changed = node.outputs != node.new_outputs;
+        node.outputs = node.new_outputs;
+        return has_changed;
+    }
+    static void destr_func(LogicNode& node) {}
+
+    virtual pretick_ptr get_pretick_ptr() const override { return &pretick_func; }
+    virtual tick_ptr get_tick_ptr() const override { return &tick_func; }
+    virtual destructor_ptr get_destructor_ptr() const override { return &destr_func; }
 
     virtual void add_input() override {
         if (outputs.size() == outputs.capacity()) return;
@@ -593,8 +667,8 @@ struct Bus : public Node {
         return conned;
     }
 private:
-    std::shared_ptr<std::vector<bool>> bus_values;
-    std::shared_ptr<bool> bus_values_has_updated;
+
+    std::shared_ptr<uint16_t> bus_data_idx;
 };
 
 struct Button :public Node {
@@ -605,6 +679,9 @@ struct Button :public Node {
         recompute_size();
     }
     Button(const Button* base) : Node(base) {}
+
+    static void pretick_func(LogicNode& node) { }
+    virtual pretick_ptr get_pretick_ptr() const override { return &pretick_func; }
 
     virtual void add_input() override {
         if (outputs.size() == outputs.capacity()) return;
@@ -628,9 +705,6 @@ struct Button :public Node {
 
     virtual void not_clicked() = 0;
     virtual void clicked(Vector2 pos) = 0;
-
-    virtual void pretick() override {}
-    virtual void tick() override { has_changed = false; }
 
     virtual bool isInput() const override { return true; }
 

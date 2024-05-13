@@ -50,6 +50,15 @@ public:
         void (*destructor)(LogicNode&)
     );
 
+    uint16_t store_external_ptr(void* ptr) {
+        external_ptrs.push_back(ptr);
+        return external_ptrs.size() - 1;
+    }
+
+    void* get_external_ptr(uint16_t idx) {
+        return external_ptrs[idx];
+    }
+
     bool connect_node(LogicNode* from_ptr, uint8_t from_idx, LogicNode* to_ptr, uint8_t to_idx);
 };
 
@@ -66,11 +75,13 @@ public:
         destructor(*this); // used to manage external pointers
     }
 
-    bool has_changed = false;
+    uint16_t add_external_ptr(void* ptr) {
+        return container->store_external_ptr(ptr);
+    }
 
     LogicNodeContainer* container;
 
-    uint16_t external_ptr_idx = 0;
+    uint16_t external_ptr_idx = UINT16_MAX;
 
     uint32_t new_outputs = 0;
     uint32_t outputs = 0;
