@@ -555,7 +555,6 @@ struct Bus : public Node {
         inputs.push_back(Input_connector(this, 0, input));
         recompute_size();
         find_connections();
-        
     }
     Bus(const Bus* base) : Node(base) {
         find_connections();
@@ -587,23 +586,28 @@ struct Bus : public Node {
     }
 
     static void pretick_func(LogicNode& node) {
-        if (!*bus_values_has_updated) {
-            for (size_t i = 0; i < (*bus_values).size(); i++) {
-                (*bus_values)[i] = false;
+        shared_bus_data* bus_data = static_cast<shared_bus_data*> (node.container->get_external_ptr(node.external_ptr_idx));
+        if (!bus_data->has_reset) {
+            bus_data->outputs = 0U;
+            bus_data->has_reset = true;
+        }
+        for (uint8_t i = 0; i < 32; ++i) {
+            if (node.get_input_target_val(i)) {
+                bus_data->outputs |= (1ui16 << i);
             }
         }
-        for (size_t i = 0; i < inputs.size(); i++) {
-            if (inputs[i].target && inputs[i].target->state)
-                (*bus_values)[i] = true;
-        }
-        *bus_values_has_updated = true;
     }
     static bool tick_func(LogicNode& node) {
-        bool has_changed = node.outputs != node.new_outputs;
-        node.outputs = node.new_outputs;
+        shared_bus_data* bus_data = static_cast<shared_bus_data*> (node.container->get_external_ptr(node.external_ptr_idx));
+        bool has_changed = node.outputs != bus_data->outputs;
+        node.outputs = bus_data->outputs;
         return has_changed;
     }
-    static void destr_func(LogicNode& node) {}
+    static void destr_func(LogicNode& node) {
+        shared_bus_data* bus_data = static_cast<shared_bus_data*> (node.container->get_external_ptr(node.external_ptr_idx));
+        delete bus_data;
+        bus_data = nullptr;
+    }
 
     virtual pretick_ptr get_pretick_ptr() const override { return &pretick_func; }
     virtual tick_ptr get_tick_ptr() const override { return &tick_func; }
@@ -615,8 +619,6 @@ struct Bus : public Node {
         outputs.push_back(Output_connector(this, outputs.size(), false));
         recompute_size();
         find_connections();
-
-
     }
 
     virtual void remove_input() override {
@@ -647,9 +649,6 @@ struct Bus : public Node {
     virtual std::string get_label() const override { return std::string(label); }
 
     virtual Texture get_texture() const override { return{ 0 }; }
-
-    virtual void pretick() override;
-    virtual void tick() override;
 
     virtual std::string get_type() const override { return"Bus"; }
 
@@ -767,6 +766,13 @@ struct LightBulb : public Node {
     }
     LightBulb(const LightBulb* base) : Node(base) {}
 
+
+    static void pretick_func(LogicNode& node) {}
+    static bool tick_func(LogicNode& node) { return false; }
+
+    virtual pretick_ptr get_pretick_ptr() const override { return &pretick_func; }
+    virtual tick_ptr get_tick_ptr() const override { return &tick_func; }
+
     virtual void draw() override;
 
     virtual void add_input() override {}
@@ -777,8 +783,6 @@ struct LightBulb : public Node {
     virtual std::string get_label() const override { return std::string(label); }
 
     virtual Texture get_texture() const override { return { 0 }; }
-
-    virtual void pretick() override { has_changed = false; }
 
     virtual std::string get_type() const override { return"LightBulb"; }
 
@@ -797,6 +801,12 @@ struct SevenSegmentDisplay : public Node {
     }
     SevenSegmentDisplay(const SevenSegmentDisplay* base) : Node(base) {}
 
+    static void pretick_func(LogicNode& node) {}
+    static bool tick_func(LogicNode& node) { return false; }
+
+    virtual pretick_ptr get_pretick_ptr() const override { return &pretick_func; }
+    virtual tick_ptr get_tick_ptr() const override { return &tick_func; }
+
     virtual void draw() override;
 
     virtual void add_input() override {}
@@ -807,8 +817,6 @@ struct SevenSegmentDisplay : public Node {
     virtual std::string get_label() const override { return std::string(label); }
 
     virtual Texture get_texture() const override { return { 0 }; }
-
-    virtual void pretick() override {}
 
     virtual std::string get_type() const override { return"SevenSegmentDisplay"; }
 

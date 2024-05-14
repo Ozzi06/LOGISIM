@@ -738,31 +738,6 @@ bool Node::show_node_editor()
 
         current_depth += curr_el_h;
     }
-
-    {   // Spacing line
-        curr_el_h = 15;
-        GuiLine(Rectangle{ Pos.x, Pos.y + current_depth, area_width, curr_el_h }, NULL);
-        current_depth += curr_el_h;
-    }
-
-    {   // Has_changed
-        curr_el_h = 32;
-        float current_x = Pos.x + margin;
-
-        GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "has_changed:");
-        current_x += 64 + margin;
-
-        if (has_changed) {
-            GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "true");
-            current_x += 64 + margin;
-        }
-        else {
-            GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "false");
-            current_x += 64 + margin;
-        }
-
-        current_depth += curr_el_h;
-    }
     
     {   // Spacing line
         curr_el_h = 15;
@@ -1045,13 +1020,14 @@ void Button::recompute_size()
 
 void ToggleButton::clicked(Vector2 pos)
 {
-    has_changed = false;
+    assert(false && "TODO");
+    /*has_changed = false;
     for (size_t i = 0; i < outputs.size(); i++) {
         if (CheckCollisionPointRec(pos, getButtonRect(i))) { 
             outputs[i].state = !outputs[i].state;
             has_changed = true;
         }
-    }
+    }*/
 }
 
 json Node::to_JSON() const {
@@ -1344,31 +1320,6 @@ bool FunctionNode::show_node_editor()
         current_depth += curr_el_h;
     }
 
-    {   // Has_changed
-        curr_el_h = 32;
-        float current_x = Pos.x + margin;
-
-        GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "has_changed:");
-        current_x += 64 + margin;
-
-        if (has_changed) {
-            GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "true");
-            current_x += 64 + margin;
-        }
-        else {
-            GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "false");
-            current_x += 64 + margin;
-        }
-
-        current_depth += curr_el_h;
-    }
-
-    {   // Spacing line
-        curr_el_h = 15;
-        GuiLine(Rectangle{ Pos.x, Pos.y + current_depth, area_width, curr_el_h }, NULL);
-        current_depth += curr_el_h;
-    }
-
     {   // Change mode
         curr_el_h = 32;
         float current_x = Pos.x + margin;
@@ -1584,41 +1535,43 @@ void FunctionNode::draw()
 
 void FunctionNode::pretick()
 {
-    Game& game = Game::getInstance();
-    {
-        bool innef_sim = !game.get_efficient_simulation();
+    assert(false && "TODO");
+    //Game& game = Game::getInstance();
+    //{
+    //    bool innef_sim = !game.get_efficient_simulation();
 
-        size_t i = 0;
-        for (size_t x = 0; x < input_targs.size(); x++) {
-            for (size_t y = 0; y < input_targs[x]->outputs.size(); y++) { //loop over all output nodes of input_targs to get all inputs to the node
+    //    size_t i = 0;
+    //    for (size_t x = 0; x < input_targs.size(); x++) {
+    //        for (size_t y = 0; y < input_targs[x]->outputs.size(); y++) { //loop over all output nodes of input_targs to get all inputs to the node
 
-                if (inputs[i].target) {
-                    if (inputs[i].target->host->has_changed || innef_sim) {
-                        has_changed = true;
-                        input_targs[x]->outputs[y].state = inputs[i].target->state;
-                        input_targs[x]->outputs[y].host->has_changed = true;
-                    }
-                }
-                else
-                    input_targs[x]->outputs[y].state = false;
-                i++;
-            }
-        }
-    }
+    //            if (inputs[i].target) {
+    //                if (inputs[i].target->host->has_changed || innef_sim) {
+    //                    has_changed = true;
+    //                    input_targs[x]->outputs[y].state = inputs[i].target->state;
+    //                    input_targs[x]->outputs[y].host->has_changed = true;
+    //                }
+    //            }
+    //            else
+    //                input_targs[x]->outputs[y].state = false;
+    //            i++;
+    //        }
+    //    }
+    //}
 
-    if (has_changed) {
-        if (is_single_tick) {
-            nodes_container.pretick();
-            nodes_container.tick();
-        }
-        else
-            nodes_container.pretick();
-    }
+    //if (has_changed) {
+    //    if (is_single_tick) {
+    //        nodes_container.pretick();
+    //        nodes_container.tick();
+    //    }
+    //    else
+    //        nodes_container.pretick();
+    //}
 }
 
 void FunctionNode::tick()
 {
-    Game& game = Game::getInstance();
+    assert(false && "TODO");
+    /*Game& game = Game::getInstance();
     if (is_single_tick) {
         if (has_changed || !game.get_efficient_simulation()) {
             has_changed = false;
@@ -1666,7 +1619,7 @@ void FunctionNode::tick()
                 }
             }
         }
-    }
+    }*/
 }
 
 bool FunctionNode::is_cyclic() const
@@ -1926,48 +1879,24 @@ void SevenSegmentDisplay::recompute_size()
 
 void PushButton::not_clicked()
 {
-    has_changed = false;
+    assert(false && "TODO");
+    /*has_changed = false;
     for (size_t i = 0; i < outputs.size(); i++) {
         if (outputs[i].state) has_changed = true;
         outputs[i].state = false;
-    }
+    }*/
 }
 
 void PushButton::clicked(Vector2 pos)
 {
-    has_changed = false;
+    assert(false && "TODO");
+    /*has_changed = false;
     for (size_t i = 0; i < outputs.size(); i++) {
         if (!outputs[i].state) has_changed = true;
         if (CheckCollisionPointRec(pos, getButtonRect(i))) outputs[i].state = true;
         else outputs[i].state = false;
 
-    }
-}
-
-void Bus::pretick()
-{
-    if (!*bus_values_has_updated) {
-        for (size_t i = 0; i < (*bus_values).size(); i++) {
-            (*bus_values)[i] = false;
-        }
-    }
-    for (size_t i = 0; i < inputs.size(); i++) {
-        if (inputs[i].target && inputs[i].target->state)
-            (*bus_values)[i] = true;
-    }
-    *bus_values_has_updated = true;
-}
-
-void Bus::tick()
-{
-    has_changed = false;
-    *bus_values_has_updated = false;
-    for (size_t i = 0; i < outputs.size(); i++) {
-        if ((*bus_values)[i] != outputs[i].state) {
-            has_changed = true;
-            outputs[i].state = (*bus_values)[i];
-        }
-    }
+    }*/
 }
 
 void Bus::add_logic_node()
@@ -1990,59 +1919,8 @@ void Bus::add_logic_node()
 
 }
 
-json Bus::to_JSON() const {
-
-    json jOutputs = json::array();
-    for (const auto& output : outputs) {
-        jOutputs.push_back(output.to_JSON());
-    }
-
-    json jInputs = json::array();
-    for (const auto& input : inputs) {
-        jInputs.push_back(input.to_JSON());
-    }
-
-    json myJson =
-    {
-
-        {get_type(),
-            {
-                {"pos.x", pos.x},
-                {"pos.y", pos.y},
-                {"size.x", size.x},
-                {"size.y", size.y},
-                {"label", label},
-                {"outputs", jOutputs},
-                {"inputs", jInputs},
-                {"bus_values", json::array()}
-            }
-        }
-    };
-    for (bool val : (*bus_values)) {
-        myJson[get_type()]["bus_values"].push_back(val);
-    }
-
-    return myJson;
-}
-
 void Bus::load_extra_JSON(const json& nodeJson) {
     find_connections();
-
-    // Assuming 'type' is the key for your main object.
-    // Replace 'type' with whatever your main object's key is.
-    if (nodeJson.contains(get_type()) && nodeJson[get_type()].contains("bus_values")) {
-        std::vector<bool> loaded_bus_vals = nodeJson[get_type()]["bus_values"].get<std::vector<bool>>();
-
-        if (loaded_bus_vals.size() >= bus_values->size()) {
-            *bus_values = loaded_bus_vals;
-        }
-        else {
-            for (size_t i = 0; i < loaded_bus_vals.size(); i++) {
-                (*bus_values)[i] = loaded_bus_vals[i];
-            }
-        }
-
-    }
 }
 
 void LogicNodeContainer::pretick()
@@ -2075,13 +1953,6 @@ void NodeContainer::createLogicNetwork()
     }
 
     for (Node* node : nodes) {
-        container->connect_node()
-    }
-}
-
-void NodeContainer::remove_node(const Node* node)
-{
-    for (Node* list_node : nodes) {
-        if (list_node == node) 
+        node->connect_logic_node_inputs();
     }
 }
