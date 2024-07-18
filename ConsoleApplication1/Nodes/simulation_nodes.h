@@ -42,6 +42,11 @@ public:
     void pretick();
     bool tick(); // returns true if any node returns true when ticked
 
+    void reset() {
+        nodes.clear();
+        external_ptrs.clear();
+    }
+
     bool has_changed = true;
 
     LogicNode* add_node(
@@ -79,13 +84,14 @@ public:
         return container->store_external_ptr(ptr);
     }
 
-    LogicNodeContainer* container;
+    LogicNodeContainer* container; //64 bits
 
     uint16_t external_ptr_idx = UINT16_MAX;
-
-    uint32_t new_outputs = 0;
-    uint32_t outputs = 0;
-    NodeConnectionIndex input_idxs[32] = {}; //11 bits for indexing in container, 5 for correct output in node
+    uint64_t new_outputs = 0;
+    uint64_t outputs = 0;
+    NodeConnectionIndex input_idxs[32] = {}; //11 bits for indexing in container, 5 for correct output in node, 512 bits total
+    uint32_t connected_inputs = 0;
+    
 
     void pretick() {
         pretickFunc(*this);
@@ -115,3 +121,4 @@ private:
     bool (*tickFunc)(LogicNode&); // should return true if it's output changed or it needs to run again
     void (*destructor)(LogicNode&);
 };
+int a = (sizeof(LogicNode) * 8);

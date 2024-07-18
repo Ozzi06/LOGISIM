@@ -8,6 +8,8 @@
 #include <set>
 #include "Nodes/simulation_nodes.h"
 
+#define INEFFICIENT_SIM false;
+
 using json = nlohmann::json;
 
 struct Output_connector;
@@ -29,7 +31,7 @@ public:
     LogicNodeContainer* container;
     std::vector<Node*> nodes;
 
-    void createLogicNetwork();
+    void createLogicNetwork(LogicNodeContainer& container);
 
     void remove_node(const Node* node);
 };
@@ -116,7 +118,7 @@ public:
     virtual ~Node() {}
 
     LogicNode* logicNode;
-    void detatch_logic_node() { logicNode = nullptr; }
+    void detach_logic_node() { logicNode = nullptr; }
     virtual void add_logic_node();
     bool connect_logic_node_inputs();
 
@@ -230,11 +232,9 @@ struct Input_connector {
 };
 
 struct Output_connector {
-    Output_connector(Node* host, size_t index, bool state = false, uid_t id = generate_id()) : host(host), index(index), state(state), new_state(false), id(id) { }
+    Output_connector(Node* host, size_t index, uid_t id = generate_id()) : host(host), index(index), id(id) { }
     Node* host;
     size_t index;
-    bool state;
-    bool new_state;
 
     bool get_state() {
         return host->logicNode->output_val(index);
@@ -567,73 +567,19 @@ struct Bus : public Node {
 
     virtual void add_logic_node() override;
 
-    void find_connections() {
-        for (Node* node : container->nodes) {
-            if (node) {
-                Bus* bus = dynamic_cast<Bus*>(node);
-                if (bus && bus != this) {
-                    if (bus->label == label) {
-                        bus_data_idx = bus->bus_data_idx;
-                        return;
-                    }
-                }
-            }
-        }
+    void find_connections();
 
-        bus_data_idx = std::make_shared<uint16_t>();
-        (*bus_data_idx) = UINT16_MAX;
-        
-    }
-
-    static void pretick_func(LogicNode& node) {
-        shared_bus_data* bus_data = static_cast<shared_bus_data*> (node.container->get_external_ptr(node.external_ptr_idx));
-        if (!bus_data->has_reset) {
-            bus_data->outputs = 0U;
-            bus_data->has_reset = true;
-        }
-        for (uint8_t i = 0; i < 32; ++i) {
-            if (node.get_input_target_val(i)) {
-                bus_data->outputs |= (1ui16 << i);
-            }
-        }
-    }
-    static bool tick_func(LogicNode& node) {
-        shared_bus_data* bus_data = static_cast<shared_bus_data*> (node.container->get_external_ptr(node.external_ptr_idx));
-        bool has_changed = node.outputs != bus_data->outputs;
-        node.outputs = bus_data->outputs;
-        return has_changed;
-    }
-    static void destr_func(LogicNode& node) {
-        shared_bus_data* bus_data = static_cast<shared_bus_data*> (node.container->get_external_ptr(node.external_ptr_idx));
-        delete bus_data;
-        bus_data = nullptr;
-    }
+    static void pretick_func(LogicNode& node);
+    static bool tick_func(LogicNode& node);
+    static void destr_func(LogicNode& node);
 
     virtual pretick_ptr get_pretick_ptr() const override { return &pretick_func; }
     virtual tick_ptr get_tick_ptr() const override { return &tick_func; }
     virtual destructor_ptr get_destructor_ptr() const override { return &destr_func; }
 
-    virtual void add_input() override {
-        if (outputs.size() == outputs.capacity()) return;
-        inputs.push_back(Input_connector(this, inputs.size()));
-        outputs.push_back(Output_connector(this, outputs.size(), false));
-        recompute_size();
-        find_connections();
-    }
+    virtual void add_input() override;
 
-    virtual void remove_input() override {
-        if (inputs.size() > 1) {
-            inputs.pop_back();
-            for (Node* node : container->nodes) {
-                for (Input_connector& input : node->inputs) {
-                    if (input.target == &outputs.back()) input.target = nullptr;
-                }
-            }
-            outputs.pop_back();
-        }
-        recompute_size();
-        find_connections();
-    }
+    virtual void remove_input() override;
 
     virtual void change_label(const char* newlabel) override {
         label = newlabel;
@@ -652,19 +598,7 @@ struct Bus : public Node {
 
     virtual std::string get_type() const override { return"Bus"; }
 
-    virtual std::vector<Input_connector*> connected_inputs(size_t output_idx) {
-        std::vector<Input_connector*> conned;
-
-        for (Node* node : container->nodes) {
-            Bus* bus = dynamic_cast<Bus*>(node);
-            if (bus) {
-                if (bus->label == label && bus->inputs.size() > output_idx) {
-                    conned.push_back(&bus->inputs[output_idx]);
-                }
-            }
-        }
-        return conned;
-    }
+    virtual std::vector<Input_connector*> connected_inputs(size_t output_idx);
 private:
 
     std::shared_ptr<uint16_t> bus_data_idx;
@@ -837,6 +771,25 @@ public:
 
     ~FunctionNode();
 
+
+    struct function_node_data {
+        std::vector<NodeConnectionIndex> input_targs;
+        std::vector<NodeConnectionIndex> output_targs;
+        LogicNodeContainer container;
+        bool has_updted;
+    };
+
+    virtual void add_logic_node() override;
+
+
+    static void pretick_func(LogicNode& node);
+    static bool tick_func(LogicNode& node);
+    static void destr_func(LogicNode& node);
+
+    virtual pretick_ptr get_pretick_ptr() const override { return &pretick_func; }
+    virtual tick_ptr get_tick_ptr() const override { return &tick_func; }
+    virtual destructor_ptr get_destructor_ptr() const override { return &destr_func; }
+
     virtual void add_input() override {}
     virtual void remove_input() override {}
 
@@ -898,7 +851,7 @@ public:
             {"LightBulb", [](NodeContainer* container) -> Node* { return new LightBulb(container); }},
             {"SevenSegmentDisplay", [](NodeContainer* container) -> Node* { return new SevenSegmentDisplay(container); }},
             {"FunctionNode", [](NodeContainer* container) -> Node* { return new FunctionNode(container); }},
-            {"Bus", [](LogicNodeContainer* container) -> Node* { return new Bus(container); }},
+            {"Bus", [](NodeContainer* container) -> Node* { return new Bus(container); }},
         };
 
         auto it = factoryMap.find(nodeName);

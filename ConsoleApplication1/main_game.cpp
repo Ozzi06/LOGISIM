@@ -37,7 +37,7 @@ Node::Node(const Node* base) : container(base->container), is_selected(false), p
         inputs.push_back(Input_connector(this, i, base->inputs[i].target));
     }
     for (size_t i = 0; i < base->outputs.size(); ++i) {
-        outputs.push_back(Output_connector(this, i, base->outputs[i].state));
+        outputs.push_back(Output_connector(this, i));
     }
 }
 
@@ -879,80 +879,6 @@ Texture GateNOT::texture = Texture{ 0 };
 
 Game Game::instance;
 
-void GateAND::pretick()
-{
-    if (inputs.empty()) { outputs[0].new_state = false; return; }
-    bool retval = true;
-
-    for (Input_connector& in : inputs) {
-        if (!in.target || !in.target->state) retval = false;
-    }
-    outputs[0].new_state = retval;
-
-    return;
-}
-
-void GateOR::pretick()
-{
-    if (inputs.empty()) { outputs[0].new_state = false; return; }
-    bool retval = false;
-
-    for (Input_connector& in : inputs) {
-        if (in.target && in.target->state) retval = true;
-    }
-    outputs[0].new_state = retval;
-    return;
-}
-
-void GateNAND::pretick()
-{
-    if (inputs.empty()) { outputs[0].new_state = true; return; }
-    bool retval = false;
-
-    for (Input_connector& in : inputs) {
-        if (!in.target || !in.target->state) retval = true;
-    }
-    outputs[0].new_state = retval;
-    return;
-}
-
-void GateNOR::pretick()
-{
-    if (inputs.empty()) { outputs[0].new_state = true; return; }
-    bool retval = true;
-
-    for (Input_connector& in : inputs) {
-        if (in.target && in.target->state) retval = false;
-    }
-    outputs[0].new_state = retval;
-    return;
-}
-
-void GateXOR::pretick()
-{
-    if (inputs.empty()) { outputs[0].new_state = false; return; }
-    bool retval = false;
-
-    for (Input_connector& in : inputs) {
-        if (in.target && in.target->state) retval = !retval;
-    }
-
-    outputs[0].new_state = retval;
-    return;
-}
-
-void GateXNOR::pretick()
-{
-    if (inputs.empty()) { outputs[0].new_state = true; return; }
-    bool retval = true;
-
-    for (Input_connector& in : inputs) {
-        if (in.target && in.target->state) retval = !retval;
-    }
-    outputs[0].new_state = retval;
-    return;
-}
-
 void Button::draw()
 {
     Game& game = Game::getInstance();
@@ -964,7 +890,7 @@ void Button::draw()
     size_t button_count = outputs.size();
     for (size_t i = 0; i < button_count; i++) {
         Rectangle rec = getButtonRect(i);
-        if (outputs[i].state)
+        if (outputs[i].get_state())
             DrawRectangleRec(rec, Color{ 219, 42, 2, 255 });
         else
             DrawRectangleRec(rec, Color{ 252, 57, 13, 255 });
@@ -1084,7 +1010,7 @@ void Node::load_JSON(const json& nodeJson) {
             for (const json& inputJson : nodeJson.at("outputs")) {
                 unsigned long id = inputJson.at("Output_connector").at("id").get<unsigned long>();
                 bool state = inputJson.at("Output_connector").at("state").get<bool>();
-                outputs.push_back(Output_connector(this, i, state, id));
+                outputs.push_back(Output_connector(this, i, id));
                 i++;
             }
         }
@@ -1125,7 +1051,7 @@ void Output_connector::draw() const
 
 json Output_connector::to_JSON() const {
     return json{ 
-        {"Output_connector", json::object({  {"id", id}, {"state", state}})}
+        {"Output_connector", json::object({  {"id", id}})}
     };
 }
 
@@ -1153,7 +1079,7 @@ void Input_connector::draw() const
     DrawLineEx(startPos, endPos, lineThick, color);
 
     if (target) {
-        if (target->state) {
+        if (target->get_state()) {
             DrawLineEx(get_connection_pos(), target->get_connection_pos(), lineThick, GREEN);
         }
         else {
@@ -1229,6 +1155,63 @@ FunctionNode::~FunctionNode()
 {
     for (Node* node : nodes_container.nodes) {
         delete node;
+    }
+}
+
+void FunctionNode::add_logic_node()
+{
+    assert(false && "TODO, implement input and output targ_allocation");
+    assert(container->container);
+    assert(logicNode);
+
+    container->container->add_node(
+        get_pretick_ptr(),
+        get_tick_ptr(),
+        get_destructor_ptr()
+    );
+    function_node_data* ext_data = new function_node_data{ };
+    ext_data->has_updted = true;
+    container->createLogicNetwork(ext_data->container);
+    logicNode->add_external_ptr(ext_data);
+}
+
+void FunctionNode::pretick_func(LogicNode& node)
+{
+    function_node_data* function_data = static_cast<function_node_data*>(node.container->external_ptrs[node.external_ptr_idx]);
+    node.new_outputs = 0U;
+    for (uint8_t i = 0; i < 32 && node.connected_inputs >> i; ++i) {
+        if (node.get_input_target_val(i)) {
+            node.container->nodes[function_data->input_targs[i].getContainerIndex()] // node pointed to
+                .outputs &= (01 << (function_data->input_targs[i].getConnectorIndex())); // connector of node
+        }
+    }
+
+    assert(false && "TODO");
+    function_node_data* function_data = static_cast<function_node_data*>(node.container->external_ptrs[node.external_ptr_idx]);
+    {
+        for (uint8_t x = 0; x < function_data->input_targs.size(); x++) {
+            for (uint8_t y = 0; y < 32; y++) { //loop over all output nodes of input_targs to get all inputs to the node
+                if(x + y > )
+                if (inputs[x+y].target) {
+                    if (inputs[x+y].target->host->has_changed || INEFFICIENT_SIM) {
+                        has_changed = true;
+                        input_targs[x]->outputs[y].state = inputs[x+y].target->state;
+                        input_targs[x]->outputs[y].host->has_changed = true;
+                    }
+                }
+                else
+                    input_targs[x]->outputs[y].state = false;
+            }
+        }
+    }
+
+    if (has_changed) {
+        if (is_single_tick) {
+            nodes_container.pretick();
+            nodes_container.tick();
+        }
+        else
+            nodes_container.pretick();
     }
 }
 
@@ -1536,42 +1519,42 @@ void FunctionNode::draw()
 void FunctionNode::pretick()
 {
     assert(false && "TODO");
-    //Game& game = Game::getInstance();
-    //{
-    //    bool innef_sim = !game.get_efficient_simulation();
+    Game& game = Game::getInstance();
+    {
+        bool innef_sim = !game.get_efficient_simulation();
 
-    //    size_t i = 0;
-    //    for (size_t x = 0; x < input_targs.size(); x++) {
-    //        for (size_t y = 0; y < input_targs[x]->outputs.size(); y++) { //loop over all output nodes of input_targs to get all inputs to the node
+        size_t i = 0;
+        for (size_t x = 0; x < input_targs.size(); x++) {
+            for (size_t y = 0; y < input_targs[x]->outputs.size(); y++) { //loop over all output nodes of input_targs to get all inputs to the node
 
-    //            if (inputs[i].target) {
-    //                if (inputs[i].target->host->has_changed || innef_sim) {
-    //                    has_changed = true;
-    //                    input_targs[x]->outputs[y].state = inputs[i].target->state;
-    //                    input_targs[x]->outputs[y].host->has_changed = true;
-    //                }
-    //            }
-    //            else
-    //                input_targs[x]->outputs[y].state = false;
-    //            i++;
-    //        }
-    //    }
-    //}
+                if (inputs[i].target) {
+                    if (inputs[i].target->host->has_changed || innef_sim) {
+                        has_changed = true;
+                        input_targs[x]->outputs[y].state = inputs[i].target->state;
+                        input_targs[x]->outputs[y].host->has_changed = true;
+                    }
+                }
+                else
+                    input_targs[x]->outputs[y].state = false;
+                i++;
+            }
+        }
+    }
 
-    //if (has_changed) {
-    //    if (is_single_tick) {
-    //        nodes_container.pretick();
-    //        nodes_container.tick();
-    //    }
-    //    else
-    //        nodes_container.pretick();
-    //}
+    if (has_changed) {
+        if (is_single_tick) {
+            nodes_container.pretick();
+            nodes_container.tick();
+        }
+        else
+            nodes_container.pretick();
+    }
 }
 
 void FunctionNode::tick()
 {
     assert(false && "TODO");
-    /*Game& game = Game::getInstance();
+    Game& game = Game::getInstance();
     if (is_single_tick) {
         if (has_changed || !game.get_efficient_simulation()) {
             has_changed = false;
@@ -1619,7 +1602,7 @@ void FunctionNode::tick()
                 }
             }
         }
-    }*/
+    }
 }
 
 bool FunctionNode::is_cyclic() const
@@ -1717,7 +1700,6 @@ int FunctionNode::delay() const
 
     return max_delay;
 }
-
 
 void FunctionNode::sort_linear()
 {
@@ -1919,8 +1901,87 @@ void Bus::add_logic_node()
 
 }
 
+inline void Bus::find_connections() {
+    for (Node* node : container->nodes) {
+        if (node) {
+            Bus* bus = dynamic_cast<Bus*>(node);
+            if (bus && bus != this) {
+                if (bus->label == label) {
+                    bus_data_idx = bus->bus_data_idx;
+                    return;
+                }
+            }
+        }
+    }
+
+    bus_data_idx = std::make_shared<uint16_t>();
+    (*bus_data_idx) = UINT16_MAX;
+}
+
+inline void Bus::pretick_func(LogicNode& node) {
+    shared_bus_data* bus_data = static_cast<shared_bus_data*> (node.container->get_external_ptr(node.external_ptr_idx));
+    if (!bus_data->has_reset) {
+        bus_data->outputs = 0U;
+        bus_data->has_reset = true;
+    }
+    for (uint8_t i = 0; i < 32; ++i) {
+        if (node.get_input_target_val(i)) {
+            bus_data->outputs |= (1ui16 << i);
+        }
+    }
+}
+
+inline bool Bus::tick_func(LogicNode& node) {
+    shared_bus_data* bus_data = static_cast<shared_bus_data*> (node.container->get_external_ptr(node.external_ptr_idx));
+    bool has_changed = node.outputs != bus_data->outputs;
+    node.outputs = bus_data->outputs;
+    return has_changed;
+}
+
+inline void Bus::destr_func(LogicNode& node) {
+    shared_bus_data* bus_data = static_cast<shared_bus_data*> (node.container->get_external_ptr(node.external_ptr_idx));
+    delete bus_data;
+    bus_data = nullptr;
+}
+
+inline void Bus::add_input() {
+    if (outputs.size() == outputs.capacity()) return;
+    inputs.push_back(Input_connector(this, inputs.size()));
+    outputs.push_back(Output_connector(this, outputs.size(), false));
+    recompute_size();
+    find_connections();
+}
+
+inline void Bus::remove_input() {
+    if (inputs.size() > 1) {
+        inputs.pop_back();
+        for (Node* node : container->nodes) {
+            for (Input_connector& input : node->inputs) {
+                if (input.target == &outputs.back()) input.target = nullptr;
+            }
+        }
+        outputs.pop_back();
+    }
+    recompute_size();
+    find_connections();
+}
+
 void Bus::load_extra_JSON(const json& nodeJson) {
     find_connections();
+}
+
+inline std::vector<Input_connector*> Bus::connected_inputs(size_t output_idx) {
+    std::vector<Input_connector*> conned;
+
+    for (Node* node : container->nodes) {
+        Bus* bus = dynamic_cast<Bus*>(node);
+        if (bus) {
+            if (bus->label == label && bus->inputs.size() > output_idx) {
+                conned.push_back(&bus->inputs[output_idx]);
+            }
+        }
+    }
+    return conned;
 }
 
 void LogicNodeContainer::pretick()
@@ -1939,14 +2000,14 @@ bool LogicNodeContainer::tick()
     return did_update;
 }
 
-void NodeContainer::createLogicNetwork()
+void NodeContainer::createLogicNetwork(LogicNodeContainer& container)
 {
     for (Node* node : nodes) {
-        node->detatch_logic_node();
+        node->detach_logic_node();
     }
-    delete container;
-    container = nullptr;
-    container = new LogicNodeContainer();
+
+    // Logic to reinitialize the container, assuming container has a reset method or similar
+    container.reset();
 
     for (Node* node : nodes) {
         node->add_logic_node();
