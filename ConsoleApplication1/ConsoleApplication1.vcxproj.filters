@@ -58,5 +58,8 @@
     <ClInclude Include="file_dialogs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="LogicNodes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

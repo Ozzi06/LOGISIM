@@ -1067,7 +1067,7 @@ json Node::to_JSON() const {
     return 
     {
            
-        {get_type(),
+        {get_type_str(),
             {
                 {"pos.x", pos.x},
                 {"pos.y", pos.y},
@@ -1411,7 +1411,7 @@ json FunctionNode::to_JSON() const
     }
 
     json myJson = {
-        {get_type(),
+        {get_type_str(),
             {
                 {"pos.x", pos.x},
                 {"pos.y", pos.y},
@@ -1426,7 +1426,7 @@ json FunctionNode::to_JSON() const
     };
 
     for (Node* node : nodes)
-        myJson[get_type()]["nodes"].push_back(node->to_JSON());
+        myJson[get_type_str()]["nodes"].push_back(node->to_JSON());
 
     return myJson;
 }
@@ -1436,8 +1436,8 @@ void FunctionNode::load_extra_JSON(const json& nodeJson)
     try {
         // load all the nodes
         nodes.clear();
-        if (nodeJson.contains(get_type()))
-            NodeNetworkFromJson(nodeJson.at(get_type()).at("nodes"), &nodes);
+        if (nodeJson.contains(get_type_str()))
+            NodeNetworkFromJson(nodeJson.at(get_type_str()).at("nodes"), &nodes);
         else if (nodeJson.contains("nodes"))
             NodeNetworkFromJson(nodeJson.at("nodes"), &nodes);
         else
@@ -1988,7 +1988,7 @@ json Bus::to_JSON() const {
     json myJson =
     {
 
-        {get_type(),
+        {get_type_str(),
             {
                 {"pos.x", pos.x},
                 {"pos.y", pos.y},
@@ -2002,7 +2002,7 @@ json Bus::to_JSON() const {
         }
     };
     for (bool val : (*bus_values)) {
-        myJson[get_type()]["bus_values"].push_back(val);
+        myJson[get_type_str()]["bus_values"].push_back(val);
     }
 
     return myJson;
@@ -2013,8 +2013,8 @@ void Bus::load_extra_JSON(const json& nodeJson) {
 
     // Assuming 'type' is the key for your main object.
     // Replace 'type' with whatever your main object's key is.
-    if (nodeJson.contains(get_type()) && nodeJson[get_type()].contains("bus_values")) {
-        std::vector<bool> loaded_bus_vals = nodeJson[get_type()]["bus_values"].get<std::vector<bool>>();
+    if (nodeJson.contains(get_type_str()) && nodeJson[get_type_str()].contains("bus_values")) {
+        std::vector<bool> loaded_bus_vals = nodeJson[get_type_str()]["bus_values"].get<std::vector<bool>>();
 
         if (loaded_bus_vals.size() >= bus_values->size()) {
             *bus_values = loaded_bus_vals;

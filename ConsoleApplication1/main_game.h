@@ -22,6 +22,24 @@ enum EditMode {
     INTERACT,
 };
 
+enum class NodeType {
+    GateAND,
+    GateOR,
+    GateNAND,
+    GateNOR,
+    GateXOR,
+    GateXNOR,
+    GateBUFFER,
+    GateNOT,
+    PushButton,
+    ToggleButton,
+    StaticToggleButton,
+    LightBulb,
+    SevenSegmentDisplay,
+    FunctionNode,
+    Bus,
+};
+
 class Game {
 private:
     // Private constructor to prevent instantiation
@@ -91,6 +109,8 @@ void NodeNetworkFromJson(const json& nodeNetworkJson, std::vector<Node*> * nodes
 
 void NormalizeNodeNetworkPosTocLocation(std::vector<Node*>& nodes, Vector2 targpos);
 
+class LogicBlock;
+
 struct Node {
 public:
     Node(std::vector<Node*> * container, Vector2 pos = { 0,0 }, Vector2 size = { 0,0 }, Color color = { 0,0,0 }, std::vector<Input_connector> in = {}, std::vector<Output_connector> out = {});
@@ -127,6 +147,8 @@ public:
 
     std::string label;
 
+    LogicBlock* logicblock = nullptr;
+
     virtual Input_connector* select_input(Vector2 select_pos);
     virtual Output_connector* select_output(Vector2 select_pos);
 
@@ -143,13 +165,16 @@ public:
     virtual void pretick() = 0;
     virtual void tick();
 
-    virtual std::string get_type() const = 0;
+    virtual std::string get_type_str() const = 0;
+    virtual NodeType get_type() const = 0;
 
     virtual json to_JSON() const;
 
     void load_JSON(const json& nodeJson);
 
     virtual void load_extra_JSON(const json& nodeJson) {}
+
+    virtual const std::vector<Node*>* get_children() const { return nullptr; }
 
     virtual bool isInput() const { return false; }
     virtual bool isOutput() const { return false; }
@@ -168,13 +193,14 @@ public:
     void move_to_container(std::vector<Node*> * new_container) {
         container = new_container;
     }
+    const std::vector<Node*>* get_container() const { return container; }
+
 
 protected:
     virtual void recompute_size() {
         size = Vector2{ 100, std::max(100 + 30 * float(inputs.size()), 100 + 30 * float(outputs.size())) };
     }
     std::vector<Node*> * container;
-
 };
 
 struct Input_connector {
@@ -255,7 +281,8 @@ struct GateAND : public BinaryLogicGate {
 
     virtual void pretick();
 
-    virtual std::string get_type() const override { return"GateAND"; }
+    virtual std::string get_type_str() const override { return"GateAND"; }
+    virtual NodeType get_type() const override { return NodeType::GateAND; }
 };
 
 struct GateOR : public BinaryLogicGate {
@@ -272,7 +299,8 @@ struct GateOR : public BinaryLogicGate {
 
     virtual void pretick();
 
-    virtual std::string get_type() const override { return"GateOR"; }
+    virtual std::string get_type_str() const override { return"GateOR"; }
+    virtual NodeType get_type() const override { return NodeType::GateOR; }
 };
 
 struct GateNAND : public Node {
@@ -304,7 +332,8 @@ struct GateNAND : public Node {
 
     virtual void pretick();
 
-    virtual std::string get_type() const override { return"GateNAND"; }
+    virtual std::string get_type_str() const override { return"GateNAND"; }
+    virtual NodeType get_type() const override { return NodeType::GateNAND; }
 };
 
 struct GateNOR : public BinaryLogicGate {
@@ -321,7 +350,8 @@ struct GateNOR : public BinaryLogicGate {
 
     virtual void pretick();
 
-    virtual std::string get_type() const override { return"GateNOR"; }
+    virtual std::string get_type_str() const override { return"GateNOR"; }
+    virtual NodeType get_type() const override { return NodeType::GateNOR; }
 };
 
 struct GateXOR : public BinaryLogicGate {
@@ -338,7 +368,8 @@ struct GateXOR : public BinaryLogicGate {
 
     virtual void pretick();
 
-    virtual std::string get_type() const override { return"GateXOR"; }
+    virtual std::string get_type_str() const override { return"GateXOR"; }
+    virtual NodeType get_type() const override { return NodeType::GateXOR; }
 };
 
 struct GateXNOR : public BinaryLogicGate {
@@ -355,7 +386,8 @@ struct GateXNOR : public BinaryLogicGate {
 
     virtual void pretick();
 
-    virtual std::string get_type() const override { return"GateXNOR"; }
+    virtual std::string get_type_str() const override { return"GateXNOR"; }
+    virtual NodeType get_type() const override { return NodeType::GateXNOR; }
 };
 
 struct UnaryLogicGate : public Node {
@@ -409,7 +441,8 @@ struct GateBUFFER : public UnaryLogicGate {
 
     virtual void pretick() override;
 
-    virtual std::string get_type() const override { return"GateBUFFER"; }
+    virtual std::string get_type_str() const override { return"GateBUFFER"; }
+    virtual NodeType get_type() const override { return NodeType::GateBUFFER; }
 };
 
 struct GateNOT : public UnaryLogicGate {
@@ -427,7 +460,8 @@ struct GateNOT : public UnaryLogicGate {
 
     virtual void pretick() override;
 
-    virtual std::string get_type() const override { return"GateNOT"; }
+    virtual std::string get_type_str() const override { return"GateNOT"; }
+    virtual NodeType get_type() const override { return NodeType::GateNOT; }
 };
 
 struct Bus : public Node {
@@ -509,7 +543,8 @@ struct Bus : public Node {
     virtual void pretick() override;
     virtual void tick() override;
 
-    virtual std::string get_type() const override { return"Bus"; }
+    virtual std::string get_type_str() const override { return"Bus"; }
+    virtual NodeType get_type() const override { return NodeType::Bus; }
 
     virtual std::vector<Input_connector*> connected_inputs(size_t output_idx) {
         std::vector<Input_connector*> conned;
@@ -582,7 +617,8 @@ struct PushButton : public Button {
 
     virtual void clicked(Vector2 pos) override;
 
-    virtual std::string get_type() const override { return"PushButton"; }
+    virtual std::string get_type_str() const override { return"PushButton"; }
+    virtual NodeType get_type() const override { return NodeType::PushButton; }
 };
 
 struct ToggleButton : public Button {
@@ -597,7 +633,8 @@ struct ToggleButton : public Button {
 
     virtual void clicked(Vector2 pos) override;
 
-    virtual std::string get_type() const override { return"ToggleButton"; }
+    virtual std::string get_type_str() const override { return"ToggleButton"; }
+    virtual NodeType get_type() const override { return NodeType::ToggleButton; }
 };
 
 struct StaticToggleButton : public ToggleButton {
@@ -610,7 +647,7 @@ struct StaticToggleButton : public ToggleButton {
 
     Node* copy() const override { return new StaticToggleButton(this); }
 
-    virtual std::string get_type() const override { return"StaticToggleButton"; }
+    virtual std::string get_type_str() const override { return"StaticToggleButton"; }
 
     virtual bool isInput() const override { return false; }
 };
@@ -639,7 +676,8 @@ struct LightBulb : public Node {
 
     virtual void pretick() override { has_changed = false; }
 
-    virtual std::string get_type() const override { return"LightBulb"; }
+    virtual std::string get_type_str() const override { return"LightBulb"; }
+    virtual NodeType get_type() const override { return NodeType::LightBulb; }
 
     virtual bool isOutput() const override { return true; }
 };
@@ -669,7 +707,8 @@ struct SevenSegmentDisplay : public Node {
 
     virtual void pretick() override {}
 
-    virtual std::string get_type() const override { return"SevenSegmentDisplay"; }
+    virtual std::string get_type_str() const override { return"SevenSegmentDisplay"; }
+    virtual NodeType get_type() const override { return NodeType::SevenSegmentDisplay; }
 
     virtual bool isOutput() const override { return false; }
 
@@ -700,10 +739,11 @@ public:
     virtual bool show_node_editor();
 
     std::vector<Node*> nodes;
+    virtual const std::vector<Node*>* get_children() const override { return &nodes; }
     
     std::vector<Node*> input_targs;
     std::vector<Node*> output_targs;
-     
+    
 
     virtual json to_JSON() const override;
 
@@ -720,7 +760,8 @@ public:
 
     void sort_linear();
     
-    virtual std::string get_type() const override { return"FunctionNode"; }
+    virtual std::string get_type_str() const override { return"FunctionNode"; }
+    virtual NodeType get_type() const override { return NodeType::FunctionNode; }
 
 protected:
     virtual void recompute_size() override;

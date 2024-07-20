@@ -12,23 +12,6 @@
 
 #include <fstream>
 
-enum class type {
-    AND,
-    NAND,
-    OR,
-    NOR,
-    XOR,
-    XNOR,
-    NOT,
-    BUFFER,
-    CONST_0,
-    CONST_1,
-    OUTPUT,
-    FUNCTION,
-    SWITCH,
-    BUTTON
-};
-
 void LoadTextures() {
     Image img = LoadImage("resources/logic_gates/AND.png");
     ImageColorInvert(&img);
@@ -71,7 +54,7 @@ void LoadTextures() {
     SetTextureFilter(GateNOT::texture, TEXTURE_FILTER_BILINEAR);
 }
 
-int main()
+int run_game()
 {
     // Initialization
     //--------------------------------------------------------------------------------------
@@ -140,7 +123,7 @@ int main()
             expected_updates = game.targ_sim_hz * 5;
 
         roller.add(i / (t - pre_update_t));
-           
+
         game.real_sim_hz = roller.getAverage();
         i = 0;
 
@@ -151,4 +134,9 @@ int main()
     CloseWindow();        // Close window and OpenGL context
     //--------------------------------------------------------------------------------------
     return 0;
+}
+
+int main()
+{
+    return run_game();
 }

@@ -59,6 +59,14 @@ public:
     }
 };
 
+template<typename T>
+int get_position(const std::vector<T*>& vec, T* ptr)
+{
+    for (int i = 0; i < vec.size(); i++) {
+        if (vec[i] == ptr) return i;
+    }
+    return -1;
+}
 
 template<typename T>
 void moveToTop(std::vector<T>& vec, size_t pos) {

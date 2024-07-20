@@ -158,6 +158,7 @@
   <ItemGroup>
     <ClInclude Include="file_dialogs.h" />
     <ClInclude Include="gui_ui.h" />
+    <ClInclude Include="LogicNodes.h" />
     <ClInclude Include="main_game.h" />
     <ClInclude Include="nlohmann\json.hpp" />
     <ClInclude Include="random_id.h" />
