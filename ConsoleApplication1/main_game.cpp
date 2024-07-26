@@ -606,6 +606,29 @@ void Game::load(std::string filePath)
         camera = save.at("camera").get<Camera2D>();
 }
 
+void Game::build_logic_block()
+{
+    LogicBlockBuilder builder;
+    builder.add_function_root(nodes);
+
+    // Record start time
+    auto start = std::chrono::high_resolution_clock::now();
+
+    logicblock = std::unique_ptr<LogicBlock>(builder.build());
+
+
+    // Record end time
+    auto end = std::chrono::high_resolution_clock::now();
+    // Calculate duration
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+    if (logicblock->get<NodeHeader>(0)->total_size < 3000) {
+        logicblock->hexdump();
+        logicblock->parse();
+    }
+    std::cout << "\nCreated logicblock out of current configuration. Size: " << logicblock->get<NodeHeader>(0)->total_size << " bytes. Duration: " << duration.count() << " microseconds" << std::endl;
+}
+
 void Node::draw()
 {
     Game& game = Game::getInstance();
@@ -1120,6 +1143,12 @@ void Node::load_JSON(const json& nodeJson) {
     load_extra_JSON(nodeJson);
 }
 
+void Node::update_state_from_logicblock()
+{
+    Game& game = Game::getInstance();
+    NodeHeader* header = game.get_logicblock<NodeHeader>(node_offset);
+}
+
 void Output_connector::draw() const
 {
     Game& game = Game::getInstance();
@@ -1443,51 +1472,65 @@ void FunctionNode::load_extra_JSON(const json& nodeJson)
         else
             std::cerr << "JSON parsing error: \n";
 
-        // populate and sort the arrays for where to route the input and output connectors on the function node
-        for (Node* node : nodes) {
-
-            if (node->isInput()) {
-                input_targs.push_back(node);
-            }
-            if (node->isOutput()) {
-                output_targs.push_back(node);
-            }
-        }
-        std::sort(input_targs.begin(), input_targs.end(), [](Node* a, Node* b) {
-            return a->pos.y > b->pos.y; // Return true if 'a' should come before 'b'
-            });
-
-        std::sort(output_targs.begin(), output_targs.end(), [](Node* a, Node* b) {
-            return a->pos.y > b->pos.y; // Return true if 'a' should come before 'b'
-            });
-
-        // create input and output connectors then resize the node
-        size_t targ_input_count = 0;
-        for (size_t i = 0; i < input_targs.size(); i++) {
-            for (size_t j = 0; j < input_targs[i]->outputs.size(); j++) {
-                targ_input_count++;
-            }
-        }
-        size_t targ_output_count = 0;
-        for (size_t i = 0; i < output_targs.size(); i++) {
-            for (size_t j = 0; j < output_targs[i]->inputs.size(); j++) {
-                targ_output_count++;
-            }
-        }
-
-        while (inputs.size() < targ_input_count) {
-            inputs.push_back(Input_connector(this, inputs.size()));
-        }
-        while (outputs.size() < targ_output_count) {
-            outputs.push_back(Output_connector(this, outputs.size()));
-        }
+        load_from_nodes();
         is_cyclic_val = is_cyclic();
-        recompute_size();
+        sort_linear();
     }
     catch (const json::exception& e) {
         // Handle or log error, e.g., missing key or wrong type
         std::cerr << "JSON parsing error: " << e.what() << '\n';
     }
+}
+
+void FunctionNode::load_from_nodes()
+{
+    // populate and sort the arrays for where to route the input and output connectors on the function node
+    for (Node* node : nodes) {
+
+        if (node->isInput()) {
+            input_targs.push_back(node);
+        }
+        if (node->isOutput()) {
+            output_targs.push_back(node);
+        }
+    }
+    std::sort(input_targs.begin(), input_targs.end(), [](Node* a, Node* b) {
+        return a->pos.y > b->pos.y; // Return true if 'a' should come before 'b'
+        });
+
+    std::sort(output_targs.begin(), output_targs.end(), [](Node* a, Node* b) {
+        return a->pos.y > b->pos.y; // Return true if 'a' should come before 'b'
+        });
+
+    // create input and output connectors then resize the node
+    size_t targ_input_count = 0;
+    for (size_t i = 0; i < input_targs.size(); i++) {
+        for (size_t j = 0; j < input_targs[i]->outputs.size(); j++) {
+            targ_input_count++;
+        }
+    }
+    size_t targ_output_count = 0;
+    for (size_t i = 0; i < output_targs.size(); i++) {
+        for (size_t j = 0; j < output_targs[i]->inputs.size(); j++) {
+            targ_output_count++;
+        }
+    }
+    while (inputs.size() < targ_input_count) {
+        inputs.push_back(Input_connector(this, inputs.size()));
+    }
+    while (inputs.size() > targ_input_count) {
+        inputs.pop_back();
+    }
+    assert(inputs.size() == targ_input_count);
+
+    while (outputs.size() < targ_output_count) {
+        outputs.push_back(Output_connector(this, outputs.size()));
+    }
+    while (outputs.size() > targ_output_count) {
+        outputs.pop_back();
+    }
+    assert(outputs.size() == targ_output_count);
+    recompute_size();
 }
 
 void FunctionNode::draw()
@@ -1771,7 +1814,7 @@ int FunctionNode::delay() const
 
 void FunctionNode::sort_linear()
 {
-    if (is_cyclic()) return ;
+    if (is_cyclic()) return;
 
     std::unordered_map<Output_connector*, int> marked_outconns;
     int max_delay = 1;

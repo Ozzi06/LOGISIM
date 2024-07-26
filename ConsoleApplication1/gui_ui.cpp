@@ -72,12 +72,22 @@ bool MenuAreaButtons() {
 bool SimulationButtons() {
     Game& game = Game::getInstance();
 
-    float menu_area_w = 100, menu_area_h = 50;
+    const size_t element_count = 2;
+    size_t element_idx = 0;
+
+    float menu_area_w = 100 * element_count, menu_area_h = 50;
     Rectangle menu_area{ 300, 10, menu_area_w, menu_area_h };
     GuiGroupBox(menu_area, NULL);
 
-    Rectangle save_button_area{ menu_area.x + 10, menu_area.y + 10, menu_area.width - 20, menu_area.height - 20 };
-    GuiToggle(save_button_area, "efficient_sim", &game.efficient_simulation);
+
+    Rectangle efficient_sim_area{ menu_area.x + 10 + menu_area.width / element_count * element_idx, menu_area.y + 10, menu_area.width / element_count - 20, menu_area.height - 20 };
+    GuiToggle(efficient_sim_area, "efficient_sim", &game.efficient_simulation);
+    ++element_idx;
+
+    Rectangle serialize_area{ menu_area.x + 10 + menu_area.width / element_count * element_idx, menu_area.y + 10, menu_area.width / element_count - 20, menu_area.height - 20 };
+    if (GuiButton(serialize_area, "serialize")) { 
+        game.build_logic_block();
+    }
 
     return CheckCollisionPointRec(GetMousePosition(), menu_area);
 }

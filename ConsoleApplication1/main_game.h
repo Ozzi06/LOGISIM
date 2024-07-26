@@ -5,6 +5,7 @@
 
 #include "nlohmann/json.hpp"
 #include <utility>
+#include "LogicBlocks.h"
 
 using json = nlohmann::json;
 
@@ -22,24 +23,6 @@ enum EditMode {
     INTERACT,
 };
 
-enum class NodeType {
-    GateAND,
-    GateOR,
-    GateNAND,
-    GateNOR,
-    GateXOR,
-    GateXNOR,
-    GateBUFFER,
-    GateNOT,
-    PushButton,
-    ToggleButton,
-    StaticToggleButton,
-    LightBulb,
-    SevenSegmentDisplay,
-    FunctionNode,
-    Bus,
-};
-
 class Game {
 private:
     // Private constructor to prevent instantiation
@@ -50,6 +33,16 @@ private:
 
     // Static instance of the class
     static Game instance;
+
+
+private:
+    std::unique_ptr<LogicBlock> logicblock = nullptr;
+public:
+    template<typename T>
+    T* get_logicblock(size_t offset) {
+        return logicblock.get<T>(offset);
+    }
+
 public:
     // Public function to get the instance
     static Game& getInstance() {
@@ -58,8 +51,8 @@ public:
 
     Camera2D camera;
 
-    unsigned int screenWidth = 500;
-    unsigned int screenHeight = 500;
+    unsigned int screenWidth = 1920;
+    unsigned int screenHeight = 1080;
 
     Font regular;
     EditMode edit_mode = EDIT;
@@ -94,15 +87,15 @@ public:
     void save(std::string filePath = "gamesave.json");
     void load(std::string filePath = "gamesave.json");
 
+    void build_logic_block();
+
     bool hovering_above_gui = false;
 
     bool get_efficient_simulation() const { return efficient_simulation; }
     bool efficient_simulation = false;
-
 private:
     bool area_selected = false;
     Vector2 first_corner = { 0,0 };
-
 };
 
 void NodeNetworkFromJson(const json& nodeNetworkJson, std::vector<Node*> * nodes);
@@ -131,9 +124,7 @@ public:
     virtual bool show_node_editor();
 
     virtual std::string get_label() const { return std::string(label); }
-    virtual void change_label(const char* newlabel) {
-        label = newlabel;
-    }
+    virtual void change_label(const char* newlabel) {label = newlabel;}
 
     bool has_changed = true;
 
@@ -146,8 +137,6 @@ public:
     std::vector<Output_connector> outputs;
 
     std::string label;
-
-    LogicBlock* logicblock = nullptr;
 
     virtual Input_connector* select_input(Vector2 select_pos);
     virtual Output_connector* select_output(Vector2 select_pos);
@@ -195,12 +184,17 @@ public:
     }
     const std::vector<Node*>* get_container() const { return container; }
 
-
 protected:
     virtual void recompute_size() {
         size = Vector2{ 100, std::max(100 + 30 * float(inputs.size()), 100 + 30 * float(outputs.size())) };
     }
+
     std::vector<Node*> * container;
+
+protected:
+    offset node_offset;
+public:
+    void update_state_from_logicblock();
 };
 
 struct Input_connector {
@@ -559,6 +553,8 @@ struct Bus : public Node {
         }
         return conned;
     }
+
+    size_t bus_values_size() const { return bus_values->size(); }
 private:
     std::shared_ptr<std::vector<bool>> bus_values;
     std::shared_ptr<bool> bus_values_has_updated;
@@ -748,6 +744,7 @@ public:
     virtual json to_JSON() const override;
 
     virtual void load_extra_JSON(const json& nodeJson) override;
+    void load_from_nodes();
 
     virtual void draw() override;
 

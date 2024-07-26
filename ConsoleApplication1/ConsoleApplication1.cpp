@@ -88,7 +88,6 @@ int run_game()
     RollingAverage roller(60);
 
     SetTargetFPS(draw_frequency);
-
     while (!WindowShouldClose())
     {
         {
