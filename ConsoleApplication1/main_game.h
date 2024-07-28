@@ -38,9 +38,10 @@ private:
 private:
     std::unique_ptr<LogicBlock> logicblock = nullptr;
 public:
+    bool run_on_block = false;
     template<typename T>
     T* get_logicblock(size_t offset) {
-        return logicblock.get<T>(offset);
+        return logicblock->get_at<T>(offset);
     }
 
 public:

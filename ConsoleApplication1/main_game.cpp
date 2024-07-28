@@ -40,6 +40,12 @@ void Game::draw() {
 
     BeginMode2D(camera);
 
+    if (run_on_block && logicblock) {
+        for (Node* node : nodes) {
+            node->update_state_from_logicblock();
+        }
+    }
+
     for (Node* node : nodes) {
         node->draw();
     }
@@ -75,6 +81,16 @@ void Game::draw() {
 
 void Game::pretick()
 {
+    if (run_on_block) {
+        if (logicblock) {
+            logicblock->pretick();
+            return;
+        }
+        else { 
+            run_on_block = false; 
+            std::cout << "no serialized block, turning off run on block\n";
+        }
+    }
     for (Node* node : nodes) {
         node->pretick();
     }
@@ -82,8 +98,17 @@ void Game::pretick()
 
 void Game::tick()
 {
-    for (Node* node : nodes) {
-        node->tick();
+    if (run_on_block) {
+        if (logicblock) {
+            logicblock->tick();
+            return;
+        }
+        else run_on_block = false;
+    }
+    else {
+        for (Node* node : nodes) {
+            node->tick();
+        }
     }
 }
 
@@ -622,11 +647,11 @@ void Game::build_logic_block()
     // Calculate duration
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
-    if (logicblock->get<NodeHeader>(0)->total_size < 3000) {
+    if (logicblock->get_at<NodeHeader>(0)->total_size < 3000) {
         logicblock->hexdump();
         logicblock->parse();
     }
-    std::cout << "\nCreated logicblock out of current configuration. Size: " << logicblock->get<NodeHeader>(0)->total_size << " bytes. Duration: " << duration.count() << " microseconds" << std::endl;
+    std::cout << "\nCreated logicblock out of current configuration. Size: " << logicblock->get_at<NodeHeader>(0)->total_size << " bytes. Duration: " << duration.count() << " microseconds" << std::endl;
 }
 
 void Node::draw()
@@ -1145,8 +1170,16 @@ void Node::load_JSON(const json& nodeJson) {
 
 void Node::update_state_from_logicblock()
 {
+    assert(node_offset != 0);
     Game& game = Game::getInstance();
-    NodeHeader* header = game.get_logicblock<NodeHeader>(node_offset);
+    uint8_t* logicnode_ptr = game.get_logicblock<uint8_t>(node_offset);
+
+    offset outputs_offset = LogicblockTools::outputs_offset(node_offset, logicnode_ptr);
+    assert(LogicblockTools::output_count(node_offset, logicnode_ptr) == outputs.size());
+
+    for (size_t i = 0; i < outputs.size(); i++) {
+        outputs[i].state = game.get_logicblock<output>(outputs_offset + i * sizeof(output));
+    }
 }
 
 void Output_connector::draw() const

@@ -113,7 +113,6 @@ int run_game()
             elapsed_time += duration;
         }
 
-
         game.draw();
 
         t = GetTime();

@@ -79,12 +79,11 @@ struct FunctionNodeHeader : public NodeHeader {
     //output_targ_node_count * offset
     //input_count * input
     //output_count * ouput //outputs
-    //output_count * ouput // new_outputs
     //children
 };
 
 struct BusNodeHeader : public NodeHeader {
-    uint16_t input_count;
+    uint16_t input_output_count;
     offset shared_outputs_offset;
     offset shared_new_outputs_offset;
     //input_count * input

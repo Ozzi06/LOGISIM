@@ -169,7 +169,7 @@ size_t LogicBlockBuilder::add_function_root(const std::vector<Node*> nodes)
     return header_offset;
 }
 
-inline size_t LogicBlockBuilder::add_node(const Node& node) {
+size_t LogicBlockBuilder::add_node(const Node& node) {
     size_t node_offset = current_offset;
     size_t header_offset = current_offset;
 
@@ -424,11 +424,6 @@ inline size_t LogicBlockBuilder::add_node(const Node& node) {
             add<output>({ outconn.state });
         }
 
-        // add new_outputs
-        for (const Output_connector& outconn : node.outputs) {
-            add<output>({ outconn.new_state });
-        }
-
         // Add child nodes recursively
         offset children_offset = current_offset;
 
@@ -471,7 +466,7 @@ inline size_t LogicBlockBuilder::add_node(const Node& node) {
             // Fill in header
             header->type = busnode.get_type();
             header->total_size = 69420;
-            header->input_count = busnode.inputs.size();
+            header->input_output_count = busnode.inputs.size();
             
         }
 
@@ -490,6 +485,7 @@ inline size_t LogicBlockBuilder::add_node(const Node& node) {
             }
         }
 
+        // add shared outputs if first instance of the connected bus, must be the first for inference to work
         if (!bus_map.count(busnode.label) > 0) {
             offset shared_outputs_offset = current_offset;
             for (size_t i = 0; i < busnode.bus_values_size(); i++) {
@@ -568,5 +564,469 @@ void LogicBlockBuilder::connect_children(size_t children_offset, size_t child_co
 
         // Move to the next child offset
         curr_child_offset += get_at<NodeHeader>(curr_child_offset)->total_size;
+    }
+}
+
+size_t LogicblockTools::input_count(offset header_offset, uint8_t* buffer) {
+    NodeHeader* header = get_at<NodeHeader>(header_offset, buffer);
+    switch (header->type)
+    {
+    case NodeType::GateAND:
+    case NodeType::GateOR:
+    case NodeType::GateNAND:
+    case NodeType::GateNOR:
+    case NodeType::GateXOR:
+    case NodeType::GateXNOR:
+        return get_at<BinaryGateHeader>(header_offset, buffer)->input_count;
+        break;
+
+    case NodeType::GateBUFFER:
+    case NodeType::GateNOT:
+        return get_at<UnaryGateHeader>(header_offset, buffer)->input_output_count;
+        break;
+
+    case NodeType::PushButton:
+    case NodeType::ToggleButton:
+    case NodeType::StaticToggleButton: {
+        return 0;
+    }
+    case NodeType::LightBulb: {
+        return get_at<OutputNodeHeader>(header_offset, buffer)->input_count;
+    }
+    case NodeType::SevenSegmentDisplay: {
+        return get_at<GenericNodeHeader>(header_offset, buffer)->input_count;
+        break;
+    }
+
+    case NodeType::FunctionNode: {
+        return get_at<FunctionNodeHeader>(header_offset, buffer)->input_count;
+        break;
+    }
+
+    case NodeType::Bus:
+        return get_at<BusNodeHeader>(header_offset, buffer)->input_output_count;
+        break;
+
+    case NodeType::RootNode:
+        assert(false && "not a child");
+    default:
+        assert(false && "unreachable");
+    }
+}
+
+size_t LogicblockTools::output_count(offset header_offset, uint8_t* buffer) {
+    NodeHeader* header = get_at<NodeHeader>(header_offset, buffer);
+    switch (header->type) {
+    case NodeType::GateAND:
+    case NodeType::GateOR:
+    case NodeType::GateNAND:
+    case NodeType::GateNOR:
+    case NodeType::GateXOR:
+    case NodeType::GateXNOR:
+        return 1;
+
+    case NodeType::GateBUFFER:
+    case NodeType::GateNOT:
+        return get_at<UnaryGateHeader>(header_offset, buffer)->input_output_count;
+
+    case NodeType::PushButton:
+    case NodeType::ToggleButton:
+    case NodeType::StaticToggleButton:
+        return get_at<InputNodeHeader>(header_offset, buffer)->output_count;
+
+    case NodeType::LightBulb:
+        return 0;
+
+    case NodeType::SevenSegmentDisplay:
+        return get_at<GenericNodeHeader>(header_offset, buffer)->output_count;
+
+    case NodeType::FunctionNode:
+        return get_at<FunctionNodeHeader>(header_offset, buffer)->output_count;
+
+    case NodeType::Bus:
+        return get_at<BusNodeHeader>(header_offset, buffer)->input_output_count;
+
+    case NodeType::RootNode:
+        assert(false && "RootNode should never be checked for output count");
+        return 0;
+
+    default:
+        assert(false && "Invalid NodeType");
+        return 0;
+    }
+}
+
+offset LogicblockTools::outputs_offset(offset header_offset, uint8_t* buffer) {
+    NodeHeader* header = get_at<NodeHeader>(header_offset, buffer);
+    switch (header->type) {
+        // Binary Gates
+    case NodeType::GateAND:
+    case NodeType::GateOR:
+    case NodeType::GateNAND:
+    case NodeType::GateNOR:
+    case NodeType::GateXOR:
+    case NodeType::GateXNOR: {
+        BinaryGateHeader* gate = get_at<BinaryGateHeader>(header_offset, buffer);
+        return header_offset + sizeof(BinaryGateHeader) + gate->input_count * sizeof(input);
+    }
+
+                           // Unary Gates
+    case NodeType::GateBUFFER:
+    case NodeType::GateNOT: {
+        UnaryGateHeader* gate = get_at<UnaryGateHeader>(header_offset, buffer);
+        return header_offset + sizeof(UnaryGateHeader) + gate->input_output_count * sizeof(input);
+    }
+
+                          // Input Nodes (only have outputs)
+    case NodeType::PushButton:
+    case NodeType::ToggleButton:
+    case NodeType::StaticToggleButton: {
+        InputNodeHeader* input = get_at<InputNodeHeader>(header_offset, buffer);
+        return header_offset + sizeof(InputNodeHeader);
+    }
+
+                                     // Output Nodes (only have inputs, no outputs)
+    case NodeType::LightBulb:
+        return 0; // No outputs
+
+        // Generic Node
+    case NodeType::SevenSegmentDisplay: {
+        GenericNodeHeader* generic = get_at<GenericNodeHeader>(header_offset, buffer);
+        return header_offset + sizeof(GenericNodeHeader) + generic->input_count * sizeof(input);
+    }
+
+    case NodeType::FunctionNode: {
+        FunctionNodeHeader* func = get_at<FunctionNodeHeader>(header_offset, buffer);
+        return header_offset + sizeof(FunctionNodeHeader) +
+            func->input_targ_node_count * sizeof(offset) +
+            func->output_targ_node_count * sizeof(offset) +
+            func->input_count * sizeof(input);
+    }
+
+    case NodeType::Bus: {
+        BusNodeHeader* bus = get_at<BusNodeHeader>(header_offset, buffer);
+        return bus->shared_outputs_offset;
+    }
+
+    case NodeType::RootNode:
+        assert(false && "RootNode can't be a child");
+        return 0; // RootNode doesn't have outputs
+
+    default:
+        assert(false && "Invalid NodeType");
+        return 0; // Return 0 for invalid types, though this line should never be reached due to the assert
+    }
+}
+
+offset LogicblockTools::inputs_offset(offset header_offset, uint8_t* buffer) {
+    NodeHeader* header = get_at<NodeHeader>(header_offset, buffer);
+    switch (header->type) {
+        // Binary Gates
+    case NodeType::GateAND:
+    case NodeType::GateOR:
+    case NodeType::GateNAND:
+    case NodeType::GateNOR:
+    case NodeType::GateXOR:
+    case NodeType::GateXNOR: {
+        return header_offset + sizeof(BinaryGateHeader);
+    }
+
+                           // Unary Gates
+    case NodeType::GateBUFFER:
+    case NodeType::GateNOT: {
+        return header_offset + sizeof(UnaryGateHeader);
+    }
+
+                          // Input Nodes (only have outputs, no inputs)
+    case NodeType::PushButton:
+    case NodeType::ToggleButton:
+    case NodeType::StaticToggleButton:
+        return 0; // No inputs
+
+        // Output Nodes
+    case NodeType::LightBulb: {
+        return header_offset + sizeof(OutputNodeHeader);
+    }
+
+                            // Generic Node
+    case NodeType::SevenSegmentDisplay: {
+        return header_offset + sizeof(GenericNodeHeader);
+    }
+
+    case NodeType::FunctionNode: {
+        FunctionNodeHeader* func = get_at<FunctionNodeHeader>(header_offset, buffer);
+        return header_offset + sizeof(FunctionNodeHeader) +
+            func->input_targ_node_count * sizeof(offset) +
+            func->output_targ_node_count * sizeof(offset);
+    }
+
+    case NodeType::Bus: {
+        return header_offset + sizeof(BusNodeHeader);
+    }
+
+    case NodeType::RootNode:
+        assert(false && "RootNode can't be a child");
+        return 0; // RootNode doesn't have inputs
+
+    default:
+        assert(false && "Invalid NodeType");
+        return 0; // Return 0 for invalid types, though this line should never be reached due to the assert
+    }
+}
+
+
+bool LogicBlock::pretick(offset node_offset){
+    NodeHeader* header = get_at<NodeHeader>(node_offset);
+    switch (header->type) {
+    case NodeType::GateAND: {
+        BinaryGateHeader* header = get_at<BinaryGateHeader>(node_offset);
+        header->new_output = true;
+        for (size_t i = 0; header->new_output && i < header->input_count; i++) {
+            header->new_output = get_input_val(i, node_offset + sizeof(BinaryGateHeader));
+        }
+        return header->new_output != header->output;
+    }
+    case NodeType::GateOR: {
+        BinaryGateHeader* header = get_at<BinaryGateHeader>(node_offset);
+        header->new_output = false;
+        for (size_t i = 0; !header->new_output && i < header->input_count; i++) {
+            header->new_output = get_input_val(i, node_offset + sizeof(BinaryGateHeader));
+        }
+        return header->new_output != header->output;
+    }
+    case NodeType::GateNAND: {
+        BinaryGateHeader* header = get_at<BinaryGateHeader>(node_offset);
+        header->new_output = true;
+        for (size_t i = 0; header->new_output && i < header->input_count; i++) {
+            header->new_output = get_input_val(i, node_offset + sizeof(BinaryGateHeader));
+        }
+        header->new_output = !header->new_output;
+        return header->new_output != header->output;
+    }
+    case NodeType::GateNOR: {
+        BinaryGateHeader* header = get_at<BinaryGateHeader>(node_offset);
+        header->new_output = false;
+        for (size_t i = 0; !header->new_output && i < header->input_count; i++) {
+            header->new_output = get_input_val(i, node_offset + sizeof(BinaryGateHeader));
+        }
+        header->new_output = !header->new_output;
+        return header->new_output != header->output;
+    }
+    case NodeType::GateXOR: {
+        BinaryGateHeader* header = get_at<BinaryGateHeader>(node_offset);
+        header->new_output = false;
+        for (size_t i = 0; i < header->input_count; i++) {
+            if (get_input_val(i, node_offset + sizeof(BinaryGateHeader))) {
+                header->new_output = !header->new_output;
+            }
+        }
+        return header->new_output != header->output;
+    }
+    case NodeType::GateXNOR: {
+        BinaryGateHeader* header = get_at<BinaryGateHeader>(node_offset);
+        header->new_output = true;
+        for (size_t i = 0; i < header->input_count; i++) {
+            if (get_input_val(i, node_offset + sizeof(BinaryGateHeader))) {
+                header->new_output = !header->new_output;
+            }
+        }
+        return header->new_output != header->output;
+    }
+    case NodeType::GateBUFFER: {
+        UnaryGateHeader* header = get_at<UnaryGateHeader>(node_offset);
+        bool has_changed = false;
+        for (size_t i = 0; i < header->input_output_count; i++) {
+            output* new_output = get_at<output>(node_offset + sizeof(UnaryGateHeader) +
+                header->input_output_count * sizeof(input) +
+                header->input_output_count * sizeof(output) +
+                i * sizeof(output)
+                );
+            *new_output = get_input_val(i, node_offset + sizeof(UnaryGateHeader));
+
+            output* curr_output = get_at<output>(node_offset + sizeof(UnaryGateHeader) +
+                header->input_output_count * sizeof(input) +
+                i * sizeof(output)
+            );
+            if (*new_output != *curr_output) has_changed = true;
+        }
+        return has_changed;
+    }
+    case NodeType::GateNOT: {
+        UnaryGateHeader* header = get_at<UnaryGateHeader>(node_offset);
+        bool has_changed = false;
+        for (size_t i = 0; i < header->input_output_count; i++) {
+            output* new_output = get_at<output>(node_offset + sizeof(UnaryGateHeader) +
+                header->input_output_count * sizeof(input) +
+                header->input_output_count * sizeof(output) +
+                i * sizeof(output)
+                );
+            *new_output = !get_input_val(i, node_offset + sizeof(UnaryGateHeader));
+
+            output* curr_output = get_at<output>(node_offset + sizeof(UnaryGateHeader) +
+                header->input_output_count * sizeof(input) +
+                i * sizeof(output)
+                );
+            if (*new_output != *curr_output) has_changed = true;
+        }
+        return has_changed;
+    }
+    case NodeType::PushButton:
+    case NodeType::ToggleButton:
+    case NodeType::StaticToggleButton:
+    case NodeType::LightBulb:
+    case NodeType::SevenSegmentDisplay: {
+        return false;
+    }
+    case NodeType::FunctionNode: {
+        FunctionNodeHeader* header = get_at<FunctionNodeHeader>(node_offset);
+
+        // load input values into the outputs of the input targs
+        bool new_input = false;
+        size_t input_idx = 0;
+        for (size_t i = 0; i < header->input_targ_node_count; i++) {
+            offset input_targ_offset = *get_at<offset>(node_offset + sizeof(FunctionNodeHeader) + i * sizeof(offset));
+            InputNodeHeader* input_targ_header = get_at<InputNodeHeader>(input_targ_offset);
+
+            for (size_t j = 0; j < input_targ_header->output_count; j++) {
+                assert(input_idx < header->input_count);
+                output* outconn = get_at<output>(input_targ_offset + sizeof(InputNodeHeader) + j * sizeof(output));
+                bool input_val = get_input_val(input_idx, node_offset + sizeof(FunctionNodeHeader) +
+                    header->input_targ_node_count * sizeof(offset) +
+                    header->output_targ_node_count * sizeof(offset)
+                );
+                if(*outconn != input_val) new_input = true;
+                *outconn = input_val;
+                ++input_idx;
+            }
+        }
+
+        //if needed,pretick 
+        if (header->has_changed || new_input) {
+            header->has_changed = false;
+            offset curr_child_offset = node_offset +
+                sizeof(FunctionNodeHeader) +
+                header->input_targ_node_count * sizeof(offset) +
+                header->output_targ_node_count * sizeof(offset) +
+                header->input_count * sizeof(input) +
+                header->output_count * sizeof(output);
+            for (size_t i = 0; i < header->child_count; i++) {
+                NodeHeader* child_header = get_at<NodeHeader>(curr_child_offset);
+                if(pretick(curr_child_offset)) header->has_changed = true;
+                curr_child_offset += child_header->total_size;
+            }
+        }
+        return header->has_changed;
+    }
+    // Bus nodes are not as efficient as i want but similar to buffers
+    case NodeType::Bus: {
+        BusNodeHeader* header = get_at<BusNodeHeader>(node_offset);
+        bool has_changed = false;
+
+        //is it the first node in the bus
+        if (header->total_size > (sizeof(BusNodeHeader) + header->input_output_count * sizeof(input))){
+            uint16_t shared_output_count = (header->total_size - (sizeof(BusNodeHeader) + header->input_output_count * sizeof(input))) / 2;
+            for (size_t i = 0; i < shared_output_count; i++) {
+                output* new_output = get_at<output>(header->shared_new_outputs_offset + i * sizeof(output));
+                *new_output = false;
+            }
+        }
+
+        for (size_t i = 0; i < header->input_output_count; i++) {
+            output* new_output = get_at<output>(header->shared_new_outputs_offset + i * sizeof(output));
+            if (get_input_val(i, node_offset + sizeof(BusNodeHeader))) {
+                if (!*new_output) {
+                    *new_output = true;
+                }
+            }
+
+            output* curr_output = get_at<output>(header->shared_outputs_offset + i * sizeof(output));
+            if (*new_output != *curr_output) has_changed = true;
+        }
+        return has_changed;
+        
+    }
+    case NodeType::RootNode: {
+        RootNodeHeader* header = get_at<RootNodeHeader>(node_offset);
+        offset curr_child_offset = node_offset + sizeof(RootNodeHeader);
+        for (size_t i = 0; i < header->child_count; i++) {
+            NodeHeader* child_header = get_at<NodeHeader>(curr_child_offset);
+            pretick(curr_child_offset);
+            curr_child_offset += child_header->total_size;
+        }
+        return true;
+    }
+    }
+}
+
+void LogicBlock::tick(offset node_offset)
+{
+    NodeHeader* header = get_at<NodeHeader>(node_offset);
+    switch (header->type) {
+    case NodeType::GateAND:
+    case NodeType::GateOR:
+    case NodeType::GateNAND:
+    case NodeType::GateNOR:
+    case NodeType::GateXOR:
+    case NodeType::GateXNOR: {
+        BinaryGateHeader* header = get_at<BinaryGateHeader>(node_offset);
+        header->output = header->new_output;
+        return;
+    }
+    case NodeType::GateBUFFER:
+    case NodeType::GateNOT: {
+        UnaryGateHeader* header = get_at<UnaryGateHeader>(node_offset);
+        offset outputs_offset = node_offset + sizeof(UnaryGateHeader) + header->input_output_count * sizeof(input);
+        offset new_outputs_offset = node_offset + sizeof(UnaryGateHeader) + header->input_output_count * sizeof(input) + header->input_output_count * sizeof(output);
+        for (size_t i = 0; i < header->input_output_count; i++) {
+            *get_at<output>(outputs_offset + i * sizeof(output)) = *get_at<output>(new_outputs_offset + i * sizeof(output));
+        }
+        return;
+    }
+    case NodeType::PushButton:
+    case NodeType::ToggleButton:
+    case NodeType::StaticToggleButton:
+    case NodeType::LightBulb:
+    case NodeType::SevenSegmentDisplay: {
+        return;
+    }
+    case NodeType::FunctionNode: {
+        FunctionNodeHeader* header = get_at<FunctionNodeHeader>(node_offset);
+        if (header->has_changed) {
+            offset curr_child_offset = node_offset +
+                sizeof(FunctionNodeHeader) +
+                header->input_targ_node_count * sizeof(offset) +
+                header->output_targ_node_count * sizeof(offset) +
+                header->input_count * sizeof(input) +
+                header->output_count * sizeof(output);
+            for (size_t i = 0; i < header->child_count; i++) {
+                NodeHeader* child_header = get_at<NodeHeader>(curr_child_offset);
+                tick(curr_child_offset);
+                curr_child_offset += child_header->total_size;
+            }
+        }
+        return;
+    }
+    case NodeType::Bus: {
+        BusNodeHeader* header = get_at<BusNodeHeader>(node_offset);
+
+        //is it the first node in the bus
+        if (header->total_size > (sizeof(BusNodeHeader) + header->input_output_count * sizeof(input))) {
+            uint16_t shared_output_count = (header->total_size - (sizeof(BusNodeHeader) + header->input_output_count * sizeof(input))) / sizeof(output) / 2;
+            for (size_t i = 0; i < shared_output_count; i++) {
+                *get_at<output>(header->shared_outputs_offset + i * sizeof(output)) = *get_at<output>(header->shared_new_outputs_offset + i * sizeof(output));
+            }
+        }
+        return;
+    }
+    case NodeType::RootNode: {
+        RootNodeHeader* header = get_at<RootNodeHeader>(node_offset);
+        offset curr_child_offset = node_offset + sizeof(RootNodeHeader);
+        for (size_t i = 0; i < header->child_count; i++) {
+            NodeHeader* child_header = get_at<NodeHeader>(curr_child_offset);
+            tick(curr_child_offset);
+            curr_child_offset += child_header->total_size;
+        }
+        return;
+    }
     }
 }
