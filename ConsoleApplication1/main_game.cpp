@@ -83,7 +83,7 @@ void Game::pretick()
 {
     if (run_on_block) {
         if (logicblock) {
-            logicblock->pretick();
+            logicblock->pretick(has_updated);
             return;
         }
         else { 
@@ -100,7 +100,7 @@ void Game::tick()
 {
     if (run_on_block) {
         if (logicblock) {
-            logicblock->tick();
+            logicblock->tick(has_updated);
             return;
         }
         else run_on_block = false;
@@ -110,6 +110,7 @@ void Game::tick()
             node->tick();
         }
     }
+    has_updated = false;
 }
 
 void Game::unselect_all()
@@ -634,7 +635,7 @@ void Game::load(std::string filePath)
 void Game::build_logic_block()
 {
     LogicBlockBuilder builder;
-    builder.add_function_root(nodes);
+    builder.add_root(nodes);
 
     // Record start time
     auto start = std::chrono::high_resolution_clock::now();
@@ -645,12 +646,12 @@ void Game::build_logic_block()
     // Record end time
     auto end = std::chrono::high_resolution_clock::now();
     // Calculate duration
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
     if (logicblock->get_at<NodeHeader>(0)->total_size < 3000) {
         logicblock->hexdump();
         logicblock->parse();
     }
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
     std::cout << "\nCreated logicblock out of current configuration. Size: " << logicblock->get_at<NodeHeader>(0)->total_size << " bytes. Duration: " << duration.count() << " microseconds" << std::endl;
 }
 
@@ -1094,7 +1095,7 @@ void ToggleButton::clicked(Vector2 pos)
     has_changed = false;
     for (size_t i = 0; i < outputs.size(); i++) {
         if (CheckCollisionPointRec(pos, getButtonRect(i))) { 
-            outputs[i].state = !outputs[i].state;
+            set_output_state(i, !outputs[i].state);
             has_changed = true;
         }
     }
@@ -1172,13 +1173,13 @@ void Node::update_state_from_logicblock()
 {
     assert(node_offset != 0);
     Game& game = Game::getInstance();
-    uint8_t* logicnode_ptr = game.get_logicblock<uint8_t>(node_offset);
+    uint8_t* logicblock_ptr = game.get_logicblock<uint8_t>(0);
 
-    offset outputs_offset = LogicblockTools::outputs_offset(node_offset, logicnode_ptr);
-    assert(LogicblockTools::output_count(node_offset, logicnode_ptr) == outputs.size());
+    offset outputs_offset = LogicblockTools::outputs_offset(node_offset, logicblock_ptr);
+    assert(LogicblockTools::output_count(node_offset, logicblock_ptr) == outputs.size());
 
     for (size_t i = 0; i < outputs.size(); i++) {
-        outputs[i].state = game.get_logicblock<output>(outputs_offset + i * sizeof(output));
+        outputs[i].state = *game.get_logicblock<output>(outputs_offset + i * sizeof(output));
     }
 }
 
@@ -1260,6 +1261,7 @@ FunctionNode::FunctionNode(const FunctionNode* base): Node(base), is_single_tick
     size_t idx = 0;
     for (size_t i = 0; i < base->nodes.size(); ++i) {
         nodes.push_back(base->nodes[i]->copy());
+        nodes[i]->move_to_container(&nodes);
         idxs[i] = idx;
         ++idx;
     }
@@ -2008,7 +2010,7 @@ void PushButton::not_clicked()
     has_changed = false;
     for (size_t i = 0; i < outputs.size(); i++) {
         if (outputs[i].state) has_changed = true;
-        outputs[i].state = false;
+        set_output_state(i, false);
     }
 }
 
@@ -2017,8 +2019,8 @@ void PushButton::clicked(Vector2 pos)
     has_changed = false;
     for (size_t i = 0; i < outputs.size(); i++) {
         if (!outputs[i].state) has_changed = true;
-        if (CheckCollisionPointRec(pos, getButtonRect(i))) outputs[i].state = true;
-        else outputs[i].state = false;
+        if (CheckCollisionPointRec(pos, getButtonRect(i))) set_output_state(i, true);
+        else set_output_state(i, false);
 
     }
 }

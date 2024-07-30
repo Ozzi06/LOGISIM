@@ -24,7 +24,7 @@ enum class NodeType : uint32_t {
     LightBulb,
     SevenSegmentDisplay,
     FunctionNode,
-    Bus,
+    BusNode,
     RootNode
 };
 
@@ -60,10 +60,14 @@ struct BinaryGateHeader : public NodeHeader {
     uint16_t input_count;
     bool output;
     bool new_output;
+    offset inputs_offset;
     //input_count * input
 };
 struct UnaryGateHeader : public NodeHeader {
     uint16_t input_output_count;
+    offset inputs_offset;
+    offset outputs_offset;
+    offset new_outputs_offset;
     //input_output_count * input
     //input_output_count * output //outputs
     //input_output_count * output //new_outputs
@@ -75,38 +79,43 @@ struct FunctionNodeHeader : public NodeHeader {
     uint16_t output_count;
     uint16_t child_count;
     bool has_changed;
+    offset intargs_offset;
+    offset outtargs_offset;
+    offset inputs_offset;
+    offset outputs_offset;
+    offset children_offset;
     //input_targ_count * offset
     //output_targ_node_count * offset
     //input_count * input
-    //output_count * ouput //outputs
+    //output_count * ouput
     //children
 };
 
 struct BusNodeHeader : public NodeHeader {
     uint16_t input_output_count;
+    uint16_t shared_output_count;
+    offset inputs_offset;
     offset shared_outputs_offset;
     offset shared_new_outputs_offset;
+    bool is_first_node_in_bus;
     //input_count * input
     //if first with name:
     //shared_outputs
     //shared_new_outputs
 };
+
 struct InputNodeHeader : public NodeHeader {
     uint16_t output_count;
+    offset outputs_offset;
     //output_count * ouput
 };
 struct OutputNodeHeader : public NodeHeader {
     uint16_t input_count;
+    offset inputs_offset;
     //input_count * input
-};
-struct GenericNodeHeader : public NodeHeader {
-    uint16_t input_count;
-    uint16_t output_count;
-    //input_count * input
-    //output_count * ouput //outputs
-    //output_count * ouput // new_outputs
 };
 struct RootNodeHeader : public NodeHeader {
     uint16_t child_count;
+    offset children_offset;
     //children
 };

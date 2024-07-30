@@ -38,6 +38,7 @@ private:
 private:
     std::unique_ptr<LogicBlock> logicblock = nullptr;
 public:
+    bool has_updated = true;
     bool run_on_block = false;
     template<typename T>
     T* get_logicblock(size_t offset) {
@@ -113,7 +114,7 @@ public:
 
     virtual ~Node() {}
 
-    virtual size_t get_max_outputs() const { return 32; }
+    virtual size_t get_max_outputs() const { return UINT16_MAX / 2; }
     virtual void reserve_outputs() { outputs.reserve(get_max_outputs()); }
 
     virtual Node* copy() const = 0;
@@ -193,8 +194,10 @@ protected:
     std::vector<Node*> * container;
 
 protected:
-    offset node_offset;
+    offset node_offset = 0;
+    bool has_offset = false;
 public:
+    void set_node_offset(offset new_node_offset) { node_offset = new_node_offset; has_offset = true; }
     void update_state_from_logicblock();
 };
 
@@ -539,7 +542,7 @@ struct Bus : public Node {
     virtual void tick() override;
 
     virtual std::string get_type_str() const override { return"Bus"; }
-    virtual NodeType get_type() const override { return NodeType::Bus; }
+    virtual NodeType get_type() const override { return NodeType::BusNode; }
 
     virtual std::vector<Input_connector*> connected_inputs(size_t output_idx) {
         std::vector<Input_connector*> conned;
@@ -593,6 +596,19 @@ struct Button :public Node {
 
     virtual void not_clicked() = 0;
     virtual void clicked(Vector2 pos) = 0;
+
+    virtual void set_output_state(size_t index, bool new_state) {
+        Game& game = Game::getInstance();
+        if (game.run_on_block && has_offset) {
+            InputNodeHeader* header = game.get_logicblock<InputNodeHeader>(node_offset);
+            output* outconn = game.get_logicblock<output>(header->outputs_offset + index * sizeof(output));
+            *outconn = new_state;
+        }
+        else {
+            outputs[index].state = new_state;
+            game.has_updated = true;
+        }
+    }
 
     virtual void pretick() override {}
     virtual void tick() override { has_changed = false; }
@@ -768,6 +784,18 @@ private:
     std::optional<bool> is_cyclic_val;
     bool is_single_tick;
     std::string delay_str;
+
+private:
+    LogicBlock function_data;
+public:
+    LogicBlock* get_function_data() { return &function_data; }
+    void allocate_function_data(uint8_t* node) {
+        using namespace LogicblockTools;
+        FunctionNodeHeader* header = get_at<FunctionNodeHeader>(0, node);
+
+        function_data.allocate(header->total_size);
+        std::memcpy(function_data.get_at<uint8_t>(0), get_at<uint8_t>(0, node), header->total_size);
+    }
 };
 
 class NodeFactory {

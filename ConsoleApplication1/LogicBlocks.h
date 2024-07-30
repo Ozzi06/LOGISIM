@@ -1,6 +1,7 @@
 #pragma once
 #include "LogicNodes.h"
 #include <type_traits>
+#include <map>
 
 class LogicBlock {
 public:
@@ -12,8 +13,13 @@ public:
     }
 
 
-    bool get_input_val(size_t index, offset inputs_offset) {
-        return *get_at<output>(get_at<input>(index * sizeof(input))->target_offset);
+    output get_input_val(size_t index, offset inputs_offset) {
+        input* target_input = get_at<input>(inputs_offset + index * sizeof(input));
+        offset output_offset = target_input->target_offset;
+        assert(output_offset < size);
+        if (!output_offset) return false;
+        output* input_val = get_at<output>(output_offset);
+        return *input_val;
     }
 
     template<typename T>
@@ -46,57 +52,19 @@ public:
     void hexdump() {
         for (size_t i = 0; i < size; ++i) {
             std::cout << std::hex << std::setw(2) << std::setfill('0')
-                << static_cast<int>(data[i]) << ' ';
+                << static_cast<char>(data[i]) << ' ';
         }
         std::cout << std::dec << std::endl; // Reset to decimal format
     }
     
-    size_t parse(size_t offset = 0, std::string indent = "") {
-        assert(offset < size);
-        NodeHeader* header = get_at<NodeHeader>(offset);
-        std::cout << indent << "header:\n"
-            << indent << "  type: " << toString(header->type) << "\n"
-            << indent << "  total_size: " << header->total_size << "\n";
-
-        if (header->type == NodeType::FunctionNode) {
-            FunctionNodeHeader* header = get_at<FunctionNodeHeader>(offset);
-            std::cout << indent << "children:\n";
-            indent.append("  ");
-            size_t new_offset = get_children_offset(offset);
-
-            for (size_t i = 0; i < header->child_count; i++) {
-                new_offset += parse(new_offset, indent);
-            }
-        }
-        if (header->type == NodeType::RootNode) {
-            RootNodeHeader* header = get_at<RootNodeHeader>(offset);
-            std::cout << indent << "children:\n";
-            indent.append("  ");
-            size_t new_offset = get_children_offset(offset);
-
-            for (size_t i = 0; i < header->child_count; i++) {
-                new_offset += parse(new_offset, indent);
-            }
-        }
-
-        return header->total_size;
-    }
+    size_t parse(offset node_offset = 0, std::string indent = "", size_t node_number = 0);
 
     offset get_children_offset(size_t header_offset) {
         NodeHeader* header = get_at<NodeHeader>(header_offset);
         switch (header->type) {
         case NodeType::FunctionNode: {
             FunctionNodeHeader* header = get_at<FunctionNodeHeader>(header_offset);
-            return header_offset + sizeof(FunctionNodeHeader)
-                + header->input_targ_node_count * sizeof(offset)
-                + header->output_targ_node_count * sizeof(offset)
-                + header->input_count * sizeof(input)
-                + header->output_count * sizeof(output);
-            break;
-        }
-        case NodeType::RootNode: {
-            RootNodeHeader* header = get_at<RootNodeHeader>(header_offset);
-            return header_offset + sizeof(RootNodeHeader);
+            return header->children_offset;
             break;
         }
         default:
@@ -108,23 +76,30 @@ public:
 
     size_t get_size() const { return size; }
 
-    bool pretick(offset offset = 0);
-    void tick(offset offset = 0);
+    bool pretick(bool update_all, offset node_offset = 0);
+    void tick(bool update_all, offset node_offset = 0);
 
 private:
     std::unique_ptr<uint8_t[]> data;
     size_t size;
 };
 
+
 class LogicBlockBuilder {
 public:
     LogicBlockBuilder() : current_offset(0) {}
+    ~LogicBlockBuilder() {}
+    size_t add_root(std::vector<Node*> nodes);
 
-    size_t add_root(const std::vector<Node*> nodes);
+    size_t add_function_root(std::vector<Node*> nodes);
 
-    size_t add_function_root(const std::vector<Node*> nodes);
+    struct OffsetStruct {
+        offset shared_outputs_offset;  // Assuming 'offset' is of type int for illustration
+        offset shared_new_outputs_offset;
+    };
+    typedef std::map<const std::string, const OffsetStruct> bus_map_t;
 
-    size_t add_node(const Node& node);
+    offset add_node(Node& node, bus_map_t& map_ref);
 
     size_t input_count(offset header_offset) {
         NodeHeader* header = get_at<NodeHeader>(header_offset);
@@ -137,41 +112,37 @@ public:
         case NodeType::GateXOR:
         case NodeType::GateXNOR:
             return get_at<BinaryGateHeader>(header_offset)->input_count;
-            break;
 
         case NodeType::GateBUFFER:
         case NodeType::GateNOT:
             return get_at<UnaryGateHeader>(header_offset)->input_output_count;
-            break;
 
         case NodeType::PushButton:
         case NodeType::ToggleButton:
         case NodeType::StaticToggleButton: {
             return 0;
         }
-        case NodeType::LightBulb: {
-            return get_at<OutputNodeHeader>(header_offset)->input_count;
-        }
+        case NodeType::LightBulb:
         case NodeType::SevenSegmentDisplay: {
-            return get_at<GenericNodeHeader>(header_offset)->input_count;
-            break;
+            return get_at<OutputNodeHeader>(header_offset)->input_count;
         }
 
         case NodeType::FunctionNode: {
             return get_at<FunctionNodeHeader>(header_offset)->input_count;
-            break;
         }
 
-        case NodeType::Bus:
+        case NodeType::BusNode: {
             return get_at<BusNodeHeader>(header_offset)->input_output_count;
-            break;
+        }
+        case NodeType::RootNode: {
+            return 0;
+        }
 
-        case NodeType::RootNode:
-            assert(false && "not a child");
         default:
             assert(false && "unreachable");
         }
     }
+
     offset outputs_offset(offset header_offset) {
         NodeHeader* header = get_at<NodeHeader>(header_offset);
         switch (header->type) {
@@ -183,50 +154,38 @@ public:
         case NodeType::GateXOR:
         case NodeType::GateXNOR: {
             BinaryGateHeader* gate = get_at<BinaryGateHeader>(header_offset);
-            return header_offset + sizeof(BinaryGateHeader) + gate->input_count * sizeof(input);
+            offset byteDistance = (char*)&gate->output - (char*)get_at<size_t>(0);
+            return byteDistance;
         }
 
                                // Unary Gates
         case NodeType::GateBUFFER:
         case NodeType::GateNOT: {
-            UnaryGateHeader* gate = get_at<UnaryGateHeader>(header_offset);
-            return header_offset + sizeof(UnaryGateHeader) + gate->input_output_count * sizeof(input);
+            UnaryGateHeader* header = get_at<UnaryGateHeader>(header_offset);
+            offset outputs_offset = header->outputs_offset;
+            return outputs_offset;
         }
 
                               // Input Nodes (only have outputs)
         case NodeType::PushButton:
         case NodeType::ToggleButton:
         case NodeType::StaticToggleButton: {
-            InputNodeHeader* input = get_at<InputNodeHeader>(header_offset);
-            return header_offset + sizeof(InputNodeHeader);
+            return get_at<InputNodeHeader>(header_offset)->outputs_offset;
         }
 
                                          // Output Nodes (only have inputs, no outputs)
         case NodeType::LightBulb:
-            return 0; // No outputs
-
-            // Generic Node
         case NodeType::SevenSegmentDisplay: {
-            GenericNodeHeader* generic = get_at<GenericNodeHeader>(header_offset);
-            return header_offset + sizeof(GenericNodeHeader) + generic->input_count * sizeof(input);
+            return 0;
         }
 
         case NodeType::FunctionNode: {
-            FunctionNodeHeader* func = get_at<FunctionNodeHeader>(header_offset);
-            return header_offset + sizeof(FunctionNodeHeader) +
-                func->input_targ_node_count * sizeof(offset) +
-                func->output_targ_node_count * sizeof(offset) +
-                func->input_count * sizeof(input);
+            return get_at<FunctionNodeHeader>(header_offset)->outputs_offset;
         }
 
-        case NodeType::Bus: {
-            BusNodeHeader* bus = get_at<BusNodeHeader>(header_offset);
-            return bus->shared_outputs_offset;
+        case NodeType::BusNode: {
+            return get_at<BusNodeHeader>(header_offset)->shared_outputs_offset;
         }
-
-        case NodeType::RootNode:
-            assert(false && "RootNode can't be a child");
-            return 0; // RootNode doesn't have outputs
 
         default:
             assert(false && "Invalid NodeType");
@@ -244,13 +203,13 @@ public:
         case NodeType::GateNOR:
         case NodeType::GateXOR:
         case NodeType::GateXNOR: {
-            return header_offset + sizeof(BinaryGateHeader);
+            return get_at<BinaryGateHeader>(header_offset)->inputs_offset;
         }
 
                                // Unary Gates
         case NodeType::GateBUFFER:
         case NodeType::GateNOT: {
-            return header_offset + sizeof(UnaryGateHeader);
+            return get_at<UnaryGateHeader>(header_offset)->inputs_offset;
         }
 
                               // Input Nodes (only have outputs, no inputs)
@@ -260,29 +219,18 @@ public:
             return 0; // No inputs
 
             // Output Nodes
-        case NodeType::LightBulb: {
-            return header_offset + sizeof(OutputNodeHeader);
-        }
-
-                                // Generic Node
+        case NodeType::LightBulb:
         case NodeType::SevenSegmentDisplay: {
-            return header_offset + sizeof(GenericNodeHeader);
+            return get_at<OutputNodeHeader>(header_offset)->inputs_offset;
         }
 
         case NodeType::FunctionNode: {
-            FunctionNodeHeader* func = get_at<FunctionNodeHeader>(header_offset);
-            return header_offset + sizeof(FunctionNodeHeader) +
-                func->input_targ_node_count * sizeof(offset) +
-                func->output_targ_node_count * sizeof(offset);
+            return get_at<FunctionNodeHeader>(header_offset)->inputs_offset;
         }
 
-        case NodeType::Bus: {
-            return header_offset + sizeof(BusNodeHeader);
+        case NodeType::BusNode: {
+            return get_at<BusNodeHeader>(header_offset)->inputs_offset;
         }
-
-        case NodeType::RootNode:
-            assert(false && "RootNode can't be a child");
-            return 0; // RootNode doesn't have inputs
 
         default:
             assert(false && "Invalid NodeType");
@@ -305,6 +253,7 @@ private:
     template<typename T>
     T* add() {
         size_t size = sizeof(T);
+        assert(buffer.size() == current_offset);
         assert(buffer.size() % alignof(T) == 0 && "Misaligned writing");
         buffer.resize(buffer.size() + size);
         T* ptr = reinterpret_cast<T*>(&buffer[current_offset]);
@@ -322,6 +271,17 @@ private:
         assert(offset < buffer.size());
         assert(offset % alignof(T) == 0 && "Misaligned access");
         return reinterpret_cast<T*>(&buffer[offset]);
+    }
+
+    void add_padding(uint32_t alignment) {
+        assert(buffer.size() == current_offset);
+        uint32_t misalignment = current_offset % alignment;
+        if (misalignment != 0) {
+            uint32_t padding = alignment - misalignment;
+            current_offset += padding;
+            buffer.resize(buffer.size() + padding);
+        }
+        assert(buffer.size() == current_offset);
     }
 };
 
