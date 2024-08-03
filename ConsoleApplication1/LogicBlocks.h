@@ -13,21 +13,6 @@ public:
     }
 
 
-    output get_input_val(size_t index, offset inputs_offset) {
-        input* target_input = get_at<input>(inputs_offset + index * sizeof(input));
-        offset output_offset = target_input->target_offset;
-        assert(output_offset < size);
-        if (!output_offset) return false;
-        output* input_val = get_at<output>(output_offset);
-        return *input_val;
-    }
-
-    template<typename T>
-    T* get_at(offset offset) {
-        assert(offset % alignof(T) == 0 && "Misaligned access");
-        return reinterpret_cast<T*>(data.get() + offset);
-    }
-
     const NodeHeader* get_header() const {
         return reinterpret_cast<const NodeHeader*>(data.get());
     }
@@ -57,27 +42,18 @@ public:
         std::cout << std::dec << std::endl; // Reset to decimal format
     }
     
-    size_t parse(offset node_offset = 0, std::string indent = "", size_t node_number = 0);
+    size_t parse(uint8_t* container, offset node_offset = 0, std::string indent = "", size_t node_number = 0);
 
-    offset get_children_offset(size_t header_offset) {
-        NodeHeader* header = get_at<NodeHeader>(header_offset);
-        switch (header->type) {
-        case NodeType::FunctionNode: {
-            FunctionNodeHeader* header = get_at<FunctionNodeHeader>(header_offset);
-            return header->children_offset;
-            break;
-        }
-        default:
-            assert(false && "only function nodes and root nodes have children");
-            break;
-        }
-
-    }
 
     size_t get_size() const { return size; }
 
-    bool pretick(bool update_all, offset node_offset = 0);
-    void tick(bool update_all, offset node_offset = 0);
+    bool pretick(uint8_t* container, bool update_all, offset node_offset);
+    void tick(uint8_t* container, bool update_all, offset node_offset);
+
+    uint8_t* get_data(size_t offset) {
+        return &data[offset];
+    }
+
 
 private:
     std::unique_ptr<uint8_t[]> data;
@@ -87,177 +63,40 @@ private:
 
 class LogicBlockBuilder {
 public:
-    LogicBlockBuilder() : current_offset(0) {}
+    LogicBlockBuilder() : current_absolute_offset(0) {}
     ~LogicBlockBuilder() {}
     size_t add_root(std::vector<Node*> nodes);
 
     size_t add_function_root(std::vector<Node*> nodes);
 
-    struct OffsetStruct {
+    struct BusOffsetStruct {
         offset shared_outputs_offset;  // Assuming 'offset' is of type int for illustration
         offset shared_new_outputs_offset;
     };
-    typedef std::map<const std::string, const OffsetStruct> bus_map_t;
+    typedef std::map<const std::string, const BusOffsetStruct> bus_map_t;
 
-    offset add_node(Node& node, bus_map_t& map_ref);
-
-    size_t input_count(offset header_offset) {
-        NodeHeader* header = get_at<NodeHeader>(header_offset);
-        switch (header->type)
-        {
-        case NodeType::GateAND:
-        case NodeType::GateOR:
-        case NodeType::GateNAND:
-        case NodeType::GateNOR:
-        case NodeType::GateXOR:
-        case NodeType::GateXNOR:
-            return get_at<BinaryGateHeader>(header_offset)->input_count;
-
-        case NodeType::GateBUFFER:
-        case NodeType::GateNOT:
-            return get_at<UnaryGateHeader>(header_offset)->input_output_count;
-
-        case NodeType::PushButton:
-        case NodeType::ToggleButton:
-        case NodeType::StaticToggleButton: {
-            return 0;
-        }
-        case NodeType::LightBulb:
-        case NodeType::SevenSegmentDisplay: {
-            return get_at<OutputNodeHeader>(header_offset)->input_count;
-        }
-
-        case NodeType::FunctionNode: {
-            return get_at<FunctionNodeHeader>(header_offset)->input_count;
-        }
-
-        case NodeType::BusNode: {
-            return get_at<BusNodeHeader>(header_offset)->input_output_count;
-        }
-        case NodeType::RootNode: {
-            return 0;
-        }
-
-        default:
-            assert(false && "unreachable");
-        }
-    }
-
-    offset outputs_offset(offset header_offset) {
-        NodeHeader* header = get_at<NodeHeader>(header_offset);
-        switch (header->type) {
-            // Binary Gates
-        case NodeType::GateAND:
-        case NodeType::GateOR:
-        case NodeType::GateNAND:
-        case NodeType::GateNOR:
-        case NodeType::GateXOR:
-        case NodeType::GateXNOR: {
-            BinaryGateHeader* gate = get_at<BinaryGateHeader>(header_offset);
-            offset byteDistance = (char*)&gate->output - (char*)get_at<size_t>(0);
-            return byteDistance;
-        }
-
-                               // Unary Gates
-        case NodeType::GateBUFFER:
-        case NodeType::GateNOT: {
-            UnaryGateHeader* header = get_at<UnaryGateHeader>(header_offset);
-            offset outputs_offset = header->outputs_offset;
-            return outputs_offset;
-        }
-
-                              // Input Nodes (only have outputs)
-        case NodeType::PushButton:
-        case NodeType::ToggleButton:
-        case NodeType::StaticToggleButton: {
-            return get_at<InputNodeHeader>(header_offset)->outputs_offset;
-        }
-
-                                         // Output Nodes (only have inputs, no outputs)
-        case NodeType::LightBulb:
-        case NodeType::SevenSegmentDisplay: {
-            return 0;
-        }
-
-        case NodeType::FunctionNode: {
-            return get_at<FunctionNodeHeader>(header_offset)->outputs_offset;
-        }
-
-        case NodeType::BusNode: {
-            return get_at<BusNodeHeader>(header_offset)->shared_outputs_offset;
-        }
-
-        default:
-            assert(false && "Invalid NodeType");
-            return 0; // Return 0 for invalid types, though this line should never be reached due to the assert
-        }
-    }
-
-    offset inputs_offset(offset header_offset) {
-        NodeHeader* header = get_at<NodeHeader>(header_offset);
-        switch (header->type) {
-            // Binary Gates
-        case NodeType::GateAND:
-        case NodeType::GateOR:
-        case NodeType::GateNAND:
-        case NodeType::GateNOR:
-        case NodeType::GateXOR:
-        case NodeType::GateXNOR: {
-            return get_at<BinaryGateHeader>(header_offset)->inputs_offset;
-        }
-
-                               // Unary Gates
-        case NodeType::GateBUFFER:
-        case NodeType::GateNOT: {
-            return get_at<UnaryGateHeader>(header_offset)->inputs_offset;
-        }
-
-                              // Input Nodes (only have outputs, no inputs)
-        case NodeType::PushButton:
-        case NodeType::ToggleButton:
-        case NodeType::StaticToggleButton:
-            return 0; // No inputs
-
-            // Output Nodes
-        case NodeType::LightBulb:
-        case NodeType::SevenSegmentDisplay: {
-            return get_at<OutputNodeHeader>(header_offset)->inputs_offset;
-        }
-
-        case NodeType::FunctionNode: {
-            return get_at<FunctionNodeHeader>(header_offset)->inputs_offset;
-        }
-
-        case NodeType::BusNode: {
-            return get_at<BusNodeHeader>(header_offset)->inputs_offset;
-        }
-
-        default:
-            assert(false && "Invalid NodeType");
-            return 0; // Return 0 for invalid types, though this line should never be reached due to the assert
-        }
-    }
-
+    void add_node(size_t abs_container_offset, Node& node, bus_map_t& bus_map);
+    
     LogicBlock* build() {
         LogicBlock* block = new LogicBlock;
-        block->allocate(current_offset);
-        std::memcpy(block->get_at<uint8_t>(0), buffer.data(), current_offset);
+        block->allocate(current_absolute_offset);
+        std::memcpy(block->get_data(0), buffer.data(), current_absolute_offset);
         return block;
     }
 private:
     std::vector<uint8_t> buffer;
-    size_t current_offset;
+    size_t current_absolute_offset;
 
-    void connect_children(size_t children_offset, size_t child_count);
+    void connect_children(uint8_t* container, size_t child_count);
 
     template<typename T>
     T* add() {
         size_t size = sizeof(T);
-        assert(buffer.size() == current_offset);
+        assert(buffer.size() == current_absolute_offset);
         assert(buffer.size() % alignof(T) == 0 && "Misaligned writing");
         buffer.resize(buffer.size() + size);
-        T* ptr = reinterpret_cast<T*>(&buffer[current_offset]);
-        current_offset += size;
+        T* ptr = reinterpret_cast<T*>(&buffer[current_absolute_offset]);
+        current_absolute_offset += size;
         return ptr;
     }
 
@@ -266,22 +105,31 @@ private:
         *add<T>() = data;
     }
 
+    void add_raw(uint8_t* data, size_t size) {
+        assert(data && size);
+        assert(buffer.size() == current_absolute_offset);
+        size_t old_size = buffer.size();
+        buffer.resize(buffer.size() + size);
+        std::memcpy(&buffer[old_size], data, size);
+        current_absolute_offset += size;
+    }
+
     template<typename T>
-    T* get_at(size_t offset) {
-        assert(offset < buffer.size());
-        assert(offset % alignof(T) == 0 && "Misaligned access");
-        return reinterpret_cast<T*>(&buffer[offset]);
+    T* get_at_abs(size_t absolute_offset) {
+        assert(absolute_offset < buffer.size());
+        assert(absolute_offset % alignof(T) == 0 && "Misaligned access");
+        return reinterpret_cast<T*>(&buffer[absolute_offset]);
     }
 
     void add_padding(uint32_t alignment) {
-        assert(buffer.size() == current_offset);
-        uint32_t misalignment = current_offset % alignment;
+        assert(buffer.size() == current_absolute_offset);
+        uint32_t misalignment = current_absolute_offset % alignment;
         if (misalignment != 0) {
             uint32_t padding = alignment - misalignment;
-            current_offset += padding;
+            current_absolute_offset += padding;
             buffer.resize(buffer.size() + padding);
         }
-        assert(buffer.size() == current_offset);
+        assert(buffer.size() == current_absolute_offset);
     }
 };
 
@@ -298,4 +146,6 @@ namespace LogicblockTools {
     offset outputs_offset(offset header_offset, uint8_t* buffer);
 
     offset inputs_offset(offset header_offset, uint8_t* buffer);
+
+    output get_input_val(size_t index, offset inputs_offset, uint8_t* buffer);
 }

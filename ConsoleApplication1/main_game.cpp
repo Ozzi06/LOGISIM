@@ -57,7 +57,8 @@ void Game::draw() {
 
     EndMode2D();
 
-    DrawText(num_toString(real_sim_hz, 1).c_str(), 10, 100, 20, WHITE);
+    std::string scientific_number = num_toString(real_sim_hz, 1);
+    DrawText(scientific_number.c_str(), 10, 100, 20, WHITE);
 
 
     hovering_above_gui = false;
@@ -83,7 +84,7 @@ void Game::pretick()
 {
     if (run_on_block) {
         if (logicblock) {
-            logicblock->pretick(has_updated);
+            logicblock->pretick(logicblock->get_data(0), has_updated, 0);
             return;
         }
         else { 
@@ -100,8 +101,7 @@ void Game::tick()
 {
     if (run_on_block) {
         if (logicblock) {
-            logicblock->tick(has_updated);
-            return;
+            logicblock->tick(logicblock->get_data(0), has_updated, 0);
         }
         else run_on_block = false;
     }
@@ -342,11 +342,13 @@ void Game::handle_input()
             }
             else if (IsKeyPressed(KEY_V)) {
                 paste_nodes();
+                network_change();
             }
         }
 
         if (IsKeyDown(KEY_DELETE)) {
             delete_selected_nodes();
+            network_change();
         }
 
         if (!IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
@@ -463,11 +465,13 @@ void Game::handle_input()
                 if (selected_outputs.size() > 1) {
                     for (size_t i = 0; i < std::min(selected_inputs.size(), selected_outputs.size()); i++) {
                         selected_inputs[i]->target = selected_outputs[i];
+                        network_change();
                     }
                 }
                 else {
                     for (size_t i = 0; i < selected_inputs.size(); i++) {
                         selected_inputs[i]->target = selected_outputs[0];
+                        network_change();
                     }
                 }
             }
@@ -477,6 +481,7 @@ void Game::handle_input()
         if (IsKeyReleased(KEY_DELETE)) {
             for (auto& input : selected_inputs) {
                 input->target = nullptr;
+                network_change();
             }
             if (!selected_outputs.empty()) {
                 for (Node* node : nodes) {
@@ -485,6 +490,7 @@ void Game::handle_input()
                         for (auto& selected_output : selected_outputs) {
                             if (incon.target == selected_output) {
                                 incon.target = nullptr;
+                                network_change();
                                 break; // No need to check other selected_outputs if a match is found
                             }
                         }
@@ -526,8 +532,6 @@ void Game::handle_input()
         #endif
         break;
     }
-
-    
 }
 
 void Game::save(std::string filePath)
@@ -647,12 +651,13 @@ void Game::build_logic_block()
     auto end = std::chrono::high_resolution_clock::now();
     // Calculate duration
 
-    if (logicblock->get_at<NodeHeader>(0)->total_size < 3000) {
+    if (logicblock->get_header()->total_size < 3000) {
         logicblock->hexdump();
-        logicblock->parse();
+        logicblock->parse(logicblock->get_data(0));
     }
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-    std::cout << "\nCreated logicblock out of current configuration. Size: " << logicblock->get_at<NodeHeader>(0)->total_size << " bytes. Duration: " << duration.count() << " microseconds" << std::endl;
+    std::cout << "\nCreated logicblock out of current configuration. Size: " << logicblock->get_header()->total_size << " bytes. Duration: " << duration.count() << " microseconds" << std::endl;
+    has_updated = true;
 }
 
 void Node::draw()
@@ -1171,15 +1176,53 @@ void Node::load_JSON(const json& nodeJson) {
 
 void Node::update_state_from_logicblock()
 {
+    using namespace LogicblockTools;
     assert(node_offset != 0);
     Game& game = Game::getInstance();
     uint8_t* logicblock_ptr = game.get_logicblock<uint8_t>(0);
 
-    offset outputs_offset = LogicblockTools::outputs_offset(node_offset, logicblock_ptr);
-    assert(LogicblockTools::output_count(node_offset, logicblock_ptr) == outputs.size());
+    NodeHeader* header = get_at<NodeHeader>(node_offset, logicblock_ptr);
 
-    for (size_t i = 0; i < outputs.size(); i++) {
-        outputs[i].state = *game.get_logicblock<output>(outputs_offset + i * sizeof(output));
+    assert(header->type == get_type());
+    switch (header->type) {
+        // Binary Gates
+    case NodeType::GateAND:
+    case NodeType::GateOR:
+    case NodeType::GateNAND:
+    case NodeType::GateNOR:
+    case NodeType::GateXOR:
+    case NodeType::GateXNOR: {
+        BinaryGateHeader* header = get_at<BinaryGateHeader>(node_offset, logicblock_ptr);
+        outputs[0].state = header->output;
+        break;
+    }
+
+                           // Unary Gates
+    case NodeType::GateBUFFER:
+    case NodeType::GateNOT: 
+
+    case NodeType::PushButton:
+    case NodeType::ToggleButton:
+    case NodeType::StaticToggleButton:
+
+    case NodeType::LightBulb:
+    case NodeType::SevenSegmentDisplay:
+
+    case NodeType::FunctionNode:
+
+    case NodeType::BusNode: {
+        offset rel_outputs_offset = outputs_offset(node_offset, logicblock_ptr);
+        assert(output_count(node_offset, logicblock_ptr) == outputs.size());
+
+        for (size_t i = 0; i < outputs.size(); i++) {
+            //TODO this is jank but should work, creates absolute offset as long as it's the child of a root node
+            outputs[i].state = *game.get_logicblock<output>(sizeof(RootNodeHeader) + rel_outputs_offset + i * sizeof(output));
+        }
+        break;
+    }
+
+    default:
+        assert(false && "Invalid NodeType");
     }
 }
 

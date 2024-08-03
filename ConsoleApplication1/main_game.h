@@ -42,7 +42,10 @@ public:
     bool run_on_block = false;
     template<typename T>
     T* get_logicblock(size_t offset) {
-        return logicblock->get_at<T>(offset);
+        return reinterpret_cast<T*>(logicblock->get_data(offset));
+    }
+    void network_change() {
+        run_on_block = false;
     }
 
 public:
@@ -258,10 +261,14 @@ struct BinaryLogicGate : public Node {
 
     virtual void add_input() override {
         inputs.push_back(Input_connector(this, inputs.size())); recompute_size();
+        Game& game = Game::getInstance();
+        game.network_change();
     }
 
     virtual void remove_input() override {
         if (inputs.size() > 1) inputs.pop_back();  recompute_size();
+        Game& game = Game::getInstance();
+        game.network_change();
     }
 };
 
@@ -301,28 +308,13 @@ struct GateOR : public BinaryLogicGate {
     virtual NodeType get_type() const override { return NodeType::GateOR; }
 };
 
-struct GateNAND : public Node {
-    GateNAND(std::vector<Node*> * container, Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}) : Node(container, pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
+struct GateNAND : public BinaryLogicGate {
+    GateNAND(std::vector<Node*>* container, Vector2 pos = { 0,0 }, size_t input_count = 2, std::vector<Input_connector> input_connectors = {}) : BinaryLogicGate(container, pos, input_count, input_connectors) {
         label = "NAND";
-        inputs.insert(inputs.end(), input_connectors.begin(), input_connectors.end());
-
-        while (inputs.size() < input_count)
-            inputs.push_back(Input_connector(this, inputs.size()));
-
-        size = Vector2{ 100, 100 + 30 * float(inputs.size()) };
     }
-    GateNAND(const GateNAND* base) : Node(base) {}
-
-    virtual void add_input() override {
-        inputs.push_back(Input_connector(this, inputs.size())); recompute_size();
-    }
-    virtual void remove_input() override {
-        if (inputs.size() > 1) inputs.pop_back();  recompute_size();
-    }
+    GateNAND(const GateNAND* base) : BinaryLogicGate(base) {}
 
     Node* copy() const override { return new GateNAND(this); }
-
-    virtual std::string get_label() const override { return std::string(label); }
 
     static Texture texture;
 
@@ -401,6 +393,8 @@ struct UnaryLogicGate : public Node {
         inputs.push_back(Input_connector(this, inputs.size()));
         outputs.push_back(Output_connector(this, outputs.size(), false));
         recompute_size();
+        Game& game = Game::getInstance();
+        game.network_change();
     }
     virtual void remove_input() override {
         Game& game = Game::getInstance();
@@ -414,6 +408,7 @@ struct UnaryLogicGate : public Node {
             outputs.pop_back();
         }
         recompute_size();
+        game.network_change();
     }
 
 
@@ -504,8 +499,8 @@ struct Bus : public Node {
         outputs.push_back(Output_connector(this, outputs.size(), false));
         recompute_size();
         find_connections();
-
-
+        Game& game = Game::getInstance();
+        game.network_change();
     }
 
     virtual void remove_input() override {
@@ -521,6 +516,7 @@ struct Bus : public Node {
         }
         recompute_size();
         find_connections();
+        game.network_change();
     }
 
     virtual void change_label(const char* newlabel) override {
@@ -576,6 +572,8 @@ struct Button :public Node {
     virtual void add_input() override {
         if (outputs.size() == outputs.capacity()) return;
         outputs.push_back(Output_connector(this, outputs.size())); recompute_size();
+        Game& game = Game::getInstance();
+        game.network_change();
     }
 
     virtual void remove_input() override {
@@ -587,6 +585,7 @@ struct Button :public Node {
                 }
             }
             outputs.pop_back();  recompute_size();
+            game.network_change();
         }
     }
 
@@ -601,7 +600,8 @@ struct Button :public Node {
         Game& game = Game::getInstance();
         if (game.run_on_block && has_offset) {
             InputNodeHeader* header = game.get_logicblock<InputNodeHeader>(node_offset);
-            output* outconn = game.get_logicblock<output>(header->outputs_offset + index * sizeof(output));
+            //TODO this is jank but should work, creates absolute offset as long as it's the child of a root node
+            output* outconn = game.get_logicblock<output>(sizeof(RootNodeHeader) + header->outputs_offset + index * sizeof(output));
             *outconn = new_state;
         }
         else {
@@ -788,13 +788,14 @@ private:
 private:
     LogicBlock function_data;
 public:
+    bool has_function_data() { return function_data.get_size() > 0; }
     LogicBlock* get_function_data() { return &function_data; }
     void allocate_function_data(uint8_t* node) {
         using namespace LogicblockTools;
         FunctionNodeHeader* header = get_at<FunctionNodeHeader>(0, node);
 
         function_data.allocate(header->total_size);
-        std::memcpy(function_data.get_at<uint8_t>(0), get_at<uint8_t>(0, node), header->total_size);
+        std::memcpy(function_data.get_data(0), get_at<uint8_t>(0, node), header->total_size);
     }
 };
 
