@@ -119,3 +119,4 @@ struct RootNodeHeader : public NodeHeader {
     offset children_offset;
     //children
 };
+//auto i = sizeof(RootNodeHeader);

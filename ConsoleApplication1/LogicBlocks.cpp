@@ -386,12 +386,9 @@ void LogicBlockBuilder::add_node(size_t abs_container_offset, Node& node, bus_ma
             {//check header
                 FunctionNodeHeader* header = get_at_abs<FunctionNodeHeader>(abs_node_offset);
                 assert(header->type == funnode.get_type());
-                assert(header->input_targ_node_count == funnode.input_targs.size());
-                assert(header->output_targ_node_count == funnode.output_targs.size());
                 assert(header->input_count == funnode.inputs.size());
                 assert(header->output_count == funnode.outputs.size());
                 header->has_changed = true;
-                assert(header->child_count == funnode.nodes.size());
                 assert(header->total_size % NODE_ALIGNMENT == 0);
                 assert(current_absolute_offset % NODE_ALIGNMENT == 0);
             }
@@ -648,11 +645,8 @@ void LogicBlockBuilder::add_node(size_t abs_container_offset, Node& node, bus_ma
             {//check header
                 FunctionNodeHeader* header = get_at_abs<FunctionNodeHeader>(abs_node_offset);
                 assert(header->type == funnode.get_type());
-                assert(header->input_targ_node_count == funnode.input_targs.size());
-                assert(header->output_targ_node_count == funnode.output_targs.size());
                 assert(header->input_count == funnode.inputs.size());
                 assert(header->output_count == funnode.outputs.size());
-                assert(header->child_count == funnode.nodes.size());
                 assert(header->total_size % NODE_ALIGNMENT == 0);
                 assert(current_absolute_offset % NODE_ALIGNMENT == 0);
             }
@@ -660,17 +654,14 @@ void LogicBlockBuilder::add_node(size_t abs_container_offset, Node& node, bus_ma
             {//check header
                 FunctionNodeHeader* header = reinterpret_cast<FunctionNodeHeader*>(funnode.get_function_data()->get_data(0));
                 assert(header->type == funnode.get_type());
-                assert(header->input_targ_node_count == funnode.input_targs.size());
-                assert(header->output_targ_node_count == funnode.output_targs.size());
                 assert(header->input_count == funnode.inputs.size());
                 assert(header->output_count == funnode.outputs.size());
-                assert(header->child_count == funnode.nodes.size());
                 assert(header->total_size % NODE_ALIGNMENT == 0);
                 assert(current_absolute_offset % NODE_ALIGNMENT == 0);
             }
         }
     }
-    node.set_node_offset(abs_node_offset);
+    node.set_abs_node_offset(abs_node_offset);
     return;
     //TODO! store offsets in targeted node
 }

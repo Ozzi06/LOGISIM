@@ -197,19 +197,21 @@ protected:
     std::vector<Node*> * container;
 
 protected:
-    offset node_offset = 0;
+    size_t abs_node_offset = 0;
     bool has_offset = false;
 public:
-    void set_node_offset(offset new_node_offset) { node_offset = new_node_offset; has_offset = true; }
+    void set_abs_node_offset(offset new_node_offset) { abs_node_offset = new_node_offset; has_offset = true; }
+    size_t get_abs_node_offset() { return abs_node_offset; }
     void update_state_from_logicblock();
 };
 
 struct Input_connector {
-    Input_connector(Node* host, size_t index, Output_connector* target = nullptr, uid_t target_id = 0) : host(host), target(target), index(index), target_id(target_id) {}
+    Input_connector(Node* host, size_t index, std::string name, Output_connector* target = nullptr, uid_t target_id = 0) : host(host), target(target), index(index), name(name), target_id(target_id) {}
     Node* host;
     Output_connector* target;
     uid_t target_id;
     size_t index;
+    std::string name;
 
     Vector2 get_connection_pos() const{
         const float width = 30;
@@ -226,9 +228,10 @@ struct Input_connector {
 };
 
 struct Output_connector {
-    Output_connector(Node* host, size_t index, bool state = false, uid_t id = generate_id()) : host(host), index(index), state(state), new_state(false), id(id) { }
+    Output_connector(Node* host, size_t index, std::string name, bool state = false, uid_t id = generate_id()) : host(host), index(index), state(state), new_state(false), name(name), id(id) { }
     Node* host;
     size_t index;
+    std::string name;
     bool state;
     bool new_state;
 
@@ -253,14 +256,14 @@ struct BinaryLogicGate : public Node {
         inputs.insert(inputs.end(), input_connectors.begin(), input_connectors.end());
 
         while (inputs.size() < input_count)
-            inputs.push_back(Input_connector(this, inputs.size()));
+            inputs.push_back(Input_connector(this, inputs.size(), ""));
 
         recompute_size();
     }
     BinaryLogicGate(const BinaryLogicGate* base) : Node(base) {}
 
     virtual void add_input() override {
-        inputs.push_back(Input_connector(this, inputs.size())); recompute_size();
+        inputs.push_back(Input_connector(this, inputs.size(), "")); recompute_size();
         Game& game = Game::getInstance();
         game.network_change();
     }
@@ -382,7 +385,7 @@ struct GateXNOR : public BinaryLogicGate {
 
 struct UnaryLogicGate : public Node {
     UnaryLogicGate(std::vector<Node*> * container, Vector2 pos = { 0,0 }, Output_connector* input = nullptr) : Node(container, pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
-        inputs.push_back(Input_connector(this, 0, input));
+        inputs.push_back(Input_connector(this, 0, "", input));
         recompute_size();
     }
     UnaryLogicGate(const UnaryLogicGate* base) : Node(base) {}
@@ -390,8 +393,8 @@ struct UnaryLogicGate : public Node {
 
     virtual void add_input() override {
         if (outputs.size() == outputs.capacity()) return;
-        inputs.push_back(Input_connector(this, inputs.size()));
-        outputs.push_back(Output_connector(this, outputs.size(), false));
+        inputs.push_back(Input_connector(this, inputs.size(), ""));
+        outputs.push_back(Output_connector(this, outputs.size(), "", false));
         recompute_size();
         Game& game = Game::getInstance();
         game.network_change();
@@ -460,7 +463,7 @@ struct GateNOT : public UnaryLogicGate {
 struct Bus : public Node {
     Bus(std::vector<Node*> * container, Vector2 pos = { 0,0 }, Output_connector* input = nullptr) : Node(container, pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         label = "BUS_0";
-        inputs.push_back(Input_connector(this, 0, input));
+        inputs.push_back(Input_connector(this, 0, "", input));
         recompute_size();
         find_connections();
         
@@ -495,8 +498,8 @@ struct Bus : public Node {
 
     virtual void add_input() override {
         if (outputs.size() == outputs.capacity()) return;
-        inputs.push_back(Input_connector(this, inputs.size()));
-        outputs.push_back(Output_connector(this, outputs.size(), false));
+        inputs.push_back(Input_connector(this, inputs.size(), ""));
+        outputs.push_back(Output_connector(this, outputs.size(), "", false));
         recompute_size();
         find_connections();
         Game& game = Game::getInstance();
@@ -571,7 +574,7 @@ struct Button :public Node {
 
     virtual void add_input() override {
         if (outputs.size() == outputs.capacity()) return;
-        outputs.push_back(Output_connector(this, outputs.size())); recompute_size();
+        outputs.push_back(Output_connector(this, outputs.size(), "")); recompute_size();
         Game& game = Game::getInstance();
         game.network_change();
     }
@@ -599,7 +602,7 @@ struct Button :public Node {
     virtual void set_output_state(size_t index, bool new_state) {
         Game& game = Game::getInstance();
         if (game.run_on_block && has_offset) {
-            InputNodeHeader* header = game.get_logicblock<InputNodeHeader>(node_offset);
+            InputNodeHeader* header = game.get_logicblock<InputNodeHeader>(abs_node_offset);
             //TODO this is jank but should work, creates absolute offset as long as it's the child of a root node
             output* outconn = game.get_logicblock<output>(sizeof(RootNodeHeader) + header->outputs_offset + index * sizeof(output));
             *outconn = new_state;
@@ -672,7 +675,7 @@ struct LightBulb : public Node {
         size = Vector2{ 100, 100 };
         outputs.clear();
         inputs.clear();
-        inputs.push_back(Input_connector(this, 0));
+        inputs.push_back(Input_connector(this, 0, ""));
     }
     LightBulb(const LightBulb* base) : Node(base) {}
 
@@ -702,7 +705,7 @@ struct SevenSegmentDisplay : public Node {
         outputs.clear();
         inputs.clear();
         for(size_t i = 0; i < 7; i++)
-            inputs.push_back(Input_connector(this, i));
+            inputs.push_back(Input_connector(this, i, ""));
         recompute_size();
     }
     SevenSegmentDisplay(const SevenSegmentDisplay* base) : Node(base) {}
@@ -793,9 +796,17 @@ public:
     void allocate_function_data(uint8_t* node) {
         using namespace LogicblockTools;
         FunctionNodeHeader* header = get_at<FunctionNodeHeader>(0, node);
+        assert(header->type == NodeType::FunctionNode);
 
         function_data.allocate(header->total_size);
         std::memcpy(function_data.get_data(0), get_at<uint8_t>(0, node), header->total_size);
+
+        input_targs.clear();
+        output_targs.clear();
+        for (Node* node : nodes) {
+            delete node;
+        }
+        nodes.clear();
     }
 };
 
