@@ -7,22 +7,32 @@ class LogicBlock {
 public:
     LogicBlock() : data(nullptr), size(0) {}
 
+    LogicBlock(const LogicBlock& base) : data(nullptr), size(0) {
+        allocate(base.size);
+        std::memcpy(data.get(), base.data.get(), size);
+    }
+
+    LogicBlock(LogicBlock&& other) noexcept : size(other.size) {
+        data = std::move(other.data);
+    }
+
     void allocate(size_t byte_size) {
         data = std::make_unique<uint8_t[]>(byte_size);
         size = byte_size;
     }
-
 
     const NodeHeader* get_header() const {
         return reinterpret_cast<const NodeHeader*>(data.get());
     }
 
     void save_to_file(const std::string& filename) const {
+        assert(!"TODO");
         std::ofstream file(filename, std::ios::binary);
         file.write(reinterpret_cast<const char*>(data.get()), size);
     }
 
     static LogicBlock load_from_file(const std::string& filename) {
+        assert(!"TODO");
         std::ifstream file(filename, std::ios::binary | std::ios::ate); // opens as binary and puts cursour at end
         std::streamsize file_size = file.tellg(); // gets cursor location at end to get size
         file.seekg(0, std::ios::beg);
@@ -42,8 +52,7 @@ public:
         std::cout << std::dec << std::endl; // Reset to decimal format
     }
     
-    size_t parse(uint8_t* container, offset node_offset = 0, std::string indent = "", size_t node_number = 0);
-
+    size_t parse(uint8_t* container, size_t node_offset = 0, std::string indent = "", size_t node_number = 0);
 
     size_t get_size() const { return size; }
 
@@ -75,7 +84,7 @@ public:
     };
     typedef std::map<const std::string, const BusOffsetStruct> bus_map_t;
 
-    void add_node(size_t abs_container_offset, Node& node, bus_map_t& bus_map);
+    void add_node(Node& node, bus_map_t& bus_map, size_t abs_container_offset);
     
     LogicBlock* build() {
         LogicBlock* block = new LogicBlock;
@@ -147,5 +156,5 @@ namespace LogicblockTools {
 
     offset inputs_offset(offset header_offset, uint8_t* buffer);
 
-    output get_input_val(size_t index, offset inputs_offset, uint8_t* buffer);
+    output get_input_val(size_t index, offset inputs_offset, offset node_offset, uint8_t* buffer);
 }

@@ -117,7 +117,7 @@ public:
 
     virtual ~Node() {}
 
-    virtual size_t get_max_outputs() const { return UINT16_MAX / 2; }
+    virtual size_t get_max_outputs() const { return 32; }
     virtual void reserve_outputs() { outputs.reserve(get_max_outputs()); }
 
     virtual Node* copy() const = 0;
@@ -198,10 +198,11 @@ protected:
 
 protected:
     size_t abs_node_offset = 0;
-    bool has_offset = false;
+    bool has_offset_val = false;
 public:
-    void set_abs_node_offset(offset new_node_offset) { abs_node_offset = new_node_offset; has_offset = true; }
-    size_t get_abs_node_offset() { return abs_node_offset; }
+    bool has_offset() const { return has_offset_val; }
+    void set_abs_node_offset(offset new_node_offset) { abs_node_offset = new_node_offset; has_offset_val = true; }
+    size_t get_abs_node_offset() const { return abs_node_offset; }
     void update_state_from_logicblock();
 };
 
@@ -601,10 +602,11 @@ struct Button :public Node {
 
     virtual void set_output_state(size_t index, bool new_state) {
         Game& game = Game::getInstance();
-        if (game.run_on_block && has_offset) {
+        if (game.run_on_block && has_offset_val) {
             InputNodeHeader* header = game.get_logicblock<InputNodeHeader>(abs_node_offset);
+            assert(header->outputs_offset == sizeof(InputNodeHeader));
             //TODO this is jank but should work, creates absolute offset as long as it's the child of a root node
-            output* outconn = game.get_logicblock<output>(sizeof(RootNodeHeader) + header->outputs_offset + index * sizeof(output));
+            output* outconn = game.get_logicblock<output>(abs_node_offset + header->outputs_offset + index * sizeof(output));
             *outconn = new_state;
         }
         else {

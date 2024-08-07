@@ -83,7 +83,7 @@ void Game::draw() {
 void Game::pretick()
 {
     if (!efficient_simulation) has_updated = true;
-    if (!run_on_block && false) { 
+    if (!run_on_block) { 
         build_logic_block();
         run_on_block = true;
     }
@@ -645,6 +645,7 @@ void Game::build_logic_block()
 {
     // save current state before rebuild
     for (Node* node : nodes) {
+        if (!node->has_offset()) continue;
         FunctionNode* funnode = dynamic_cast<FunctionNode*>(node);
         if (funnode && funnode->has_function_data()) {
             size_t abs_offset = funnode->get_abs_node_offset();
@@ -707,12 +708,10 @@ void Node::draw()
     }
 
     //draw inputs
-    for (const Input_connector& conn : inputs)
-        conn.draw();
+    for (const Input_connector& inconn : inputs) inconn.draw();
 
     //draw outputs
-    for (const Output_connector& conn : outputs)
-        conn.draw();
+    for (const Output_connector& outconn : outputs) outconn.draw();
 }
 
 bool Node::show_node_editor()
@@ -1224,15 +1223,23 @@ void Node::update_state_from_logicblock()
     case NodeType::LightBulb:
     case NodeType::SevenSegmentDisplay:
 
-    case NodeType::FunctionNode:
-
-    case NodeType::BusNode: {
-        offset rel_outputs_offset = outputs_offset(abs_node_offset, logicblock_ptr);
+    case NodeType::FunctionNode: {
+        offset abs_outputs_offset = abs_node_offset + outputs_offset(abs_node_offset, logicblock_ptr);
         assert(output_count(abs_node_offset, logicblock_ptr) == outputs.size());
 
         for (size_t i = 0; i < outputs.size(); i++) {
-            //TODO this is jank but should work, creates absolute offset as long as it's the child of a root node
-            outputs[i].state = *game.get_logicblock<output>(sizeof(RootNodeHeader) + rel_outputs_offset + i * sizeof(output));
+            outputs[i].state = *game.get_logicblock<output>(abs_outputs_offset + i * sizeof(output));
+        }
+        break;
+    }
+
+    case NodeType::BusNode: {
+        //TODO this is jank but should work, creates absolute offset as long as it's the child of the root node
+        offset abs_outputs_offset = sizeof(RootNodeHeader) + outputs_offset(abs_node_offset, logicblock_ptr);
+        assert(output_count(abs_node_offset, logicblock_ptr) == outputs.size());
+
+        for (size_t i = 0; i < outputs.size(); i++) {
+            outputs[i].state = *game.get_logicblock<output>(abs_outputs_offset + i * sizeof(output));
         }
         break;
     }
@@ -1247,11 +1254,11 @@ void Output_connector::draw() const
     Game& game = Game::getInstance();
     const size_t width = 30;
     float lineThick = 8;
-    float spacing = 30;
+    float height_spacing = 30;
 
     Vector2 startPos = {
         host->pos.x + host->size.x / 2.0f,
-        host->pos.y + (host->outputs.size() - 1) * spacing / 2.0f - index * spacing
+        host->pos.y + (host->outputs.size() - 1) * height_spacing / 2.0f - index * height_spacing
     };
 
     Vector2 endPos = { startPos.x + width ,startPos.y, };
@@ -1265,6 +1272,24 @@ void Output_connector::draw() const
     }
 
     DrawLineEx(startPos, endPos, lineThick, color);
+
+    // draw name
+    {
+        float text_spacing = 2.0f;
+
+        Vector2 pos = {
+            host->pos.x + host->size.x / 2.0f,
+            host->pos.y + (host->outputs.size() - 1) * height_spacing / 2.0f - index * height_spacing - lineThick / 2.0f
+        };
+
+        Font font = GetFontDefault();
+        const char* text;
+        text = name.c_str();
+        Color color = RAYWHITE;
+        if (state)
+            color = DARKGREEN;
+        DrawTextEx(font, text, pos - Vector2{ float(name.size()) * (text_spacing + 7.0f), 0 }, 12, text_spacing, color);
+    }
 }
 
 json Output_connector::to_JSON() const {
@@ -1278,11 +1303,11 @@ void Input_connector::draw() const
     Game& game = Game::getInstance();
     const size_t width = 30;
     float lineThick = 8;
-    float spacing = 30;
+    float height_spacing = 30;
 
     Vector2 startPos = {
         host->pos.x - host->size.x / 2,
-        host->pos.y + ((float)host->inputs.size() - 1.0f) * spacing / 2.0f - index * spacing
+        host->pos.y + ((float)host->inputs.size() - 1.0f) * height_spacing / 2.0f - index * height_spacing
     };
     Vector2 endPos = { startPos.x - width ,startPos.y, };
 
@@ -1304,6 +1329,22 @@ void Input_connector::draw() const
             DrawLineEx(get_connection_pos(), target->get_connection_pos(), lineThick, GRAY);
         }
     }
+
+    //Draw name
+    {
+        float text_spacing = 2.0f;
+        Vector2 pos = {
+            host->pos.x - host->size.x / 2 - width,
+            host->pos.y + ((float)host->inputs.size() - 1.0f) * height_spacing / 2.0f - index * height_spacing - lineThick / 2.0f
+        };
+
+        Font font = GetFontDefault();
+        const char* text = name.c_str();
+        Color color = RAYWHITE;
+        if (target && target->state)
+            color = DARKGREEN;
+        DrawTextEx(font, text, pos + Vector2{ width, 0 }, 12, text_spacing, color);
+    }
 }
 
 json Input_connector::to_JSON() const {
@@ -1312,7 +1353,7 @@ json Input_connector::to_JSON() const {
     };
 }
 
-FunctionNode::FunctionNode(const FunctionNode* base): Node(base), is_single_tick(base->is_single_tick), is_cyclic_val(base->is_cyclic_val)
+FunctionNode::FunctionNode(const FunctionNode* base): Node(base), is_single_tick(base->is_single_tick), is_cyclic_val(base->is_cyclic_val), function_data(base->function_data)
 {
     nodes.clear();
     size_t* idxs = new size_t[base->nodes.size()];
@@ -1608,35 +1649,50 @@ void FunctionNode::load_from_nodes()
             targ_output_count++;
         }
     }
-    while (inputs.size() < targ_input_count) {
-        inputs.push_back(Input_connector(this, inputs.size(), ""));
-    }
-    while (inputs.size() > targ_input_count) {
-        inputs.pop_back();
-    }
-    assert(inputs.size() == targ_input_count);
 
-    while (outputs.size() < targ_output_count) {
-        outputs.push_back(Output_connector(this, outputs.size(), ""));
+    // adjust the connector count
+    {
+        while (inputs.size() < targ_input_count) {
+            inputs.push_back(Input_connector(this, inputs.size(), ""));
+        }
+        while (inputs.size() > targ_input_count) {
+            inputs.pop_back();
+        }
+        assert(inputs.size() == targ_input_count);
+
+        while (outputs.size() < targ_output_count) {
+            outputs.push_back(Output_connector(this, outputs.size(), ""));
+        }
+        while (outputs.size() > targ_output_count) {
+            outputs.pop_back();
+        }
     }
-    while (outputs.size() > targ_output_count) {
-        outputs.pop_back();
-    }
+    
 
     //label the connectors
     {
-        size_t input_index = inputs.size();
-        size_t output_index = outputs.size();
-        for (Node* node : nodes) {
-
-            if (node->isInput()) {
-                for (Output_connector& _ : node->outputs) {
-                    inputs[--input_index].name = node->label;
+        size_t input_index = 0;
+        for (Node* targ_in : input_targs) {
+            for (Output_connector& _ : targ_in->outputs) {
+                for (Input_connector& inconn : inputs) {
+                    if (inconn.index == input_index) {
+                        inconn.name = targ_in->label;
+                        input_index++;
+                        break;
+                    }
                 }
             }
-            if (node->isOutput()) {
-                for (Input_connector& _ : node->inputs) {
-                    outputs[--output_index].name = node->label;
+        }
+
+        size_t output_index = 0;
+        for (Node* targ_out : output_targs) {
+            for (Input_connector& _ : targ_out->inputs) {
+                for (Output_connector& outconn : outputs) {
+                    if (outconn.index == output_index) {
+                        outconn.name = targ_out->label;
+                        output_index++;
+                        break;
+                    }
                 }
             }
         }
@@ -1677,54 +1733,10 @@ void FunctionNode::draw()
     }
 
     //draw inputs
-    {
-        for (size_t i = 0; i < inputs.size(); i++) {
-            inputs[i].draw();
-
-            const size_t width = 30;
-            float lineThick = 8;
-            float height_spacing = 30;
-            float text_spacing = 2.0f;
-            Vector2 pos = {
-            inputs[i].host->pos.x - inputs[i].host->size.x / 2 - width,
-            inputs[i].host->pos.y + ((float)inputs[i].host->inputs.size() - 1.0f) * height_spacing / 2.0f - inputs[i].index * height_spacing - lineThick / 2.0f
-            };
-
-            Font font = GetFontDefault();
-            const char* text = inputs[i].name.c_str();
-            Color color = RAYWHITE;
-            if (inputs[i].target && inputs[i].target->state)
-                color = DARKGREEN;
-            DrawTextEx(font, text, pos + Vector2{ width, 0 }, 12, text_spacing, color);
-        }
-    }
-    
+    for (const Input_connector& inconn : inputs) inconn.draw();
 
     //draw outputs
-    {
-        for (size_t i = 0; i < outputs.size(); i++) {
-            outputs[i].draw();
-
-            const size_t width = 30;
-            float lineThick = 8;
-            float height_spacing = 30;
-            float text_spacing = 2.0f;
-
-            Vector2 pos = {
-                outputs[i].host->pos.x + outputs[i].host->size.x / 2.0f,
-                outputs[i].host->pos.y + (outputs[i].host->outputs.size() - 1) * height_spacing / 2.0f - outputs[i].index * height_spacing - lineThick / 2.0f
-            };
-
-            Font font = GetFontDefault();
-            const char* text;
-            text = outputs[i].name.c_str();
-            Color color = RAYWHITE;
-            if (outputs[i].state)
-                color = DARKGREEN;
-            DrawTextEx(font, text, pos - Vector2{ float(outputs[i].name.size()) * (text_spacing + 7.0f), 0 }, 12, text_spacing, color);
-        }
-    }
-    
+    for (const Output_connector& outconn : outputs) outconn.draw();
 }
 
 void FunctionNode::pretick()
@@ -1914,7 +1926,6 @@ int FunctionNode::delay() const
 
     return max_delay;
 }
-
 
 void FunctionNode::sort_linear()
 {

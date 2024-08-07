@@ -65,12 +65,12 @@ struct BinaryGateHeader : public NodeHeader {
 };
 struct UnaryGateHeader : public NodeHeader {
     uint16_t input_output_count;
-    offset inputs_offset;
-    offset outputs_offset;
-    offset new_outputs_offset;
-    //input_output_count * input
-    //input_output_count * output //outputs
-    //input_output_count * output //new_outputs
+    offset inputs_offset;           // relative to start of node
+    offset outputs_offset;          // relative to start of node
+    offset new_outputs_offset;      // relative to start of node
+    //input_output_count * input    // relative to container
+    //input_output_count * output   //outputs
+    //input_output_count * output   //new_outputs
 };
 struct FunctionNodeHeader : public NodeHeader {
     uint16_t input_targ_node_count; //not number of connections but nodes
@@ -79,14 +79,14 @@ struct FunctionNodeHeader : public NodeHeader {
     uint16_t output_count;
     uint16_t child_count;
     bool has_changed;
-    offset intargs_offset;
-    offset outtargs_offset;
-    offset inputs_offset;
-    offset outputs_offset;
-    offset children_offset;
-    //input_targ_count * offset
-    //output_targ_node_count * offset
-    //input_count * input
+    offset intargs_offset;              // relative to start of node
+    offset outtargs_offset;             // relative to start of node
+    offset inputs_offset;               // relative to start of node
+    offset outputs_offset;              // relative to start of node
+    offset children_offset;             // relative to start of node
+    //input_targ_count * offset         // relative to start of node
+    //output_targ_node_count * offset   // relative to start of node
+    //input_count * input               // relative to container
     //output_count * ouput
     //children
 };
@@ -94,11 +94,11 @@ struct FunctionNodeHeader : public NodeHeader {
 struct BusNodeHeader : public NodeHeader {
     uint16_t input_output_count;
     uint16_t shared_output_count;
-    offset inputs_offset;
-    offset shared_outputs_offset;
-    offset shared_new_outputs_offset;
+    offset inputs_offset;               // relative to node
+    offset shared_outputs_offset;       // relative to container
+    offset shared_new_outputs_offset;   // relative to container
     bool is_first_node_in_bus;
-    //input_count * input
+    //input_count * input               // relative to container
     //if first with name:
     //shared_outputs
     //shared_new_outputs
