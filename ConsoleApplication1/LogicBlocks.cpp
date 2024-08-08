@@ -709,10 +709,17 @@ void LogicBlockBuilder::connect_children(uint8_t* container, size_t child_count)
         for (size_t j = 0; j < child_count; j++) {
 
             for (size_t input_idx = 0; input_idx < input_count(curr_child_offset, container); input_idx++) {
+                NodeHeader* curr_inner_child_header = get_at<NodeHeader>(curr_inner_child_offset, container);
                 if (!converted_inputs[input_idx]) {
                     if (curr_child_inputs[input_idx].location.node_pos == j) {
                         // This input should be connected to an output of the current inner child
-                        offset curr_outputs_offset = curr_inner_child_offset + outputs_offset(curr_inner_child_offset, container);
+
+                        offset curr_outputs_offset;
+                        if(curr_inner_child_header->type == NodeType::BusNode)
+                            curr_outputs_offset = outputs_offset(curr_inner_child_offset, container);
+                        else
+                            curr_outputs_offset = curr_inner_child_offset + outputs_offset(curr_inner_child_offset, container);
+
 
                         curr_child_inputs[input_idx].target_offset = curr_outputs_offset + curr_child_inputs[input_idx].location.connector_index * sizeof(output);
                         converted_inputs[input_idx] = true;
