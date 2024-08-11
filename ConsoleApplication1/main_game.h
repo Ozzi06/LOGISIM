@@ -6,6 +6,8 @@
 #include "nlohmann/json.hpp"
 #include <utility>
 #include "LogicBlocks.h"
+#include "raylib.h"
+#include <filesystem>
 
 using json = nlohmann::json;
 
@@ -44,9 +46,12 @@ public:
     T* get_logicblock(size_t offset) {
         return reinterpret_cast<T*>(logicblock->get_data(offset));
     }
+    size_t logicblock_size() { return logicblock->get_size(); }
     void network_change() {
         run_on_block = false;
     }
+
+    void build_logic_block();
 
 public:
     // Public function to get the instance
@@ -87,12 +92,14 @@ public:
     void copy_selected_nodes();
     void paste_nodes();
 
+    void add_subassebly();
+
     void handle_input();
 
-    void save(std::string filePath = "gamesave.json");
-    void load(std::string filePath = "gamesave.json");
+    void save_json(std::string filePath = "gamesave.json");
 
-    void build_logic_block();
+    void save_bin(std::string filePath = "gamesave.bin");
+
 
     bool hovering_above_gui = false;
 
@@ -104,6 +111,8 @@ private:
 };
 
 void NodeNetworkFromJson(const json& nodeNetworkJson, std::vector<Node*> * nodes);
+
+void NodeNetworkFromBinary(std::filesystem::path filepath);
 
 void NormalizeNodeNetworkPosTocLocation(std::vector<Node*>& nodes, Vector2 targpos);
 

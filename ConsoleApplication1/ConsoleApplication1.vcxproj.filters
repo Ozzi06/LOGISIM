@@ -39,6 +39,9 @@
     <ClCompile Include="LogicBlocks.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="save_game.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Image Include="sprites\logic_gates\AND.png">
@@ -68,6 +71,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="LogicBlocks.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="save_game.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

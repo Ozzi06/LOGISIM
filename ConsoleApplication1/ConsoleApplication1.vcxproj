@@ -218,6 +218,7 @@
     <ClCompile Include="LogicNodes.cpp" />
     <ClCompile Include="main_game.cpp" />
     <ClCompile Include="random_id.cpp" />
+    <ClCompile Include="save_game.cpp" />
     <ClCompile Include="vector_tools.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -231,6 +232,7 @@
     <ClInclude Include="main_game.h" />
     <ClInclude Include="nlohmann\json.hpp" />
     <ClInclude Include="random_id.h" />
+    <ClInclude Include="save_game.h" />
     <ClInclude Include="vector_tools.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

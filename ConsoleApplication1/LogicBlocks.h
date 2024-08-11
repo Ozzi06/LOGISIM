@@ -62,7 +62,7 @@ public:
     uint8_t* get_data(size_t offset) {
         return &data[offset];
     }
-
+    size_t get_size() { return size; }
 
 private:
     std::unique_ptr<uint8_t[]> data;

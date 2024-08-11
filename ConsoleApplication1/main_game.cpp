@@ -4,12 +4,13 @@
 #include <fstream>
 #include <cassert>
 
-#include <filesystem>
 #include <iostream>
 
 #include <algorithm>
 #include "vector_tools.h"
 #include "raygui.h"
+#include "save_game.h"
+#include "file_dialogs.h"
 
 Node::Node(std::vector<Node*> * container, Vector2 pos, Vector2 size, Color color, std::vector<Input_connector> in, std::vector<Output_connector> out) : container(container), size(size), color(color), is_selected(false), inputs(in), outputs(out), pos(pos)
 {
@@ -230,6 +231,38 @@ void Game::paste_nodes()
     }
 
     copy_selected_nodes();
+}
+
+void Game::add_subassebly()
+{
+    std::filesystem::path filepath = open_file_dialog_json_bin();
+    if (filepath.extension() == ".bin") {
+        NodeNetworkFromBinary(filepath);
+    }
+    else if (filepath.extension() == ".json") {
+        std::ifstream saveFile;
+        saveFile.open(filepath);
+        if (saveFile.is_open()) {
+            json save;
+            saveFile >> save;
+            saveFile.close();
+
+            std::vector<Node*> subassembly;
+            NodeNetworkFromJson(save.at("nodes"), &subassembly);
+
+            NormalizeNodeNetworkPosTocLocation(subassembly, camera.target);
+
+            for (Node* node : subassembly) {
+                node->move_to_container(&nodes);
+            }
+
+            nodes.insert(nodes.end(), subassembly.begin(), subassembly.end());
+            network_change();
+        }
+    }
+    else {
+        std::cerr << "invalid file extension selected";
+    }
 }
 
 void Game::handle_input()
@@ -539,7 +572,7 @@ void Game::handle_input()
     }
 }
 
-void Game::save(std::string filePath)
+void Game::save_json(std::string filePath)
 {
     if (filePath.empty()) {
         std::cout << "No file path selected\n";
@@ -611,6 +644,40 @@ void NodeNetworkFromJson(const json& nodeNetworkJson, std::vector<Node*> * nodes
     }
 }
 
+void NodeNetworkFromBinary(std::filesystem::path filepath)
+{
+    Game& game = Game::getInstance();
+
+    std::ifstream file(filepath, std::ios::binary | std::ios::ate);
+    if (!file.is_open()) {
+        std::cerr << "file didn't open properly";
+        return;
+    }
+    std::vector<uint8_t> save;
+    {
+        std::streamsize size = file.tellg();
+        file.seekg(0, std::ios::beg);
+        file.read(reinterpret_cast<char*>(save.data()), size);
+    }
+    file.close();
+
+    std::vector<Node*> subassembly;
+
+    SaveHeader* saveheader = reinterpret_cast<SaveHeader*>(&save[0]);
+
+    assert(saveheader->version == 0);
+
+
+    NormalizeNodeNetworkPosTocLocation(subassembly, game.camera.target);
+
+    for (Node* node : subassembly) {
+        node->move_to_container(&game.nodes);
+    }
+
+    game.nodes.insert(game.nodes.end(), subassembly.begin(), subassembly.end());
+    game.network_change();
+}
+
 void NormalizeNodeNetworkPosTocLocation(std::vector<Node*>& nodes, Vector2 targpos)
 {
     if (nodes.empty()) return;
@@ -620,25 +687,10 @@ void NormalizeNodeNetworkPosTocLocation(std::vector<Node*>& nodes, Vector2 targp
     }
 }
 
-void Game::load(std::string filePath)
+void Game::save_bin(std::string filePath)
 {
-    if (filePath.empty()) {
-        std::cout << "No file path selected\n";
-        return;
-    }
-
-    std::ifstream saveFile;
-    saveFile.open(filePath);
-    assert(saveFile.is_open() && "Unable to open file");
-
-    json save;
-    saveFile >> save;
-    saveFile.close();
-    
-    nodes.clear();
-    NodeNetworkFromJson(save["nodes"], &nodes);
-    if (save.contains("camera"))
-        camera = save.at("camera").get<Camera2D>();
+    SaveBuilder savebuilder = SaveBuilder();
+    savebuilder.save_game(filePath);
 }
 
 void Game::build_logic_block()
@@ -655,6 +707,7 @@ void Game::build_logic_block()
             funnode->allocate_function_data(function_data);
         }
     }
+
     LogicBlockBuilder builder;
     builder.add_root(nodes);
 

@@ -1,12 +1,17 @@
 #include "gui_ui.h"
+#include "raylib.h"
 
 #include "main_game.h"
 
 #include "vector_tools.h"
 #undef RAYGUI_IMPLEMENTATION
 #include "raygui.h"
+
 #include "file_dialogs.h"
+
 #include <fstream>
+#include <filesystem>
+#include "save_game.h"
 
 void edit_mode_changed() {
     Game::getInstance().unselect_all();
@@ -59,12 +64,26 @@ bool SpeedControlButtons() {
 bool MenuAreaButtons() {
     Game& game = Game::getInstance();
 
+    static size_t element_count = 0;
+    size_t element_idx = 0;
+
     float menu_area_w = 200, menu_area_h = 50;
     Rectangle menu_area{ 10, 10, menu_area_w, menu_area_h };
     GuiGroupBox(menu_area, NULL);
+    
+    {
+        Rectangle save_button_area{ menu_area.x + 10 + menu_area.width / element_count * element_idx, menu_area.y + 10, menu_area.width / element_count - 20, menu_area.height - 20 };
+        if (GuiButton(save_button_area, "#02#Save JSON")) game.save_json(ShowSaveFileDialogJson());
+        ++element_idx;
+    }
 
-    Rectangle save_button_area{ menu_area.x + 10, menu_area.y + 10, menu_area.width - 20, menu_area.height - 20 };
-    if (GuiButton(save_button_area, "#02#")) game.save(ShowSaveFileDialogJson());
+    {
+        Rectangle save_button_area{ menu_area.x + 10 + menu_area.width / element_count * element_idx, menu_area.y + 10, menu_area.width / element_count - 20, menu_area.height - 20 };
+        if (GuiButton(save_button_area, "#02#Save Binary")) game.save_bin(ShowSaveFileDialogBin());
+        ++element_idx;
+    }
+
+    element_count = element_idx;
 
     return CheckCollisionPointRec(GetMousePosition(), menu_area);
 }
@@ -83,16 +102,6 @@ bool SimulationButtons() {
     {
         Rectangle efficient_sim_area{ menu_area.x + 10 + menu_area.width / element_count * element_idx, menu_area.y + 10, menu_area.width / element_count - 20, menu_area.height - 20 };
         GuiToggle(efficient_sim_area, "efficient sim", &game.efficient_simulation);
-        ++element_idx;
-    }
-
-    {
-        Rectangle run_on_block_area{ menu_area.x + 10 + menu_area.width / element_count * element_idx, menu_area.y + 10, menu_area.width / element_count - 20, menu_area.height - 20 };
-        bool prev_run_on_block = game.run_on_block;
-        GuiToggle(run_on_block_area, "run on block", &game.run_on_block);
-        if (game.run_on_block && !prev_run_on_block) {
-            game.build_logic_block();
-        }
         ++element_idx;
     }
 
@@ -135,11 +144,10 @@ bool NodeSelectionMenu() {
             if (GuiButton(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, label)) {
 
                 std::ifstream saveFile;
-                saveFile.open(open_file_dialog_json());
+                std::filesystem::path filepath = open_file_dialog_json_bin();
+                saveFile.open(filepath);
 
-                if (saveFile.is_open()) {
-
-
+                if (saveFile.is_open() && filepath.extension() == ".json") {
                     json save;
                     saveFile >> save;
                     saveFile.close();
@@ -163,27 +171,7 @@ bool NodeSelectionMenu() {
             curr_el_h = 50;
             const char* label = "#01#";
             if (GuiButton(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, label)) {
-
-                std::ifstream saveFile;
-                saveFile.open(open_file_dialog_json());
-                if (saveFile.is_open()) {
-
-                    json save;
-                    saveFile >> save;
-                    saveFile.close();
-
-                    std::vector<Node*> subassembly; 
-                    NodeNetworkFromJson(save.at("nodes"), &subassembly);
-
-                    NormalizeNodeNetworkPosTocLocation(subassembly, game.camera.target);
-
-                    for (Node* node : subassembly) {
-                        node->move_to_container(&game.nodes);
-                    }
-
-                    game.nodes.insert(game.nodes.end(), subassembly.begin(), subassembly.end());
-                    game.network_change();
-                }
+                game.add_subassebly();
             }
             current_depth += curr_el_h;
         }
