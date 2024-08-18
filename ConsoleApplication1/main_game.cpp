@@ -236,8 +236,14 @@ void Game::paste_nodes()
 void Game::add_subassebly()
 {
     std::filesystem::path filepath = open_file_dialog_json_bin();
+    if (!(filepath.extension() == ".bin" || filepath.extension() == ".json")) {
+        std::cerr << "invalid file extension selected";
+        return;
+    }
+
+    std::vector<Node*> subassembly;
     if (filepath.extension() == ".bin") {
-        NodeNetworkFromBinary(filepath);
+        NodeNetworkFromBinary(filepath, &subassembly);
     }
     else if (filepath.extension() == ".json") {
         std::ifstream saveFile;
@@ -246,23 +252,18 @@ void Game::add_subassebly()
             json save;
             saveFile >> save;
             saveFile.close();
-
-            std::vector<Node*> subassembly;
             NodeNetworkFromJson(save.at("nodes"), &subassembly);
-
-            NormalizeNodeNetworkPosTocLocation(subassembly, camera.target);
-
-            for (Node* node : subassembly) {
-                node->move_to_container(&nodes);
-            }
-
-            nodes.insert(nodes.end(), subassembly.begin(), subassembly.end());
-            network_change();
         }
     }
-    else {
-        std::cerr << "invalid file extension selected";
+        
+    NormalizeNodeNetworkPosToLocation(subassembly, camera.target);
+        
+    for (Node* node : subassembly) {
+        node->move_to_container(&nodes);
     }
+        
+    nodes.insert(nodes.end(), subassembly.begin(), subassembly.end());
+    network_change();
 }
 
 void Game::handle_input()
@@ -608,20 +609,7 @@ void Game::save_json(std::string filePath)
 
 }
 
-void NodeNetworkFromJson(const json& nodeNetworkJson, std::vector<Node*> * nodes) {
-    for (const auto& node : nodeNetworkJson) {
-        // Each node is a JSON object where the key is the gate type
-        for (auto it = node.begin(); it != node.end(); ++it) {
-            std::string nodeType = it.key(); // Get the gate type (e.g., "GateAND")
-            json nodeJson = it.value(); // Get the JSON object representing the node
-
-            Node* node = NodeFactory::createNode(nodes, nodeType);
-            assert(node && "node not created");
-            node->load_JSON(nodeJson);
-            nodes->push_back(node);
-        }
-    }
-
+void connect_node_network(std::vector<Node*>* nodes) {
     for (Node* node : *nodes) {
         for (Input_connector& input : node->inputs) {
 
@@ -644,10 +632,25 @@ void NodeNetworkFromJson(const json& nodeNetworkJson, std::vector<Node*> * nodes
     }
 }
 
-void NodeNetworkFromBinary(std::filesystem::path filepath)
-{
-    Game& game = Game::getInstance();
+void NodeNetworkFromJson(const json& nodeNetworkJson, std::vector<Node*> * nodes) {
+    for (const auto& node : nodeNetworkJson) {
+        // Each node is a JSON object where the key is the gate type
+        for (auto it = node.begin(); it != node.end(); ++it) {
+            std::string nodeType = it.key(); // Get the gate type (e.g., "GateAND")
+            json nodeJson = it.value(); // Get the JSON object representing the node
 
+            Node* node = NodeFactory::createNode(nodes, nodeType);
+            assert(node && "node not created");
+            node->load_JSON(nodeJson);
+            nodes->push_back(node);
+        }
+    }
+
+    connect_node_network(nodes);
+}
+
+void NodeNetworkFromBinary(std::filesystem::path filepath, std::vector<Node*>* nodes)
+{
     std::ifstream file(filepath, std::ios::binary | std::ios::ate);
     if (!file.is_open()) {
         std::cerr << "file didn't open properly";
@@ -656,29 +659,39 @@ void NodeNetworkFromBinary(std::filesystem::path filepath)
     std::vector<uint8_t> save;
     {
         std::streamsize size = file.tellg();
+        save.resize(size);
         file.seekg(0, std::ios::beg);
         file.read(reinterpret_cast<char*>(save.data()), size);
     }
     file.close();
 
-    std::vector<Node*> subassembly;
+#define GET_AT(type, pos) reinterpret_cast<type*>(&save[pos])
 
-    SaveHeader* saveheader = reinterpret_cast<SaveHeader*>(&save[0]);
+    SaveHeader* saveheader = GET_AT(SaveHeader, 0);
+    assert(saveheader->version.version_number == 0);
 
-    assert(saveheader->version == 0);
+    //load network
+    size_t curr_node_offset = saveheader->Nodes_offset;
+    for (size_t i = 0; i < saveheader->node_count; i++) {
+        NodeData* nodedata = GET_AT(NodeData, curr_node_offset);
+        
+        Node* node = NodeFactory::createNode(nodes, toString(nodedata->type));
+        assert(node && "node not created");
 
+        const RootNodeHeader* logic_block_root = reinterpret_cast<const RootNodeHeader*>(save.data() + saveheader->LogicBlock_offset);
+        assert(logic_block_root->type == NodeType::RootNode);
 
-    NormalizeNodeNetworkPosTocLocation(subassembly, game.camera.target);
+        node->load_Bin(GET_AT(uint8_t, curr_node_offset), save.data());
+        nodes->push_back(node);
 
-    for (Node* node : subassembly) {
-        node->move_to_container(&game.nodes);
+        curr_node_offset += nodedata->total_size;
     }
 
-    game.nodes.insert(game.nodes.end(), subassembly.begin(), subassembly.end());
-    game.network_change();
+    connect_node_network(nodes);
+#undef GET_AT
 }
 
-void NormalizeNodeNetworkPosTocLocation(std::vector<Node*>& nodes, Vector2 targpos)
+void NormalizeNodeNetworkPosToLocation(std::vector<Node*>& nodes, Vector2 targpos)
 {
     if (nodes.empty()) return;
     Vector2 origin1 = nodes[0]->pos;
@@ -1242,6 +1255,31 @@ void Node::load_JSON(const json& nodeJson) {
     load_extra_JSON(nodeJson);
 }
 
+void Node::load_Bin(const uint8_t* node_data_ptr, const uint8_t* save_ptr)
+{
+    const NodeData* node_data = reinterpret_cast<const NodeData*>(node_data_ptr);
+    label = node_data->label;
+    pos = node_data->pos;
+    size = node_data->size;
+
+    abs_node_offset = node_data->abs_node_offset;
+
+    inputs.clear();
+    for (size_t i = 0; i < node_data->input_count; i++) {
+        const InputData* inputdata = reinterpret_cast<const InputData*>(save_ptr + node_data->inputs_offset + i * sizeof(InputData));
+        inputs.push_back(Input_connector(this, i, inputdata->name, nullptr, inputdata->target_id));
+
+    }
+
+    outputs.clear();
+    for (size_t i = 0; i < node_data->output_count; i++) {
+        const OutputData* outputdata = reinterpret_cast<const OutputData*>(save_ptr + node_data->outputs_offset + i * sizeof(OutputData));
+        outputs.push_back(Output_connector(this, i, outputdata->name, outputdata->state, outputdata->id));
+    }
+
+    load_extra_bin(node_data_ptr, save_ptr);
+}
+
 void Node::update_state_from_logicblock()
 {
     using namespace LogicblockTools;
@@ -1668,6 +1706,18 @@ void FunctionNode::load_extra_JSON(const json& nodeJson)
         // Handle or log error, e.g., missing key or wrong type
         std::cerr << "JSON parsing error: " << e.what() << '\n';
     }
+}
+
+void FunctionNode::load_extra_bin(const uint8_t* node_data_ptr, const uint8_t* save_ptr)
+{
+    const SaveHeader* saveheader = reinterpret_cast<const SaveHeader*>(save_ptr);
+    const NodeData* nodedata = reinterpret_cast<const NodeData*>(node_data_ptr);
+
+
+    const RootNodeHeader* logic_block_root = reinterpret_cast<const RootNodeHeader*>(save_ptr + saveheader->LogicBlock_offset);
+    assert(logic_block_root->type == NodeType::RootNode);
+    const uint8_t * funheader_ptr = save_ptr + saveheader->LogicBlock_offset + nodedata->abs_node_offset;
+    allocate_function_data(funheader_ptr);
 }
 
 void FunctionNode::load_from_nodes()
@@ -2222,8 +2272,6 @@ json Bus::to_JSON() const {
 void Bus::load_extra_JSON(const json& nodeJson) {
     find_connections();
 
-    // Assuming 'type' is the key for your main object.
-    // Replace 'type' with whatever your main object's key is.
     if (nodeJson.contains(get_type_str()) && nodeJson[get_type_str()].contains("bus_values")) {
         std::vector<bool> loaded_bus_vals = nodeJson[get_type_str()]["bus_values"].get<std::vector<bool>>();
 
@@ -2237,4 +2285,9 @@ void Bus::load_extra_JSON(const json& nodeJson) {
         }
 
     }
+}
+
+void Bus::load_extra_bin(const uint8_t* node_data_ptr, const uint8_t* save_ptr)
+{
+    find_connections();
 }

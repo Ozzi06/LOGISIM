@@ -3,6 +3,49 @@
 #include <string>
 #include <fstream>
 
+//memory layout:
+
+/*
+SaveHeader
+    uint32_t version
+    char[32] namestring
+    uint64_t total_size
+    size_t node_count
+    size_t Nodes_offset
+    size_t LogicBlock_offset
+    size_t LogicBlock_size
+
+SaveHeader.node_count * {
+    NodeData
+        NodeType type (enum uint32_t)
+        char label[64]
+        Vector2 pos (2 * float)
+        Vector2 size (2 * float)
+        Color color (4 * uint8_t)
+        size_t abs_node_offset
+        uint32_t input_count
+        uint32_t output_count
+        size_t inputs_offset
+        size_t outputs_offset
+        size_t total_size
+
+        NodeData.input_count * {
+            InputData
+                uint32_t target_id
+                char[56] name
+        }
+
+        NodeData.output_count * {
+            OutputData
+                uint32_t id
+                char[56] name
+                bool state
+        }
+}
+
+LogicBlock (raw bytes, size determined by game.logicblock_size())
+*/
+
 struct VersionField {
     VersionField(size_t version_number) : version_number(version_number) {};
     size_t version_number;
@@ -15,9 +58,12 @@ struct alignas(size_t) SaveHeader {
     size_t node_count;
     size_t Nodes_offset;
     size_t LogicBlock_offset;
+    size_t LogicBlock_size;
 };
 
 struct alignas(size_t) NodeData {
+    NodeType type;
+    char label[64];
     Vector2 pos;
     Vector2 size;
     Color color;

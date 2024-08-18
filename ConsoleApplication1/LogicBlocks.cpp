@@ -615,7 +615,8 @@ void LogicBlockBuilder::add_node(Node& node, bus_map_t& bus_map, size_t abs_cont
             size_t abs_shared_outputs_offset = current_absolute_offset;
             offset shared_outputs_offset = abs_shared_outputs_offset - abs_container_offset;
             for (size_t i = 0; i < busnode.bus_values_size(); i++) {
-                add<output>(false); //TODO! Make these copy the state over
+                
+                add<output>(false); //TODO! make these update correctly
             }
             size_t abs_shared_new_outputs_offset = current_absolute_offset;
             offset shared_new_outputs_offset = abs_shared_new_outputs_offset - abs_container_offset;

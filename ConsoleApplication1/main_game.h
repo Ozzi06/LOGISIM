@@ -36,7 +36,6 @@ private:
     // Static instance of the class
     static Game instance;
 
-
 private:
     std::unique_ptr<LogicBlock> logicblock = nullptr;
 public:
@@ -92,6 +91,7 @@ public:
     void copy_selected_nodes();
     void paste_nodes();
 
+    void add_function_node();
     void add_subassebly();
 
     void handle_input();
@@ -112,9 +112,9 @@ private:
 
 void NodeNetworkFromJson(const json& nodeNetworkJson, std::vector<Node*> * nodes);
 
-void NodeNetworkFromBinary(std::filesystem::path filepath);
+void NodeNetworkFromBinary(std::filesystem::path filepath, std::vector<Node*>* nodes);
 
-void NormalizeNodeNetworkPosTocLocation(std::vector<Node*>& nodes, Vector2 targpos);
+void NormalizeNodeNetworkPosToLocation(std::vector<Node*>& nodes, Vector2 targpos);
 
 class LogicBlock;
 
@@ -138,7 +138,10 @@ public:
     virtual bool show_node_editor();
 
     virtual std::string get_label() const { return std::string(label); }
-    virtual void change_label(const char* newlabel) {label = newlabel;}
+    virtual void change_label(const char* newlabel) {
+        label = newlabel; 
+        Game& game = Game::getInstance();
+    }
 
     bool has_changed = true;
 
@@ -174,8 +177,10 @@ public:
     virtual json to_JSON() const;
 
     void load_JSON(const json& nodeJson);
+    void load_Bin(const uint8_t* node_data_ptr, const uint8_t* save_ptr);
 
     virtual void load_extra_JSON(const json& nodeJson) {}
+    virtual void load_extra_bin(const uint8_t* node_data_ptr, const uint8_t* save_ptr) {}
 
     virtual const std::vector<Node*>* get_children() const { return nullptr; }
 
@@ -535,6 +540,8 @@ struct Bus : public Node {
     virtual void change_label(const char* newlabel) override {
         label = newlabel;
         find_connections();
+        Game& game = Game::getInstance();
+        game.network_change();
     }
 
     Node* copy() const override { return new Bus(this); }
@@ -542,6 +549,7 @@ struct Bus : public Node {
     virtual json to_JSON() const override;
 
     virtual void load_extra_JSON(const json& nodeJson) override;
+    virtual void load_extra_bin(const uint8_t* node_data_ptr, const uint8_t* save_ptr) override;
 
     virtual std::string get_label() const override { return std::string(label); }
 
@@ -568,6 +576,7 @@ struct Bus : public Node {
     }
 
     size_t bus_values_size() const { return bus_values->size(); }
+    std::weak_ptr<const std::vector<bool>> get_bus_values() const{ return bus_values; };
 private:
     std::shared_ptr<std::vector<bool>> bus_values;
     std::shared_ptr<bool> bus_values_has_updated;
@@ -775,6 +784,7 @@ public:
     virtual json to_JSON() const override;
 
     virtual void load_extra_JSON(const json& nodeJson) override;
+    virtual void load_extra_bin(const uint8_t* node_data_ptr, const uint8_t* save_ptr) override;
     void load_from_nodes();
 
     virtual void draw() override;
@@ -804,13 +814,13 @@ private:
 public:
     bool has_function_data() { return function_data.get_size() > 0; }
     LogicBlock* get_function_data() { return &function_data; }
-    void allocate_function_data(uint8_t* node) {
+    void allocate_function_data(const uint8_t* node) {
         using namespace LogicblockTools;
-        FunctionNodeHeader* header = get_at<FunctionNodeHeader>(0, node);
+        const FunctionNodeHeader* header = get_at<const FunctionNodeHeader>(0, node);
         assert(header->type == NodeType::FunctionNode);
 
         function_data.allocate(header->total_size);
-        std::memcpy(function_data.get_data(0), get_at<uint8_t>(0, node), header->total_size);
+        std::memcpy(function_data.get_data(0), get_at<const uint8_t>(0, node), header->total_size);
 
         input_targs.clear();
         output_targs.clear();

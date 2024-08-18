@@ -147,6 +147,10 @@ namespace LogicblockTools {
     T* get_at(size_t offset, uint8_t* buffer) {
         return reinterpret_cast<T*>(&buffer[offset]);
     }
+    template<typename T>
+    T* get_at(size_t offset, const uint8_t* buffer) {
+        return reinterpret_cast<const T*>(&buffer[offset]);
+    }
 
     size_t input_count(offset header_offset, uint8_t* buffer);
 

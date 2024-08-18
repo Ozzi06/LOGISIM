@@ -11,7 +11,7 @@ std::string open_file_dialog_json_bin()
     ofn.lpstrFile = new CHAR[MAX_PATH]; // Buffer to store the file name
     ofn.lpstrFile[0] = '\0';
     ofn.nMaxFile = MAX_PATH;
-    ofn.lpstrFilter = "Json Files\0*.json\Bin Files\0*.bin\0\0"; // Filter to specify the extension
+    ofn.lpstrFilter = "Json Files\0*.json\0Bin Files\0*.bin\0\0"; // Filter to specify the extension
     ofn.nFilterIndex = 1;
     ofn.lpstrFileTitle = NULL;
     ofn.nMaxFileTitle = 0;

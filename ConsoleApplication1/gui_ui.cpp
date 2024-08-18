@@ -143,8 +143,8 @@ bool NodeSelectionMenu() {
             const char* label = "#01#";
             if (GuiButton(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, label)) {
 
-                std::ifstream saveFile;
                 std::filesystem::path filepath = open_file_dialog_json_bin();
+                std::ifstream saveFile;
                 saveFile.open(filepath);
 
                 if (saveFile.is_open() && filepath.extension() == ".json") {
