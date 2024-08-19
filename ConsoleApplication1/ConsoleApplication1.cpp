@@ -7,6 +7,7 @@
 #include "raygui.h"
 #include "vector_tools.h"
 #include "main_game.h"
+#include "game.h"
 //#define GUI_WINDOW_HELP_IMPLEMENTATION
 //#include "gui_window_help.h"
 

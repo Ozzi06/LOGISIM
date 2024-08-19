@@ -378,10 +378,10 @@ void LogicBlockBuilder::add_node(Node& node, bus_map_t& bus_map, size_t abs_cont
     case NodeType::FunctionNode: {
 
         FunctionNode& funnode = static_cast<FunctionNode&>(node);
-        if (funnode.has_function_data()) {
+        if (funnode.has_node_data_save()) {
             //insert data
             {
-                LogicBlock* function_data = funnode.get_function_data();
+                LogicBlock* function_data = funnode.get_node_data_save();
                 add_raw(function_data->get_data(0), function_data->get_size());
             }
 
@@ -650,7 +650,7 @@ void LogicBlockBuilder::add_node(Node& node, bus_map_t& bus_map, size_t abs_cont
         
         if (header->type == NodeType::FunctionNode) {
             FunctionNode& funnode = static_cast<FunctionNode&>(node);
-            funnode.allocate_function_data(get_at_abs<uint8_t>(abs_node_offset));
+            funnode.allocate_node_data_save(get_at_abs<uint8_t>(abs_node_offset));
 
 
             {//check header
@@ -663,7 +663,7 @@ void LogicBlockBuilder::add_node(Node& node, bus_map_t& bus_map, size_t abs_cont
             }
 
             {//check header
-                FunctionNodeHeader* header = reinterpret_cast<FunctionNodeHeader*>(funnode.get_function_data()->get_data(0));
+                FunctionNodeHeader* header = reinterpret_cast<FunctionNodeHeader*>(funnode.get_node_data_save()->get_data(0));
                 assert(header->type == funnode.get_type());
                 assert(header->input_count == funnode.inputs.size());
                 assert(header->output_count == funnode.outputs.size());

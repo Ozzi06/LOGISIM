@@ -2,6 +2,7 @@
 #include "raylib.h"
 
 #include "main_game.h"
+#include "game.h"
 
 #include "vector_tools.h"
 #undef RAYGUI_IMPLEMENTATION

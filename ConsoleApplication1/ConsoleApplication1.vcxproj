@@ -191,7 +191,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;_CRT_SECURE_NO_WARNINGS;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\raylib-5.0_win64_msvc16\include;C:\raygui-4.0\src</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\ossia\source\repos\Ozzi06\LOGISIM\ConsoleApplication1;C:\raylib-5.0_win64_msvc16\include;C:\raygui-4.0\src;C:\Users\ossia\source\repos\Ozzi06\LOGISIM\ConsoleApplication1\Nodes</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <LanguageStandard>stdcpp20</LanguageStandard>
@@ -203,7 +203,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\raylib-5.0_win64_msvc16\lib;C:\raygui-4.0\src</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\raylib-5.0_win64_msvc16\lib;C:\raygui-4.0\src;C:\Users\ossia\source\repos\Ozzi06\LOGISIM\ConsoleApplication1\Nodes</AdditionalLibraryDirectories>
       <AdditionalDependencies>winmm.lib;raylib.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
@@ -216,7 +216,10 @@
     <ClCompile Include="gui_ui.cpp" />
     <ClCompile Include="LogicBlocks.cpp" />
     <ClCompile Include="LogicNodes.cpp" />
-    <ClCompile Include="main_game.cpp" />
+    <ClCompile Include="Nodes\game.cpp" />
+    <ClCompile Include="Nodes\main_game.cpp" />
+    <ClCompile Include="Nodes\Node.cpp" />
+    <ClCompile Include="Nodes\NodeFactory.cpp" />
     <ClCompile Include="random_id.cpp" />
     <ClCompile Include="save_game.cpp" />
     <ClCompile Include="vector_tools.cpp" />
@@ -229,8 +232,11 @@
     <ClInclude Include="gui_ui.h" />
     <ClInclude Include="LogicBlocks.h" />
     <ClInclude Include="LogicNodes.h" />
-    <ClInclude Include="main_game.h" />
+    <ClInclude Include="Nodes\game.h" />
+    <ClInclude Include="Nodes\main_game.h" />
     <ClInclude Include="nlohmann\json.hpp" />
+    <ClInclude Include="Nodes\Node.h" />
+    <ClInclude Include="Nodes\NodeFactory.h" />
     <ClInclude Include="random_id.h" />
     <ClInclude Include="save_game.h" />
     <ClInclude Include="vector_tools.h" />
