@@ -18,7 +18,7 @@ std::string toString(NodeType type)
     case NodeType::SevenSegmentDisplay: return "SevenSegmentDisplay";
     case NodeType::FunctionNode: return "FunctionNode";
     case NodeType::BusNode: return "Bus";
-    case NodeType::RootNode: return "RootNode";
+    case NodeType::RootFunctionNode: return "RootFunctionNode";
     default: return "Unknown NodeType";
     }
 }

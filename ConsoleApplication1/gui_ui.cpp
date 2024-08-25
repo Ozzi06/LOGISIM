@@ -1,7 +1,12 @@
 #include "gui_ui.h"
 #include "raylib.h"
 
-#include "main_game.h"
+#include "BinaryGates.h"
+#include "UnaryGates.h"
+#include "Buttons.h"
+#include "Displays.h"
+#include "Bus.h"
+#include "FunctionNode.h"
 #include "game.h"
 
 #include "vector_tools.h"
@@ -13,6 +18,7 @@
 #include <fstream>
 #include <filesystem>
 #include "save_game.h"
+
 
 void edit_mode_changed() {
     Game::getInstance().unselect_all();
@@ -143,21 +149,7 @@ bool NodeSelectionMenu() {
             curr_el_h = 50;
             const char* label = "#01#";
             if (GuiButton(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, label)) {
-
-                std::filesystem::path filepath = open_file_dialog_json_bin();
-                std::ifstream saveFile;
-                saveFile.open(filepath);
-
-                if (saveFile.is_open() && filepath.extension() == ".json") {
-                    json save;
-                    saveFile >> save;
-                    saveFile.close();
-                    game.nodes.push_back(new FunctionNode(&game.nodes, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
-                    auto it = game.nodes.end();
-                    it--;
-                    (*it)->load_JSON(save);
-                    game.network_change();
-                }
+                game.add_function_node();
             }
             current_depth += curr_el_h;
         }

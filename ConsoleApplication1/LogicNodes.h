@@ -25,10 +25,37 @@ enum class NodeType : uint32_t {
     SevenSegmentDisplay,
     FunctionNode,
     BusNode,
-    RootNode
+    RootFunctionNode
 };
 
 std::string toString(NodeType type);
+
+bool isInputType(NodeType type) {
+    switch (type) {
+    case NodeType::PushButton:
+    case NodeType::ToggleButton: {
+        return true;
+        break;
+    }
+    default: {
+        return false;
+        break;
+    }
+    }
+}
+
+bool isOutputType(NodeType type) {
+    switch (type) {
+    case NodeType::LightBulb: {
+        return true;
+        break;
+    }
+    default: {
+        return false;
+        break;
+    }
+    }
+}
 
 typedef uint32_t offset;
 
@@ -72,24 +99,6 @@ struct UnaryGateHeader : public NodeHeader {
     //input_output_count * output   //outputs
     //input_output_count * output   //new_outputs
 };
-struct FunctionNodeHeader : public NodeHeader {
-    uint16_t input_targ_node_count; //not number of connections but nodes
-    uint16_t output_targ_node_count; //not number of connections but nodes
-    uint16_t input_count;
-    uint16_t output_count;
-    uint16_t child_count;
-    bool has_changed;
-    offset intargs_offset;              // relative to start of node
-    offset outtargs_offset;             // relative to start of node
-    offset inputs_offset;               // relative to start of node
-    offset outputs_offset;              // relative to start of node
-    offset children_offset;             // relative to start of node
-    //input_targ_count * offset         // relative to start of node
-    //output_targ_node_count * offset   // relative to start of node
-    //input_count * input               // relative to container
-    //output_count * ouput
-    //children
-};
 
 struct BusNodeHeader : public NodeHeader {
     uint16_t input_output_count;
@@ -114,9 +123,43 @@ struct OutputNodeHeader : public NodeHeader {
     offset inputs_offset;
     //input_count * input
 };
-struct RootNodeHeader : public NodeHeader {
+
+struct FunctionNodeHeader : public NodeHeader {
+    uint16_t input_targ_node_count; //not number of connections but nodes
+    uint16_t output_targ_node_count; //not number of connections but nodes
+    uint16_t input_count;
+    uint16_t output_count;
     uint16_t child_count;
-    offset children_offset;
+    bool has_changed;
+    offset intargs_offset;              // relative to start of node
+    offset outtargs_offset;             // relative to start of node
+    offset inputs_offset;               // relative to start of node
+    offset outputs_offset;              // relative to start of node
+    offset children_offset;             // relative to start of node
+    //input_targ_count * offset         // relative to start of node
+    //output_targ_node_count * offset   // relative to start of node
+    //input_count * input               // relative to container
+    //output_count * output
     //children
 };
+
+// contains all the info to create a function node out of it
+/*
+struct RootNodeHeader : public NodeHeader {
+    uint16_t input_targ_node_count; //not number of connections but nodes
+    uint16_t output_targ_node_count; //not number of connections but nodes
+    uint16_t input_count;
+    uint16_t output_count;
+
+    uint16_t child_count;
+
+    offset intargs_offset;              // relative to start of node
+    offset outtargs_offset;             // relative to start of node
+
+    offset children_offset;
+
+    //input_targ_count * offset         // relative to start of node
+    //output_targ_node_count * offset   // relative to start of node
+    //children
+};*/
 //auto i = sizeof(RootNodeHeader);

@@ -3,7 +3,6 @@
 #include "gui_ui.h"
 #include "raygui.h"
 #include "vector_tools.h"
-#include "main_game.h"
 #include "save_game.h"
 #include "NodeFactory.h"
 
@@ -206,7 +205,7 @@ void NodeNetworkFromJson(const json& nodeNetworkJson, std::vector<Node*>* nodes)
 
 void NodeNetworkFromBinary(std::filesystem::path filepath, std::vector<Node*>* nodes)
 {
-    std::ifstream file(filepath, std::ios::binary | std::ios::ate);
+    std::ifstream file(filepath, std::ios::binary | std::ios::ate); //open at the end
     if (!file.is_open()) {
         std::cerr << "file didn't open properly";
         return;
@@ -233,8 +232,8 @@ void NodeNetworkFromBinary(std::filesystem::path filepath, std::vector<Node*>* n
         Node* node = NodeFactory::createNode(nodes, toString(nodedata->type));
         assert(node && "node not created");
 
-        const RootNodeHeader* logic_block_root = reinterpret_cast<const RootNodeHeader*>(save.data() + saveheader->LogicBlock_offset);
-        assert(logic_block_root->type == NodeType::RootNode);
+        const FunctionNodeHeader* logic_block_root = reinterpret_cast<const FunctionNodeHeader*>(save.data() + saveheader->LogicBlock_offset);
+        assert(logic_block_root->type == NodeType::RootFunctionNode);
 
         node->load_Bin(GET_AT(uint8_t, curr_node_offset), save.data());
         nodes->push_back(node);
@@ -372,4 +371,262 @@ inline std::vector<Input_connector*> Node::connected_inputs(size_t output_idx) {
         input_nodes.push_back(&inputs[i]);
     }
     return input_nodes;
+}
+
+json Node::to_JSON() const {
+
+    json jOutputs = json::array();
+    for (const auto& output : outputs) {
+        jOutputs.push_back(output.to_JSON());
+    }
+
+    json jInputs = json::array();
+    for (const auto& input : inputs) {
+        jInputs.push_back(input.to_JSON());
+    }
+
+    return
+    {
+
+        {get_type_str(),
+            {
+                {"pos.x", pos.x},
+                {"pos.y", pos.y},
+                {"size.x", size.x},
+                {"size.y", size.y},
+                {"label", label},
+                {"outputs", jOutputs},
+                {"inputs", jInputs}
+            }
+        }
+    };
+}
+
+void Node::load_JSON(const json& nodeJson) {
+    try {
+        label = nodeJson.at("label").get<std::string>();
+        pos.x = nodeJson.at("pos.x").get<float>();
+        pos.y = nodeJson.at("pos.y").get<float>();
+
+        size.x = nodeJson.at("size.x").get<float>();
+        size.y = nodeJson.at("size.y").get<float>();
+
+        inputs.clear();
+        {
+            size_t i = 0;
+            for (const json& inputJson : nodeJson.at("inputs")) {
+                unsigned long target = inputJson.at("Input_connector").at("target").get<unsigned long>();
+                inputs.push_back(Input_connector(this, i, "", nullptr, target));
+                i++;
+            }
+        }
+
+        outputs.clear();
+        {
+            size_t i = 0;
+            for (const json& inputJson : nodeJson.at("outputs")) {
+                unsigned long id = inputJson.at("Output_connector").at("id").get<unsigned long>();
+                bool state = inputJson.at("Output_connector").at("state").get<bool>();
+                outputs.push_back(Output_connector(this, i, "", state, id));
+                i++;
+            }
+        }
+
+    }
+    catch (const json::exception& e) {
+        // Handle or log error, e.g., missing key or wrong type
+        std::cerr << "JSON parsing error: " << e.what() << '\n';
+    }
+
+    load_extra_JSON(nodeJson);
+}
+
+void Node::load_Bin(const uint8_t* node_data_ptr, const uint8_t* save_ptr)
+{
+    const NodeData* node_data = reinterpret_cast<const NodeData*>(node_data_ptr);
+    label = node_data->label;
+    pos = node_data->pos;
+    size = node_data->size;
+
+    abs_node_offset = node_data->abs_node_offset;
+
+    inputs.clear();
+    for (size_t i = 0; i < node_data->input_count; i++) {
+        const InputData* inputdata = reinterpret_cast<const InputData*>(save_ptr + node_data->inputs_offset + i * sizeof(InputData));
+        inputs.push_back(Input_connector(this, i, inputdata->name, nullptr, inputdata->target_id));
+
+    }
+
+    outputs.clear();
+    for (size_t i = 0; i < node_data->output_count; i++) {
+        const OutputData* outputdata = reinterpret_cast<const OutputData*>(save_ptr + node_data->outputs_offset + i * sizeof(OutputData));
+        outputs.push_back(Output_connector(this, i, outputdata->name, outputdata->state, outputdata->id));
+    }
+
+    load_extra_bin(node_data_ptr, save_ptr);
+}
+
+void Node::update_state_from_logicblock()
+{
+    using namespace LogicblockTools;
+    assert(abs_node_offset != 0);
+    Game& game = Game::getInstance();
+    uint8_t* logicblock_ptr = game.get_logicblock<uint8_t>(0);
+
+    NodeHeader* header = get_at<NodeHeader>(abs_node_offset, logicblock_ptr);
+
+    assert(header->type == get_type());
+    switch (header->type) {
+        // Binary Gates
+    case NodeType::GateAND:
+    case NodeType::GateOR:
+    case NodeType::GateNAND:
+    case NodeType::GateNOR:
+    case NodeType::GateXOR:
+    case NodeType::GateXNOR: {
+        BinaryGateHeader* header = get_at<BinaryGateHeader>(abs_node_offset, logicblock_ptr);
+        outputs[0].state = header->output;
+        break;
+    }
+
+                           // Unary Gates
+    case NodeType::GateBUFFER:
+    case NodeType::GateNOT:
+
+    case NodeType::PushButton:
+    case NodeType::ToggleButton:
+    case NodeType::StaticToggleButton:
+
+    case NodeType::LightBulb:
+    case NodeType::SevenSegmentDisplay:
+
+    case NodeType::FunctionNode: {
+        offset abs_outputs_offset = abs_node_offset + outputs_offset(abs_node_offset, logicblock_ptr);
+        assert(output_count(abs_node_offset, logicblock_ptr) == outputs.size());
+
+        for (size_t i = 0; i < outputs.size(); i++) {
+            outputs[i].state = *game.get_logicblock<output>(abs_outputs_offset + i * sizeof(output));
+        }
+        break;
+    }
+
+    case NodeType::BusNode: {
+        FunctionNodeHeader* root_header = game.get_logicblock<FunctionNodeHeader>(0);
+        //TODO this is jank but should work, creates absolute offset as long as it's the child of the root node
+        offset abs_outputs_offset = root_header->children_offset + outputs_offset(abs_node_offset, logicblock_ptr);
+        assert(output_count(abs_node_offset, logicblock_ptr) == outputs.size());
+
+        for (size_t i = 0; i < outputs.size(); i++) {
+            outputs[i].state = *game.get_logicblock<output>(abs_outputs_offset + i * sizeof(output));
+        }
+        break;
+    }
+
+    default:
+        assert(false && "Invalid NodeType");
+    }
+}
+
+void Output_connector::draw() const
+{
+    Game& game = Game::getInstance();
+    const size_t width = 30;
+    float lineThick = 8;
+    float height_spacing = 30;
+
+    Vector2 startPos = {
+        host->pos.x + host->size.x / 2.0f,
+        host->pos.y + (host->outputs.size() - 1) * height_spacing / 2.0f - index * height_spacing
+    };
+
+    Vector2 endPos = { startPos.x + width ,startPos.y, };
+
+    Color color = GRAY;
+    for (auto output : game.selected_outputs) {
+        if (output == this) {
+            color = GREEN;
+            break;
+        }
+    }
+
+    DrawLineEx(startPos, endPos, lineThick, color);
+
+    // draw name
+    {
+        float text_spacing = 2.0f;
+
+        Vector2 pos = {
+            host->pos.x + host->size.x / 2.0f,
+            host->pos.y + (host->outputs.size() - 1) * height_spacing / 2.0f - index * height_spacing - lineThick / 2.0f
+        };
+
+        Font font = GetFontDefault();
+        const char* text;
+        text = name.c_str();
+        Color color = RAYWHITE;
+        if (state)
+            color = DARKGREEN;
+        DrawTextEx(font, text, pos - Vector2{ float(name.size()) * (text_spacing + 7.0f), 0 }, 12, text_spacing, color);
+    }
+}
+
+json Output_connector::to_JSON() const {
+    return json{
+        {"Output_connector", json::object({  {"id", id}, {"state", state}})}
+    };
+}
+
+void Input_connector::draw() const
+{
+    Game& game = Game::getInstance();
+    const size_t width = 30;
+    float lineThick = 8;
+    float height_spacing = 30;
+
+    Vector2 startPos = {
+        host->pos.x - host->size.x / 2,
+        host->pos.y + ((float)host->inputs.size() - 1.0f) * height_spacing / 2.0f - index * height_spacing
+    };
+    Vector2 endPos = { startPos.x - width ,startPos.y, };
+
+    Color color = GRAY;
+    for (auto input : game.selected_inputs) {
+        if (input == this) {
+            color = GREEN;
+            break;
+        }
+    }
+
+    DrawLineEx(startPos, endPos, lineThick, color);
+
+    if (target) {
+        if (target->state) {
+            DrawLineEx(get_connection_pos(), target->get_connection_pos(), lineThick, GREEN);
+        }
+        else {
+            DrawLineEx(get_connection_pos(), target->get_connection_pos(), lineThick, GRAY);
+        }
+    }
+
+    //Draw name
+    {
+        float text_spacing = 2.0f;
+        Vector2 pos = {
+            host->pos.x - host->size.x / 2 - width,
+            host->pos.y + ((float)host->inputs.size() - 1.0f) * height_spacing / 2.0f - index * height_spacing - lineThick / 2.0f
+        };
+
+        Font font = GetFontDefault();
+        const char* text = name.c_str();
+        Color color = RAYWHITE;
+        if (target && target->state)
+            color = DARKGREEN;
+        DrawTextEx(font, text, pos + Vector2{ width, 0 }, 12, text_spacing, color);
+    }
+}
+
+json Input_connector::to_JSON() const {
+    return json{
+        {"Input_connector", json::object({  {"target", target ? target->id : 0}})}
+    };
 }

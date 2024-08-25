@@ -1,5 +1,10 @@
 #include "NodeFactory.h"
-#include "main_game.h"
+#include "BinaryGates.h"
+#include "UnaryGates.h"
+#include "Buttons.h"
+#include "Displays.h"
+#include "Bus.h"
+#include "FunctionNode.h"
 
 Node* NodeFactory::createNode(std::vector<Node*>* container, const std::string& nodeName) {
     static std::unordered_map<std::string, std::function<Node* (std::vector<Node*>* container)>> factoryMap = {

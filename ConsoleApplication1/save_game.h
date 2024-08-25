@@ -2,7 +2,6 @@
 #include <string>
 #include <fstream>
 #include <cassert>
-#include "main_game.h"
 #include "game.h"
 //memory layout:
 

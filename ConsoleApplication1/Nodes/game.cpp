@@ -1,8 +1,8 @@
 #include "game.h"
-#include "main_game.h"
 #include "vector_tools.h"
 #include "save_game.h"
 #include "file_dialogs.h"
+#include "FunctionNode.h"
 
 Game Game::instance;
 
@@ -201,6 +201,80 @@ void Game::paste_nodes()
     copy_selected_nodes();
 }
 
+void Game::add_function_node()
+{
+    std::filesystem::path filepath = open_file_dialog_json_bin();
+    std::ifstream saveFile(filepath, std::ios::binary);
+
+    if (saveFile.is_open() && filepath.extension() == ".bin") {
+        std::vector<uint8_t> save;
+        {
+            saveFile.seekg(0, std::ios::end);
+            std::streamsize size = saveFile.tellg();
+            save.resize(size);
+            saveFile.seekg(0, std::ios::beg);
+            saveFile.read(reinterpret_cast<char*>(save.data()), size);
+        }
+
+        SaveHeader* saveheader = reinterpret_cast<SaveHeader*>(save.data());
+        assert(saveheader->version.version_number == 0);
+
+        FunctionNode* funnode = new FunctionNode(&nodes, GetScreenToWorld2D({ screenWidth / 2.0f, screenHeight / 2.0f }, camera));
+        nodes.push_back(funnode);
+
+        //load network
+        size_t curr_node_offset = saveheader->Nodes_offset;
+
+        FunctionNodeHeader* logic_block_root = reinterpret_cast<FunctionNodeHeader*>(save.data() + saveheader->LogicBlock_offset);
+        assert(logic_block_root->type == NodeType::RootFunctionNode || logic_block_root->type == NodeType::FunctionNode);
+
+        logic_block_root->type = NodeType::FunctionNode;
+
+        funnode->label = filepath.filename().string();
+        funnode->pos = { 0, 0 };
+        funnode->size = { 100, 100 };
+
+        //update connectors
+        funnode->inputs.clear();
+        {
+            size_t curr_nodedata_offset = saveheader->Nodes_offset;
+            for (size_t _ = 0; _ < saveheader->node_count; ++_) {
+                NodeData* nodedata = reinterpret_cast<NodeData*>(save.data() + curr_nodedata_offset);
+                if (isInputType(nodedata->type)) {
+                    for (size_t __ = 0; __ < nodedata->output_count; ++__) {
+                        funnode->inputs.push_back(Input_connector(funnode, funnode->inputs.size(), nodedata->label, nullptr, 0));
+                    }
+                }
+                if (isOutputType(nodedata->type)) {
+                    for (size_t i = 0; i < nodedata->input_count; ++i) {
+                        const OutputData* outputdata = reinterpret_cast<const OutputData*>(save.data() + nodedata->outputs_offset + i * sizeof(OutputData));
+                        funnode->outputs.push_back(Output_connector(funnode, funnode->outputs.size(), outputdata->name, outputdata->state, outputdata->id));
+                    }
+                }
+            }
+        }
+
+        const uint8_t* funheader_ptr = save.data() + saveheader->LogicBlock_offset;
+        funnode->allocate_node_data_save(funheader_ptr);
+    }
+    else if (saveFile.is_open() && filepath.extension() == ".json") {
+        json save;
+        saveFile >> save;
+        saveFile.close();
+        FunctionNode* funnode = new FunctionNode(&nodes, GetScreenToWorld2D({ screenWidth / 2.0f, screenHeight / 2.0f }, camera));
+        nodes.push_back(funnode);
+        funnode->load_JSON(save);
+        network_change();
+    }
+    else if (saveFile.is_open()) {
+        std::cerr << "invalid path specified";
+    }
+    else {
+        std::cerr << "could not open selected file";
+    }
+    saveFile.close();
+}
+
 void Game::add_subassebly()
 {
     std::filesystem::path filepath = open_file_dialog_json_bin();
@@ -214,8 +288,7 @@ void Game::add_subassebly()
         NodeNetworkFromBinary(filepath, &subassembly);
     }
     else if (filepath.extension() == ".json") {
-        std::ifstream saveFile;
-        saveFile.open(filepath);
+        std::ifstream saveFile(filepath, std::ios::binary);
         if (saveFile.is_open()) {
             json save;
             saveFile >> save;
@@ -599,7 +672,7 @@ void Game::build_logic_block()
     }
 
     LogicBlockBuilder builder;
-    builder.add_root(nodes);
+    builder.add_function_root(nodes);
 
     // Record start time
     auto start = std::chrono::high_resolution_clock::now();

@@ -5,13 +5,14 @@
 #include "raymath.h"
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
-#include "vector_tools.h"
-#include "main_game.h"
 #include "game.h"
+#include "BinaryGates.h"
+#include "UnaryGates.h"
 //#define GUI_WINDOW_HELP_IMPLEMENTATION
 //#include "gui_window_help.h"
 
 #include <fstream>
+#include "vector_tools.h"
 
 void LoadTextures() {
     Image img = LoadImage("resources/logic_gates/AND.png");
