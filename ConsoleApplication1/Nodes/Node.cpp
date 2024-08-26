@@ -156,10 +156,10 @@ size(base->size), color(base->color), label(base->label)
 {
     reserve_outputs();
     for (size_t i = 0; i < base->inputs.size(); ++i) {
-        inputs.push_back(Input_connector(this, i, "", base->inputs[i].target));
+        inputs.push_back(Input_connector(this, i, base->inputs[i].name.c_str(), base->inputs[i].target));
     }
     for (size_t i = 0; i < base->outputs.size(); ++i) {
-        outputs.push_back(Output_connector(this, i, "", base->outputs[i].state));
+        outputs.push_back(Output_connector(this, i, base->outputs[i].name.c_str(), base->outputs[i].state));
     }
 }
 

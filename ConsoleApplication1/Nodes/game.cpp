@@ -230,7 +230,7 @@ void Game::add_function_node()
 
         logic_block_root->type = NodeType::FunctionNode;
 
-        funnode->label = filepath.filename().string();
+        funnode->label = filepath.stem().string();
         funnode->pos = { 0, 0 };
         funnode->size = { 100, 100 };
 
@@ -680,6 +680,8 @@ void Game::save_bin(std::string filePath)
     savebuilder.save_game(filePath);
 }
 
+void sort_nodes(std::vector<Node*>& nodes);
+
 void Game::build_logic_block()
 {
     // save current state before rebuild
@@ -695,12 +697,16 @@ void Game::build_logic_block()
         }
     }
 
-    LogicBlockBuilder builder;
-    builder.add_function_root(nodes);
 
     // Record start time
     auto start = std::chrono::high_resolution_clock::now();
 
+    //sort nodes
+    std::vector<Node*> storted_nodes = nodes;
+    sort_nodes(storted_nodes);
+
+    LogicBlockBuilder builder;
+    builder.add_function_root(storted_nodes);
     logicblock = std::unique_ptr<LogicBlock>(builder.build());
 
 
@@ -715,4 +721,76 @@ void Game::build_logic_block()
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
     std::cout << "\nCreated logicblock out of current configuration. Size: " << logicblock->get_header()->total_size << " bytes. Duration: " << duration.count() << " microseconds" << std::endl;
     has_updated = true;
+}
+
+static void sort_nodes(std::vector<Node*>& nodes)
+{
+    std::unordered_map<Output_connector*, int> marked_outconns;
+    int max_delay = 1;
+    std::function<void(Output_connector*)> DFS;
+
+
+    DFS = [&](Output_connector* outconn) {
+        if (!outconn || max_delay == -1) return;
+
+        if (outconn->host->is_cyclic()) {
+            max_delay = -1;
+            return;
+        }
+
+        if (outconn->host->isInput()) return;
+
+        int current_delay = marked_outconns[outconn] + outconn->host->delay();
+        if (current_delay > max_delay) max_delay = current_delay;
+
+        for (Input_connector* inconn : outconn->host->connected_inputs(outconn->index)) {
+            if (marked_outconns[inconn->target] < current_delay) {
+                marked_outconns[inconn->target] = current_delay;
+                DFS(inconn->target);
+                if (max_delay == -1) return;
+            }
+        }
+        };
+
+    for (Node* node : nodes) {
+        if (node->isOutput()) {
+            for (Input_connector& inconn : node->inputs) {
+                DFS(inconn.target);
+            }
+        }
+    }
+
+    std::sort(nodes.begin(), nodes.end(), [&](Node* a, Node* b) {
+        size_t max_a = 0;
+        for (Output_connector& out : a->outputs) {
+            if (marked_outconns[&out] > max_a) max_a = marked_outconns[&out];
+        }
+        size_t max_b = 0;
+        for (Output_connector& out : b->outputs) {
+            if (marked_outconns[&out] > max_b) max_b = marked_outconns[&out];
+        }
+        return max_a > max_b; // Return true if 'a' should come before 'b'
+        });
+
+
+    //sort inputs
+    std::sort(nodes.begin(), nodes.end(), [](const Node* a, const Node* b) {
+        if (a->isInput() != b->isInput()) {
+            return a->isInput(); // Inputs go to the top
+        }
+        if (a->isInput() && b->isInput()) {
+            return a->pos.y > b->pos.y; // Sort inputs by posY
+        }
+        return false; // Keep non-inputs in their original order
+        });
+    //sort outputs
+    std::sort(nodes.begin(), nodes.end(), [](const Node* a, const Node* b) {
+        if (a->isInput() != b->isOutput()) {
+            return a->isOutput(); // Inputs go to the top
+        }
+        if (a->isOutput() && b->isOutput()) {
+            return a->pos.y > b->pos.y; // Sort inputs by posY
+        }
+        return false; // Keep non-inputs in their original order
+        });
 }
