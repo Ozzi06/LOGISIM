@@ -75,7 +75,7 @@ size_t LogicBlockBuilder::add_function_root(std::vector<Node*> nodes)
         FunctionNodeHeader* header = add<FunctionNodeHeader>(); // gets destroyed when adding
 
         // Fill in header
-        header->type = NodeType::FunctionNode;
+        header->type = NodeType::RootFunctionNode;
         header->total_size = 69420;
         header->input_targ_node_count = 0;
         for (Node* node : nodes) {
@@ -208,10 +208,11 @@ size_t LogicBlockBuilder::add_function_root(std::vector<Node*> nodes)
             }
         }
         assert(converted_outtargs == outtarg_count);
+        if (nodes.size()) {
+            uint8_t* children_container = get_at_abs<uint8_t>(abs_children_offset);
 
-        uint8_t* children_container = get_at_abs<uint8_t>(abs_children_offset);
-
-        connect_children(children_container, header->child_count);
+            connect_children(children_container, header->child_count);
+        }
     }
 
     //fill in offsets to header
@@ -849,7 +850,7 @@ size_t LogicBlock::parse(uint8_t* container, size_t abs_node_offset, std::string
         }
         break;
     }
-
+    case NodeType::RootFunctionNode:
     case NodeType::FunctionNode: {
         FunctionNodeHeader* header = get_at<FunctionNodeHeader>(abs_node_offset, container);
 
@@ -893,20 +894,6 @@ size_t LogicBlock::parse(uint8_t* container, size_t abs_node_offset, std::string
         break;
     }
 
-    case NodeType::RootFunctionNode: {
-        assert(false && "TODO! Not updated");
-        FunctionNodeHeader* header = get_at<FunctionNodeHeader>(abs_node_offset, container);
-        std::cout << indent << "children:\n";
-        indent.append("  ");
-        offset new_offset = 0;
-        size_t new_node_number = node_number + 1;
-        uint8_t* child_container = container + abs_node_offset + header->children_offset;
-        for (size_t i = 0; i < header->child_count; i++) {
-            new_offset += parse(child_container, new_offset, indent, new_node_number);
-            ++new_node_number;
-        }
-        break;
-    }
     default: {
         assert(false && "bogus amogus node type");
     }

@@ -236,26 +236,50 @@ void Game::add_function_node()
 
         //update connectors
         funnode->inputs.clear();
+        funnode->outputs.clear();
+        std::vector<NodeData*> input_targs;
+        std::vector<NodeData*> output_targs;
+
         {
             size_t curr_nodedata_offset = saveheader->Nodes_offset;
             for (size_t _ = 0; _ < saveheader->node_count; ++_) {
                 NodeData* nodedata = reinterpret_cast<NodeData*>(save.data() + curr_nodedata_offset);
                 if (isInputType(nodedata->type)) {
-                    for (size_t __ = 0; __ < nodedata->output_count; ++__) {
-                        funnode->inputs.push_back(Input_connector(funnode, funnode->inputs.size(), nodedata->label, nullptr, 0));
-                    }
+                    input_targs.push_back(nodedata);
                 }
                 if (isOutputType(nodedata->type)) {
-                    for (size_t i = 0; i < nodedata->input_count; ++i) {
-                        const OutputData* outputdata = reinterpret_cast<const OutputData*>(save.data() + nodedata->outputs_offset + i * sizeof(OutputData));
-                        funnode->outputs.push_back(Output_connector(funnode, funnode->outputs.size(), outputdata->name, outputdata->state, outputdata->id));
-                    }
+                    output_targs.push_back(nodedata);
                 }
+                curr_nodedata_offset += nodedata->total_size;
             }
         }
 
+        std::sort(input_targs.begin(), input_targs.end(), [](NodeData* a, NodeData* b) {
+            return a->pos.y > b->pos.y; // Return true if 'a' should come before 'b'
+            });
+
+        std::sort(output_targs.begin(), output_targs.end(), [](NodeData* a, NodeData* b) {
+            return a->pos.y > b->pos.y; // Return true if 'a' should come before 'b'
+            });
+
+        for (NodeData* nodedata : input_targs) {
+            for (size_t __ = 0; __ < nodedata->output_count; ++__) {
+                funnode->inputs.push_back(Input_connector(funnode, funnode->inputs.size(), nodedata->label, nullptr, 0));
+            }
+        }
+        for (NodeData* nodedata : output_targs) {
+            for (size_t i = 0; i < nodedata->input_count; ++i) {
+                const OutputData* outputdata = reinterpret_cast<const OutputData*>(save.data() + nodedata->outputs_offset + i * sizeof(OutputData));
+                funnode->outputs.push_back(Output_connector(funnode, funnode->outputs.size(), nodedata->label, outputdata->state, outputdata->id));
+            }
+        }
+
+
+
         const uint8_t* funheader_ptr = save.data() + saveheader->LogicBlock_offset;
+        funnode->recompute_size();
         funnode->allocate_node_data_save(funheader_ptr);
+        network_change();
     }
     else if (saveFile.is_open() && filepath.extension() == ".json") {
         json save;

@@ -145,7 +145,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;_CRT_SECURE_NO_WARNINGS;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\raylib-5.0_win64_msvc16\include;C:\raygui-4.0\src</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\Deltagare\source\repos\Ozzi06\LOGISIM\ConsoleApplication1\Nodes;C:\Users\Deltagare\source\repos\Ozzi06\LOGISIM\ConsoleApplication1;C:\raylib-5.0_win64_msvc16\include;C:\raygui-4.0\src</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <LanguageStandard>stdcpp20</LanguageStandard>
@@ -153,7 +153,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\raylib-5.0_win64_msvc16\lib;C:\raygui-4.0\src</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Users\Deltagare\source\repos\Ozzi06\LOGISIM\ConsoleApplication1\Nodes;C:\Users\Deltagare\source\repos\Ozzi06\LOGISIM\ConsoleApplication1;C:\raylib-5.0_win64_msvc16\lib;C:\raygui-4.0\src</AdditionalLibraryDirectories>
       <AdditionalDependencies>winmm.lib;raylib.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>

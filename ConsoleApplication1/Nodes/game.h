@@ -62,8 +62,8 @@ public:
 
     Camera2D camera;
 
-    unsigned int screenWidth = 1920;
-    unsigned int screenHeight = 1080;
+    unsigned int screenWidth = 800;
+    unsigned int screenHeight = 600;
 
     Font regular;
     EditMode edit_mode = EDIT;

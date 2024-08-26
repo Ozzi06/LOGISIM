@@ -22,3 +22,30 @@ std::string toString(NodeType type)
     default: return "Unknown NodeType";
     }
 }
+
+bool isInputType(NodeType type) {
+    switch (type) {
+    case NodeType::PushButton:
+    case NodeType::ToggleButton: {
+        return true;
+        break;
+    }
+    default: {
+        return false;
+        break;
+    }
+    }
+}
+
+bool isOutputType(NodeType type) {
+    switch (type) {
+    case NodeType::LightBulb: {
+        return true;
+        break;
+    }
+    default: {
+        return false;
+        break;
+    }
+    }
+}
