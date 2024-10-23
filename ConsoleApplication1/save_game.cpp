@@ -75,7 +75,7 @@ void SaveBuilder::save_game(std::string filePath)
                     outdata->id = outconn.id;
                     std::strncpy(outdata->name, outconn.name.c_str(), 55);
                     outdata->name[55] = '\0';
-                    outdata->state = outconn.state;
+                    outdata->state = outconn.get_state();
                 }
             }
             {

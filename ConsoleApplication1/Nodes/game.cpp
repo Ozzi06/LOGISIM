@@ -16,12 +16,6 @@ void Game::draw() {
 
     BeginMode2D(camera);
 
-    if (run_on_block && logicblock) {
-        for (Node* node : nodes) {
-            node->update_state_from_logicblock();
-        }
-    }
-
     for (Node* node : nodes) {
         node->draw();
     }
@@ -725,31 +719,53 @@ void Game::build_logic_block()
 
 static void sort_nodes(std::vector<Node*>& nodes)
 {
-    std::unordered_map<Output_connector*, int> marked_outconns;
+
+    enum NodeState {
+        Unvisited,
+        Visiting,  // Node is being visited (used for cycle detection)
+        Visited    // Node has been fully visited
+    };
+
+    std::unordered_map<Output_connector*, std::pair<int, NodeState>> marked_outconns;
     int max_delay = 1;
     std::function<void(Output_connector*)> DFS;
 
+    
 
     DFS = [&](Output_connector* outconn) {
         if (!outconn || max_delay == -1) return;
+
+
+        if (marked_outconns[outconn].second == NodeState::Visiting) {
+            max_delay = -1;
+            return;
+        }
+        if (marked_outconns[outconn].second == NodeState::Visited) {
+            return;
+        }
 
         if (outconn->host->is_cyclic()) {
             max_delay = -1;
             return;
         }
 
+        marked_outconns[outconn].second = NodeState::Visiting;
+
         if (outconn->host->isInput()) return;
 
-        int current_delay = marked_outconns[outconn] + outconn->host->delay();
+        int current_delay = marked_outconns[outconn].first + outconn->host->delay();
         if (current_delay > max_delay) max_delay = current_delay;
 
         for (Input_connector* inconn : outconn->host->connected_inputs(outconn->index)) {
-            if (marked_outconns[inconn->target] < current_delay) {
-                marked_outconns[inconn->target] = current_delay;
+            if (marked_outconns[inconn->target].first < current_delay) {
+                marked_outconns[inconn->target].first = current_delay;
                 DFS(inconn->target);
                 if (max_delay == -1) return;
             }
         }
+
+        marked_outconns[outconn].second = NodeState::Visited;
+
         };
 
     for (Node* node : nodes) {
@@ -759,18 +775,19 @@ static void sort_nodes(std::vector<Node*>& nodes)
             }
         }
     }
-
-    std::sort(nodes.begin(), nodes.end(), [&](Node* a, Node* b) {
-        size_t max_a = 0;
-        for (Output_connector& out : a->outputs) {
-            if (marked_outconns[&out] > max_a) max_a = marked_outconns[&out];
-        }
-        size_t max_b = 0;
-        for (Output_connector& out : b->outputs) {
-            if (marked_outconns[&out] > max_b) max_b = marked_outconns[&out];
-        }
-        return max_a > max_b; // Return true if 'a' should come before 'b'
-        });
+    if (max_delay != -1) {
+        std::sort(nodes.begin(), nodes.end(), [&](Node* a, Node* b) {
+            size_t max_a = 0;
+            for (Output_connector& out : a->outputs) {
+                if (marked_outconns[&out].first > max_a) max_a = marked_outconns[&out].first;
+            }
+            size_t max_b = 0;
+            for (Output_connector& out : b->outputs) {
+                if (marked_outconns[&out].first > max_b) max_b = marked_outconns[&out].first;
+            }
+            return max_a > max_b; // Return true if 'a' should come before 'b'
+            });
+    }
 
 
     //sort inputs
@@ -779,17 +796,17 @@ static void sort_nodes(std::vector<Node*>& nodes)
             return a->isInput(); // Inputs go to the top
         }
         if (a->isInput() && b->isInput()) {
-            return a->pos.y > b->pos.y; // Sort inputs by posY
+            return a->pos.y < b->pos.y; // Sort inputs by posY
         }
         return false; // Keep non-inputs in their original order
         });
     //sort outputs
     std::sort(nodes.begin(), nodes.end(), [](const Node* a, const Node* b) {
-        if (a->isInput() != b->isOutput()) {
-            return a->isOutput(); // Inputs go to the top
+        if (a->isOutput() != b->isOutput()) {
+            return !a->isOutput(); // Outputs go to the bottom
         }
         if (a->isOutput() && b->isOutput()) {
-            return a->pos.y > b->pos.y; // Sort inputs by posY
+            return a->pos.y > b->pos.y; // Sort outputs by posY
         }
         return false; // Keep non-inputs in their original order
         });

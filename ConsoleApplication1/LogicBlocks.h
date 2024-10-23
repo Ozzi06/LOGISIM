@@ -45,9 +45,12 @@ public:
     }
 
     void hexdump() {
-        for (size_t i = 0; i < size; ++i) {
-            std::cout << std::hex << std::setw(2) << std::setfill('0')
-                << static_cast<char>(data[i]) << ' ';
+        for (size_t i = 0; i < size; ) {
+            for (size_t _ = 0; _ < 4; ++i, ++_) {
+                std::cout << std::hex << std::setw(2) << std::setfill('0')
+                    << static_cast<int>(data[i]) << ' ';
+            }
+            std::cout << std::endl;
         }
         std::cout << std::dec << std::endl; // Reset to decimal format
     }
@@ -74,9 +77,11 @@ class LogicBlockBuilder {
 public:
     LogicBlockBuilder() : current_absolute_offset(0) {}
     ~LogicBlockBuilder() {}
-    size_t add_root(std::vector<Node*> nodes);
+    //size_t add_root(std::vector<Node*> nodes);
 
     size_t add_function_root(std::vector<Node*> nodes);
+
+    void add_inputs(Node& node, std::vector<Node*> sorted_container);
 
     struct BusOffsetStruct {
         offset shared_outputs_offset;  // Assuming 'offset' is of type int for illustration
@@ -84,7 +89,7 @@ public:
     };
     typedef std::map<const std::string, const BusOffsetStruct> bus_map_t;
 
-    void add_node(Node& node, bus_map_t& bus_map, size_t abs_container_offset);
+    void add_node(Node& node, bus_map_t& bus_map, size_t abs_container_offset, std::vector<Node*> sorted_container);
     
     LogicBlock* build() {
         LogicBlock* block = new LogicBlock;
@@ -157,6 +162,8 @@ namespace LogicblockTools {
     size_t output_count(offset header_offset, uint8_t* buffer);
 
     offset outputs_offset(offset header_offset, uint8_t* buffer);
+
+    offset new_outputs_offset(offset header_offset, uint8_t* buffer);
 
     offset inputs_offset(offset header_offset, uint8_t* buffer);
 

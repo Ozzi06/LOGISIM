@@ -159,7 +159,7 @@ size(base->size), color(base->color), label(base->label)
         inputs.push_back(Input_connector(this, i, base->inputs[i].name.c_str(), base->inputs[i].target));
     }
     for (size_t i = 0; i < base->outputs.size(); ++i) {
-        outputs.push_back(Output_connector(this, i, base->outputs[i].name.c_str(), base->outputs[i].state));
+        outputs.push_back(Output_connector(this, i, base->outputs[i].name.c_str(), base->outputs[i].get_state()));
     }
 }
 
@@ -365,7 +365,7 @@ std::vector<Output_connector*> Node::select_outputs(Rectangle select_area)
     return outcons;
 }
 
-inline std::vector<Input_connector*> Node::connected_inputs(size_t output_idx) {
+std::vector<Input_connector*> Node::connected_inputs(size_t output_idx) {
     std::vector<Input_connector*> input_nodes;
     for (size_t i = 0; i < inputs.size(); i++) {
         input_nodes.push_back(&inputs[i]);
@@ -428,6 +428,7 @@ void Node::load_JSON(const json& nodeJson) {
                 unsigned long id = inputJson.at("Output_connector").at("id").get<unsigned long>();
                 bool state = inputJson.at("Output_connector").at("state").get<bool>();
                 outputs.push_back(Output_connector(this, i, "", state, id));
+                initial_output_state.push_back(state);
                 i++;
             }
         }
@@ -461,13 +462,15 @@ void Node::load_Bin(const uint8_t* node_data_ptr, const uint8_t* save_ptr)
     for (size_t i = 0; i < node_data->output_count; i++) {
         const OutputData* outputdata = reinterpret_cast<const OutputData*>(save_ptr + node_data->outputs_offset + i * sizeof(OutputData));
         outputs.push_back(Output_connector(this, i, outputdata->name, outputdata->state, outputdata->id));
+        initial_output_state.push_back(outputdata->state);
     }
 
     load_extra_bin(node_data_ptr, save_ptr);
 }
 
-void Node::update_state_from_logicblock()
+bool Node::get_output_state(size_t idx) const
 {
+    if (!has_offset()) return initial_output_state[idx];
     using namespace LogicblockTools;
     assert(abs_node_offset != 0);
     Game& game = Game::getInstance();
@@ -484,14 +487,83 @@ void Node::update_state_from_logicblock()
     case NodeType::GateNOR:
     case NodeType::GateXOR:
     case NodeType::GateXNOR: {
+        assert(idx == 0);
         BinaryGateHeader* header = get_at<BinaryGateHeader>(abs_node_offset, logicblock_ptr);
-        outputs[0].state = header->output;
+        return header->output;
+        break;
+    }
+
+        // Unary Gates
+    case NodeType::GateBUFFER:
+    case NodeType::GateNOT:
+    case NodeType::PushButton:
+    case NodeType::ToggleButton:
+    case NodeType::StaticToggleButton:
+    case NodeType::LightBulb:
+    case NodeType::SevenSegmentDisplay:
+    case NodeType::FunctionNode: {
+        offset abs_outputs_offset = abs_node_offset + outputs_offset(abs_node_offset, logicblock_ptr);
+        assert(outputs.size() > idx);
+        size_t outcount = output_count(abs_node_offset, logicblock_ptr);
+        if (!(outcount > idx)) return false;
+
+        return *game.get_logicblock<output>(abs_outputs_offset + idx * sizeof(output));
+        break;
+    }
+
+    case NodeType::BusNode: {
+        FunctionNodeHeader* root_header = game.get_logicblock<FunctionNodeHeader>(0);
+        //TODO this is jank but should work, creates absolute offset as long as it's the child of the root node
+        offset abs_outputs_offset = root_header->children_offset + outputs_offset(abs_node_offset, logicblock_ptr);
+
+        assert(outputs.size() > idx);
+        size_t outcount = output_count(abs_node_offset, logicblock_ptr);
+        if (!(outcount > idx)) return false;
+
+        return *game.get_logicblock<output>(abs_outputs_offset + idx * sizeof(output));
+        break;
+    }
+
+    default:
+        assert(false && "Invalid NodeType");
+    }
+}
+bool Node::get_new_output_state(size_t idx) const
+{
+    if (!has_offset()) return initial_output_state[idx];
+    using namespace LogicblockTools;
+    assert(abs_node_offset != 0);
+    Game& game = Game::getInstance();
+    uint8_t* logicblock_ptr = game.get_logicblock<uint8_t>(0);
+
+    NodeHeader* header = get_at<NodeHeader>(abs_node_offset, logicblock_ptr);
+
+    assert(header->type == get_type());
+    switch (header->type) {
+        // Binary Gates
+    case NodeType::GateAND:
+    case NodeType::GateOR:
+    case NodeType::GateNAND:
+    case NodeType::GateNOR:
+    case NodeType::GateXOR:
+    case NodeType::GateXNOR: {
+        assert(idx == 0);
+        BinaryGateHeader* header = get_at<BinaryGateHeader>(abs_node_offset, logicblock_ptr);
+        return header->new_output;
         break;
     }
 
                            // Unary Gates
     case NodeType::GateBUFFER:
-    case NodeType::GateNOT:
+    case NodeType::GateNOT: {
+        offset abs_new_outputs_offset = abs_node_offset + new_outputs_offset(abs_node_offset, logicblock_ptr);
+        assert(outputs.size() > idx);
+        size_t outcount = output_count(abs_node_offset, logicblock_ptr);
+        if (!(outcount > idx)) return false;
+
+        return *game.get_logicblock<output>(abs_new_outputs_offset + idx * sizeof(output));
+        break;
+    }
 
     case NodeType::PushButton:
     case NodeType::ToggleButton:
@@ -501,30 +573,26 @@ void Node::update_state_from_logicblock()
     case NodeType::SevenSegmentDisplay:
 
     case NodeType::FunctionNode: {
-        offset abs_outputs_offset = abs_node_offset + outputs_offset(abs_node_offset, logicblock_ptr);
-        assert(output_count(abs_node_offset, logicblock_ptr) == outputs.size());
-
-        for (size_t i = 0; i < outputs.size(); i++) {
-            outputs[i].state = *game.get_logicblock<output>(abs_outputs_offset + i * sizeof(output));
-        }
+        assert(false && "These don't have new_outputs");
         break;
     }
 
     case NodeType::BusNode: {
         FunctionNodeHeader* root_header = game.get_logicblock<FunctionNodeHeader>(0);
         //TODO this is jank but should work, creates absolute offset as long as it's the child of the root node
-        offset abs_outputs_offset = root_header->children_offset + outputs_offset(abs_node_offset, logicblock_ptr);
-        assert(output_count(abs_node_offset, logicblock_ptr) == outputs.size());
+        offset abs_new_outputs_offset = root_header->children_offset + new_outputs_offset(abs_node_offset, logicblock_ptr);
+        assert(outputs.size() > idx);
+        size_t outcount = output_count(abs_node_offset, logicblock_ptr);
+        if (!(outcount > idx)) return false;
 
-        for (size_t i = 0; i < outputs.size(); i++) {
-            outputs[i].state = *game.get_logicblock<output>(abs_outputs_offset + i * sizeof(output));
-        }
+        return *game.get_logicblock<output>(abs_new_outputs_offset + idx * sizeof(output));
         break;
     }
 
     default:
         assert(false && "Invalid NodeType");
     }
+    return false;
 }
 
 void Output_connector::draw() const
@@ -564,7 +632,7 @@ void Output_connector::draw() const
         const char* text;
         text = name.c_str();
         Color color = RAYWHITE;
-        if (state)
+        if (get_state())
             color = DARKGREEN;
         DrawTextEx(font, text, pos - Vector2{ float(name.size()) * (text_spacing + 7.0f), 0 }, 12, text_spacing, color);
     }
@@ -572,7 +640,7 @@ void Output_connector::draw() const
 
 json Output_connector::to_JSON() const {
     return json{
-        {"Output_connector", json::object({  {"id", id}, {"state", state}})}
+        {"Output_connector", json::object({  {"id", id}, {"state", get_state()}})}
     };
 }
 
@@ -600,7 +668,7 @@ void Input_connector::draw() const
     DrawLineEx(startPos, endPos, lineThick, color);
 
     if (target) {
-        if (target->state) {
+        if (target->get_state()) {
             DrawLineEx(get_connection_pos(), target->get_connection_pos(), lineThick, GREEN);
         }
         else {
@@ -619,7 +687,7 @@ void Input_connector::draw() const
         Font font = GetFontDefault();
         const char* text = name.c_str();
         Color color = RAYWHITE;
-        if (target && target->state)
+        if (target && target->get_state())
             color = DARKGREEN;
         DrawTextEx(font, text, pos + Vector2{ width, 0 }, 12, text_spacing, color);
     }

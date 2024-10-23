@@ -55,6 +55,7 @@ struct ToggleButton : public Button {
     virtual void not_clicked() override {}
 
     virtual void clicked(Vector2 pos) override;
+    virtual void load_extra_bin(const uint8_t* node_data_ptr, const uint8_t* save_ptr) override;
 
     virtual std::string get_type_str() const override { return"ToggleButton"; }
     virtual NodeType get_type() const override { return NodeType::ToggleButton; }
@@ -71,6 +72,7 @@ struct StaticToggleButton : public ToggleButton {
     Node* copy() const override { return new StaticToggleButton(this); }
 
     virtual std::string get_type_str() const override { return"StaticToggleButton"; }
+    virtual NodeType get_type() const override { return NodeType::StaticToggleButton; }
 
     virtual bool isInput() const override { return false; }
 };

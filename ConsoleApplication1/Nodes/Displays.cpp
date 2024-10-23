@@ -10,7 +10,7 @@ void LightBulb::draw()
         int segments = 50;
         float lineThick = 10;
         Rectangle rec = { pos.x - size.x / 2, pos.y - size.y / 2, size.x, size.y };
-        if (inputs[0].target && inputs[0].target->state)
+        if (inputs[0].target && inputs[0].target->get_state())
             DrawRectangleRounded(rec, roundness, segments, YELLOW);
         else
             DrawRectangleRounded(rec, roundness, segments, BLACK);
@@ -80,31 +80,31 @@ void SevenSegmentDisplay::draw()
     Color color;
     float linethickness = 12.0f;
 
-    if (inputs[0].target && inputs[0].target->state) color = { 255, 0, 0, 255 };
+    if (inputs[0].target && inputs[0].target->get_state()) color = { 255, 0, 0, 255 };
     else color = ColorBrightness(GRAY, -0.8f);
     DrawLineBezier(pos + Vector2{ -70.0f, -150.0f }, pos + Vector2{ 70.0f, -150.0f }, linethickness, color);
 
-    if (inputs[1].target && inputs[1].target->state) color = { 255, 0, 0, 255 };
+    if (inputs[1].target && inputs[1].target->get_state()) color = { 255, 0, 0, 255 };
     else color = ColorBrightness(GRAY, -0.8f);
     DrawLineBezier(pos + Vector2{ 75.0f, -145.0f }, pos + Vector2{ 75.0f, -5.0f }, linethickness, color);
 
-    if (inputs[2].target && inputs[2].target->state) color = { 255, 0, 0, 255 };
+    if (inputs[2].target && inputs[2].target->get_state()) color = { 255, 0, 0, 255 };
     else color = ColorBrightness(GRAY, -0.8f);
     DrawLineBezier(pos + Vector2{ 75.0f, 5.0f }, pos + Vector2{ 75.0f, 145.0f }, linethickness, color);
 
-    if (inputs[3].target && inputs[3].target->state) color = { 255, 0, 0, 255 };
+    if (inputs[3].target && inputs[3].target->get_state()) color = { 255, 0, 0, 255 };
     else color = ColorBrightness(GRAY, -0.8f);
     DrawLineBezier(pos + Vector2{ -70.0f, 150.0f }, pos + Vector2{ 70.0f, 150.0f }, linethickness, color);
 
-    if (inputs[4].target && inputs[4].target->state) color = { 255, 0, 0, 255 };
+    if (inputs[4].target && inputs[4].target->get_state()) color = { 255, 0, 0, 255 };
     else color = ColorBrightness(GRAY, -0.8f);
     DrawLineBezier(pos + Vector2{ -75.0f, 5.0f }, pos + Vector2{ -75.0f, 145.0f }, linethickness, color);
 
-    if (inputs[5].target && inputs[5].target->state) color = { 255, 0, 0, 255 };
+    if (inputs[5].target && inputs[5].target->get_state()) color = { 255, 0, 0, 255 };
     else color = ColorBrightness(GRAY, -0.8f);
     DrawLineBezier(pos + Vector2{ -75.0f, -145.0f }, pos + Vector2{ -75.0f, -5.0f }, linethickness, color);
 
-    if (inputs[6].target && inputs[6].target->state) color = { 255, 0, 0, 255 };
+    if (inputs[6].target && inputs[6].target->get_state()) color = { 255, 0, 0, 255 };
     else color = ColorBrightness(GRAY, -0.8f);
     DrawLineBezier(pos + Vector2{ -70.0f, 0.0f }, pos + Vector2{ 70.0f, -0.0f }, linethickness, color);
 

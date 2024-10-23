@@ -93,7 +93,7 @@ struct BusNodeHeader : public NodeHeader {
 struct InputNodeHeader : public NodeHeader {
     uint16_t output_count;
     offset outputs_offset;
-    //output_count * ouput
+    //output_count * output
 };
 struct OutputNodeHeader : public NodeHeader {
     uint16_t input_count;

@@ -161,7 +161,7 @@ size_t LogicBlockBuilder::add_function_root(std::vector<Node*> nodes)
         bus_map_t new_bus_map;
         for (Node* child : nodes) {
             assert(current_absolute_offset % NODE_ALIGNMENT == 0 && "misaligned node");
-            add_node(*child, new_bus_map, abs_children_offset);
+            add_node(*child, new_bus_map, abs_children_offset, nodes);
         }
         assert(current_absolute_offset % NODE_ALIGNMENT == 0 && "misaligned node");
     }
@@ -236,7 +236,21 @@ size_t LogicBlockBuilder::add_function_root(std::vector<Node*> nodes)
     return abs_node_offset;
 }
 
-void LogicBlockBuilder::add_node(Node& node, bus_map_t& bus_map, size_t abs_container_offset) {
+void LogicBlockBuilder::add_inputs(Node& node, std::vector<Node*> sorted_container) {
+    for (const Input_connector& inconn : node.inputs) {
+        if (inconn.target) {
+            int pos = get_position<Node>(sorted_container, inconn.target->host);
+            assert(pos >= 0);
+            assert(pos <= UINT16_MAX);
+            add<input>(input(static_cast<uint16_t>(pos), inconn.target->index)); // is converted by parent
+        }
+        else {
+            add<input>(input(UINT32_MAX)); // is converted by parent
+        }
+    }
+}
+
+void LogicBlockBuilder::add_node(Node& node, bus_map_t& bus_map, size_t abs_container_offset, std::vector<Node*> sorted_container) {
     size_t abs_node_offset = current_absolute_offset;
 
     // Add node data
@@ -255,8 +269,8 @@ void LogicBlockBuilder::add_node(Node& node, bus_map_t& bus_map, size_t abs_cont
             // Fill in header
             header->type = node.get_type();
             header->input_count = node.inputs.size();
-            header->output = node.outputs[0].state;
-            header->new_output = node.outputs[0].new_state;
+            header->output = node.outputs[0].get_state();
+            header->new_output = node.outputs[0].get_new_state();
             header->total_size = 69420;
         }
 
@@ -265,17 +279,7 @@ void LogicBlockBuilder::add_node(Node& node, bus_map_t& bus_map, size_t abs_cont
         // add inputs
         size_t abs_inputs_offset = current_absolute_offset;
 
-        for (const Input_connector& inconn : node.inputs) {
-            if (inconn.target) {
-                int pos = get_position<Node>(*node.get_container(), inconn.target->host);
-                assert(pos >= 0);
-                assert(pos <= UINT16_MAX);
-                add<input>(input(static_cast<uint16_t>(pos), inconn.target->index)); // is converted by parent
-            }
-            else {
-                add<input>(input(UINT32_MAX)); // is converted by parent
-            }
-        }
+        add_inputs(node, sorted_container);
 
         {
             offset inputs_offset = abs_inputs_offset - abs_node_offset;
@@ -302,30 +306,20 @@ void LogicBlockBuilder::add_node(Node& node, bus_map_t& bus_map, size_t abs_cont
 
         // add inputs
         size_t abs_inputs_offset = current_absolute_offset;
-        for (const Input_connector& inconn : node.inputs) {
-            if (inconn.target) {
-                int pos = get_position<Node>(*node.get_container(), inconn.target->host);
-                assert(pos >= 0);
-                assert(pos <= UINT16_MAX);
-                add<input>(input(static_cast<uint16_t>(pos), inconn.target->index)); // is converted by parent
-            }
-            else {
-                add<input>(input(UINT32_MAX)); // is converted by parent
-            }
-        }
+        add_inputs(node, sorted_container);
 
         add_padding(sizeof(output));
 
         // add outputs
         size_t abs_outputs_offset = current_absolute_offset;
         for (const Output_connector& outconn : node.outputs) {
-            add<output>({ outconn.state });
+            add<output>({ outconn.get_state()});
         }
 
         // add new_outputs
         size_t abs_new_outputs_offset = current_absolute_offset;
         for (const Output_connector& outconn : node.outputs) {
-            add<output>({ outconn.new_state });
+            add<output>({ outconn.get_new_state()});
         }
 
         {
@@ -359,7 +353,7 @@ void LogicBlockBuilder::add_node(Node& node, bus_map_t& bus_map, size_t abs_cont
         // add outputs
         size_t abs_outputs_offset = current_absolute_offset;
         for (const Output_connector& outconn : node.outputs) {
-            add<output>({ outconn.state });
+            add<output>({ outconn.get_state()});
         }
         {
             offset outputs_offset = abs_outputs_offset - abs_node_offset;
@@ -385,17 +379,7 @@ void LogicBlockBuilder::add_node(Node& node, bus_map_t& bus_map, size_t abs_cont
 
         // add inputs
         size_t abs_inputs_offset = current_absolute_offset;
-        for (const Input_connector& inconn : node.inputs) {
-            if (inconn.target) {
-                int pos = get_position<Node>(*node.get_container(), inconn.target->host);
-                assert(pos >= 0);
-                assert(pos <= UINT16_MAX);
-                add<input>(input(static_cast<uint16_t>(pos), inconn.target->index)); // is converted by parent
-            }
-            else {
-                add<input>(input(UINT32_MAX)); // is converted by parent
-            }
-        }
+        add_inputs(node, sorted_container);
         {
             offset inputs_offset = abs_inputs_offset - abs_node_offset;
             OutputNodeHeader* header = get_at_abs<OutputNodeHeader>(abs_node_offset);
@@ -431,7 +415,7 @@ void LogicBlockBuilder::add_node(Node& node, bus_map_t& bus_map, size_t abs_cont
                     Input_connector& inconn = funnode.inputs[i];
                     input* curr_input = get_at_abs<input>(abs_inputs_offset + i * sizeof(input));
                     if (inconn.target) {
-                        int pos = get_position<Node>(*node.get_container(), inconn.target->host);
+                        int pos = get_position<Node>(sorted_container, inconn.target->host);
                         assert(pos >= 0);
                         assert(pos <= UINT16_MAX);
                         *curr_input = input(static_cast<uint16_t>(pos), inconn.target->index); // is converted by parent
@@ -448,7 +432,7 @@ void LogicBlockBuilder::add_node(Node& node, bus_map_t& bus_map, size_t abs_cont
                 for (size_t i = 0; i < funnode.outputs.size(); i++) {
                     Output_connector& outconn = funnode.outputs[i];
                     output* curr_output = get_at_abs<output>(abs_outputs_offset + i * sizeof(output));
-                    *curr_output = outconn.state;
+                    *curr_output = outconn.get_state();
                 }
             }
         }
@@ -502,20 +486,7 @@ void LogicBlockBuilder::add_node(Node& node, bus_map_t& bus_map, size_t abs_cont
 
             // add inputs
             size_t abs_inputs_offset = current_absolute_offset;
-            {
-                for (const Input_connector& inconn : node.inputs) {
-                    if (inconn.target) {
-                        int pos = get_position<Node>(*node.get_container(), inconn.target->host);
-                        assert(pos >= 0);
-                        assert(pos <= UINT16_MAX);
-                        add<input>(input(static_cast<uint16_t>(pos), inconn.target->index)); // is converted by parent
-                    }
-                    else {
-                        add<input>(input(UINT32_MAX)); // is converted by parent
-                    }
-                }
-
-            }
+            add_inputs(node, sorted_container);
 
             add_padding(alignof(output));
 
@@ -523,7 +494,7 @@ void LogicBlockBuilder::add_node(Node& node, bus_map_t& bus_map, size_t abs_cont
             size_t abs_outputs_offset = current_absolute_offset;
             {
                 for (const Output_connector& outconn : node.outputs) {
-                    add<output>({ outconn.state });
+                    add<output>({ outconn.get_state() });
                 }
 
             }
@@ -536,7 +507,7 @@ void LogicBlockBuilder::add_node(Node& node, bus_map_t& bus_map, size_t abs_cont
                 bus_map_t new_bus_map;
                 for (Node* child : *funnode.get_children()) {
                     assert(current_absolute_offset % NODE_ALIGNMENT == 0 && "misaligned node");
-                    add_node(*child, new_bus_map, abs_children_offset);
+                    add_node(*child, new_bus_map, abs_children_offset, *funnode.get_children());
                     assert(current_absolute_offset % NODE_ALIGNMENT == 0 && "misaligned node");
                 }
             }
@@ -632,17 +603,7 @@ void LogicBlockBuilder::add_node(Node& node, bus_map_t& bus_map, size_t abs_cont
 
         // add inputs
         size_t abs_inputs_offset = current_absolute_offset;
-        for (const Input_connector& inconn : node.inputs) {
-            if (inconn.target) {
-                int pos = get_position<Node>(*node.get_container(), inconn.target->host);
-                assert(pos >= 0);
-                assert(pos <= UINT16_MAX);
-                add<input>(input(static_cast<uint16_t>(pos), inconn.target->index)); // is converted by parent
-            }
-            else {
-                add<input>(input(UINT32_MAX)); // is converted by parent
-            }
-        }
+        add_inputs(node, sorted_container);
 
         add_padding(alignof(output));
 
@@ -1254,7 +1215,7 @@ size_t LogicblockTools::output_count(offset header_offset, uint8_t* buffer) {
     }
 }
 
-// header offset iis relative to buffer
+// header offset is relative to buffer
 offset LogicblockTools::outputs_offset(offset header_offset, uint8_t* buffer) {
     NodeHeader* header = get_at<NodeHeader>(header_offset, buffer);
     switch (header->type) {
@@ -1297,6 +1258,55 @@ offset LogicblockTools::outputs_offset(offset header_offset, uint8_t* buffer) {
         return get_at<BusNodeHeader>(header_offset, buffer)->shared_outputs_offset;
     }
 
+    default:
+        assert(false && "Invalid NodeType");
+        return 0; // Return 0 for invalid types, though this line should never be reached due to the assert
+    }
+}
+offset LogicblockTools::new_outputs_offset(offset header_offset, uint8_t* buffer) {
+    NodeHeader* header = get_at<NodeHeader>(header_offset, buffer);
+    switch (header->type) {
+        // Binary Gates
+    case NodeType::GateAND:
+    case NodeType::GateOR:
+    case NodeType::GateNAND:
+    case NodeType::GateNOR:
+    case NodeType::GateXOR:
+    case NodeType::GateXNOR: {
+        BinaryGateHeader* gate = get_at<BinaryGateHeader>(header_offset, buffer);
+        offset byteDistance = (char*)&gate->new_output - (char*)gate;
+        return byteDistance;
+    }
+
+                           // Unary Gates
+    case NodeType::GateBUFFER:
+    case NodeType::GateNOT: {
+        return get_at<UnaryGateHeader>(header_offset, buffer)->new_outputs_offset;
+    }
+
+                          // Input Nodes (only have outputs, no new outputs)
+    case NodeType::PushButton:
+    case NodeType::ToggleButton:
+    case NodeType::StaticToggleButton: {
+        assert(false);
+        return 0;
+    }
+
+                                     // Output Nodes (only have inputs, no outputs)
+    case NodeType::LightBulb:
+    case NodeType::SevenSegmentDisplay: {
+        assert(false);
+        return 0;
+    }
+
+    case NodeType::FunctionNode: { // have no new outputs
+        assert(false);
+        return 0;
+    }
+
+    case NodeType::BusNode: {
+        return get_at<BusNodeHeader>(header_offset, buffer)->shared_new_outputs_offset;
+    }
     default:
         assert(false && "Invalid NodeType");
         return 0; // Return 0 for invalid types, though this line should never be reached due to the assert

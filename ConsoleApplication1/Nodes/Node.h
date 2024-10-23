@@ -80,14 +80,16 @@ public:
     size_t get_abs_node_offset() const { return abs_node_offset; }
 
     // State Update
-    void update_state_from_logicblock();
+    bool get_output_state(size_t idx) const;
+
+    bool get_new_output_state(size_t idx) const;
 
 protected:
     // Size Computation
     virtual void recompute_size() {
         size = Vector2{ 100, std::max(100 + 30 * float(inputs.size()), 100 + 30 * float(outputs.size())) };
     }
-
+    std::vector<bool> initial_output_state;
     // Container
     std::vector<Node*>* container;
 
@@ -119,12 +121,19 @@ struct Input_connector {
 };
 
 struct Output_connector {
-    Output_connector(Node* host, size_t index, std::string name, bool state = false, uid_t id = generate_id()) : host(host), index(index), state(state), new_state(false), name(name), id(id) { }
+public:
+    Output_connector(Node* host, size_t index, std::string name, bool state = false, uid_t id = generate_id()) : host(host), index(index), /*state(state), new_state(false),*/ name(name), id(id) { }
     Node* host;
     size_t index;
     std::string name;
-    bool state;
-    bool new_state;
+    //bool state;
+    //bool new_state;
+    bool get_state() const {
+        return host->get_output_state(index);
+    }
+    bool get_new_state() const {
+        return host->get_new_output_state(index);
+    }
 
     uid_t id;
 

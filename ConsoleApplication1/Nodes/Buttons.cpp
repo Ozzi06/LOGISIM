@@ -1,5 +1,6 @@
 #include "Buttons.h"
 #include "game.h"
+#include "save_game.h"
 
 void Button::draw()
 {
@@ -12,7 +13,7 @@ void Button::draw()
     size_t button_count = outputs.size();
     for (size_t i = 0; i < button_count; i++) {
         Rectangle rec = getButtonRect(i);
-        if (outputs[i].state)
+        if (outputs[i].get_state())
             DrawRectangleRec(rec, Color{ 219, 42, 2, 255 });
         else
             DrawRectangleRec(rec, Color{ 252, 57, 13, 255 });
@@ -91,8 +92,7 @@ void Button::set_output_state(size_t index, bool new_state) {
         *outconn = new_state;
     }
     else {
-        outputs[index].state = new_state;
-        game.has_updated = true;
+        assert(false);
     }
 }
 
@@ -106,17 +106,22 @@ void ToggleButton::clicked(Vector2 pos)
     has_changed = false;
     for (size_t i = 0; i < outputs.size(); i++) {
         if (CheckCollisionPointRec(pos, getButtonRect(i))) {
-            set_output_state(i, !outputs[i].state);
+            set_output_state(i, !outputs[i].get_state());
             has_changed = true;
         }
     }
+}
+
+void ToggleButton::load_extra_bin(const uint8_t* node_data_ptr, const uint8_t* save_ptr)
+{
+    const NodeData* nodedata = reinterpret_cast<const NodeData*>(node_data_ptr);
 }
 
 void PushButton::not_clicked()
 {
     has_changed = false;
     for (size_t i = 0; i < outputs.size(); i++) {
-        if (outputs[i].state) has_changed = true;
+        if (outputs[i].get_state()) has_changed = true;
         set_output_state(i, false);
     }
 }
@@ -125,7 +130,7 @@ void PushButton::clicked(Vector2 pos)
 {
     has_changed = false;
     for (size_t i = 0; i < outputs.size(); i++) {
-        if (!outputs[i].state) has_changed = true;
+        if (!outputs[i].get_state()) has_changed = true;
         if (CheckCollisionPointRec(pos, getButtonRect(i))) set_output_state(i, true);
         else set_output_state(i, false);
 
