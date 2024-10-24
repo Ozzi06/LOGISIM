@@ -35,6 +35,40 @@ std::string open_file_dialog_json_bin()
         return "";
     }
 }
+std::string open_file_dialog_hex()
+{
+    // Initialize the OPENFILENAMEA structure
+    OPENFILENAMEA ofn;
+    ZeroMemory(&ofn, sizeof(ofn));
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = NULL;
+    ofn.lpstrFile = new CHAR[MAX_PATH]; // Buffer to store the file name
+    ofn.lpstrFile[0] = '\0';
+    ofn.nMaxFile = MAX_PATH;
+    ofn.lpstrFilter = "HEX data Files\0*.hex\0\0"; // Filter to specify the extension
+    ofn.nFilterIndex = 1;
+    ofn.lpstrFileTitle = NULL;
+    ofn.nMaxFileTitle = 0;
+    ofn.lpstrInitialDir = "Saves";
+    ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+
+
+    // Invoke the file dialog and check if the user selected a file
+    if (GetOpenFileNameA(&ofn)) {
+        // Convert the file name from CHAR to std::string
+        std::string filepath = std::string(ofn.lpstrFile);
+        // Delete the buffer
+        delete[] ofn.lpstrFile;
+        // Return the file path
+        return filepath;
+    }
+    else {
+        // Delete the buffer
+        delete[] ofn.lpstrFile;
+        // Return an empty string
+        return "";
+    }
+}
 
 std::string ShowSaveFileDialogJson()
 {

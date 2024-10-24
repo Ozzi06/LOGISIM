@@ -5,6 +5,7 @@
 #include "Displays.h"
 #include "Bus.h"
 #include "FunctionNode.h"
+#include "ROM.h"
 
 Node* NodeFactory::createNode(std::vector<Node*>* container, const std::string& nodeName) {
     static std::unordered_map<std::string, std::function<Node* (std::vector<Node*>* container)>> factoryMap = {
@@ -23,6 +24,7 @@ Node* NodeFactory::createNode(std::vector<Node*>* container, const std::string& 
         { "SevenSegmentDisplay", [](std::vector<Node*>* container) -> Node* { return new SevenSegmentDisplay(container); } },
         { "FunctionNode", [](std::vector<Node*>* container) -> Node* { return new FunctionNode(container); } },
         { "Bus", [](std::vector<Node*>* container) -> Node* { return new Bus(container); } },
+        { "ROMNode", [](std::vector<Node*>* container) -> Node* { return new ROMNode(container); } },
     };
 
     auto it = factoryMap.find(nodeName);

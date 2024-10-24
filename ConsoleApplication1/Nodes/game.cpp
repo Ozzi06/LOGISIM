@@ -264,7 +264,7 @@ void Game::add_function_node()
         for (NodeData* nodedata : output_targs) {
             for (size_t i = 0; i < nodedata->input_count; ++i) {
                 const OutputData* outputdata = reinterpret_cast<const OutputData*>(save.data() + nodedata->outputs_offset + i * sizeof(OutputData));
-                funnode->outputs.push_back(Output_connector(funnode, funnode->outputs.size(), nodedata->label, outputdata->state, outputdata->id));
+                funnode->outputs.push_back(Output_connector(funnode, funnode->outputs.size(), nodedata->label, outputdata->id));
             }
         }
 
@@ -318,7 +318,7 @@ void Game::add_subassebly()
     NormalizeNodeNetworkPosToLocation(subassembly, camera.target);
 
     for (Node* node : subassembly) {
-        node->move_to_container(&nodes);
+        node->set_container(&nodes);
     }
 
     nodes.insert(nodes.end(), subassembly.begin(), subassembly.end());

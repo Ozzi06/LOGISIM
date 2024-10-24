@@ -71,13 +71,13 @@ public:
     virtual int delay() const { return 1; }
 
     // Container Management
-    void move_to_container(std::vector<Node*>* new_container) { container = new_container; }
     const std::vector<Node*>* get_container() const { return container; }
+    void set_container(std::vector<Node*>* new_container) { container = new_container; }
 
     // Offset Management
     bool has_offset() const { return has_offset_val; }
-    void set_abs_node_offset(offset new_node_offset) { abs_node_offset = new_node_offset; has_offset_val = true; }
     size_t get_abs_node_offset() const { return abs_node_offset; }
+    void set_abs_node_offset(offset new_node_offset) { abs_node_offset = new_node_offset; has_offset_val = true; }
 
     // State Update
     bool get_output_state(size_t idx) const;
@@ -122,12 +122,10 @@ struct Input_connector {
 
 struct Output_connector {
 public:
-    Output_connector(Node* host, size_t index, std::string name, bool state = false, uid_t id = generate_id()) : host(host), index(index), /*state(state), new_state(false),*/ name(name), id(id) { }
+    Output_connector(Node* host, size_t index, std::string name, uid_t id = generate_id()) : host(host), index(index), name(name), id(id) { }
     Node* host;
     size_t index;
     std::string name;
-    //bool state;
-    //bool new_state;
     bool get_state() const {
         return host->get_output_state(index);
     }

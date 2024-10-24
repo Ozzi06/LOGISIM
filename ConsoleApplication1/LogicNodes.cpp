@@ -19,6 +19,7 @@ std::string toString(NodeType type)
     case NodeType::FunctionNode: return "FunctionNode";
     case NodeType::BusNode: return "Bus";
     case NodeType::RootFunctionNode: return "RootFunctionNode";
+    case NodeType::ROMNode: return "ROMNode";
     default: return "Unknown NodeType";
     }
 }

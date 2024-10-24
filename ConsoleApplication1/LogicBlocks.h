@@ -119,7 +119,7 @@ private:
         *add<T>() = data;
     }
 
-    void add_raw(uint8_t* data, size_t size) {
+    void add_raw(const uint8_t* data, size_t size) {
         assert(data && size);
         assert(buffer.size() == current_absolute_offset);
         size_t old_size = buffer.size();

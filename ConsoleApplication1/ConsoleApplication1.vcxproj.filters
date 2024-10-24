@@ -66,6 +66,9 @@
     <ClCompile Include="Nodes\FunctionNode.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Nodes\ROM.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Image Include="sprites\logic_gates\AND.png">
@@ -122,6 +125,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Nodes\FunctionNode.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Nodes\ROM.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

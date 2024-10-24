@@ -230,6 +230,7 @@
     <ClCompile Include="Nodes\game.cpp" />
     <ClCompile Include="Nodes\Node.cpp" />
     <ClCompile Include="Nodes\NodeFactory.cpp" />
+    <ClCompile Include="Nodes\ROM.cpp" />
     <ClCompile Include="Nodes\UnaryGates.cpp" />
     <ClCompile Include="random_id.cpp" />
     <ClCompile Include="save_game.cpp" />
@@ -252,6 +253,7 @@
     <ClInclude Include="nlohmann\json.hpp" />
     <ClInclude Include="Nodes\Node.h" />
     <ClInclude Include="Nodes\NodeFactory.h" />
+    <ClInclude Include="Nodes\ROM.h" />
     <ClInclude Include="Nodes\UnaryGates.h" />
     <ClInclude Include="random_id.h" />
     <ClInclude Include="save_game.h" />

@@ -25,7 +25,8 @@ enum class NodeType : uint32_t {
     SevenSegmentDisplay,
     FunctionNode,
     BusNode,
-    RootFunctionNode
+    RootFunctionNode,
+    ROMNode
 };
 
 std::string toString(NodeType type);
@@ -118,6 +119,21 @@ struct FunctionNodeHeader : public NodeHeader {
     //input_count * input               // relative to container
     //output_count * output
     //children
+};
+struct ROMNodeHeader : public NodeHeader {
+    uint16_t input_count;
+    uint16_t output_count;
+    uint32_t data_byte_count;
+
+    offset inputs_offset;
+    offset outputs_offset;
+    offset new_outputs_offset;
+    offset data_offset;
+
+    //input_count * input
+    //output_count * output
+    //output_count * output (new)
+    //data_byte_count * uint8_t
 };
 
 // contains all the info to create a function node out of it

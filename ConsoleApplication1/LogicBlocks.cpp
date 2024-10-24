@@ -2,6 +2,7 @@
 #include "vector_tools.h"
 #include "Bus.h"
 #include "FunctionNode.h"
+#include "ROM.h"
 
 constexpr uint32_t NODE_ALIGNMENT = 4;
 
@@ -496,7 +497,6 @@ void LogicBlockBuilder::add_node(Node& node, bus_map_t& bus_map, size_t abs_cont
                 for (const Output_connector& outconn : node.outputs) {
                     add<output>({ outconn.get_state() });
                 }
-
             }
 
             add_padding(NODE_ALIGNMENT);
@@ -632,6 +632,71 @@ void LogicBlockBuilder::add_node(Node& node, bus_map_t& bus_map, size_t abs_cont
             header->shared_outputs_offset = bus_map[busnode.label].shared_outputs_offset;
             header->shared_new_outputs_offset = bus_map[busnode.label].shared_new_outputs_offset;
         }
+        break;
+    }
+    case NodeType::ROMNode: {
+        ROMNode& romnode = static_cast<ROMNode&>(node);
+        {
+            // Reserve space for header
+            ROMNodeHeader* header = add<ROMNodeHeader>(); // gets destroyed when adding
+
+            // Fill in header
+            header->type = NodeType::ROMNode;
+            header->total_size = 69420;
+
+
+            header->input_count = node.inputs.size();
+            header->output_count = node.outputs.size();
+            header->data_byte_count = romnode.get_data_save()->size();
+            
+            header->inputs_offset = 69420;
+            header->outputs_offset = 69420;
+            header->new_outputs_offset = 69420;
+            header->data_offset = 69420;
+        }
+
+        add_padding(sizeof(input));
+
+        // add inputs
+        size_t abs_inputs_offset = current_absolute_offset;
+        add_inputs(node, sorted_container);
+
+        // add outputs
+        size_t abs_outputs_offset = current_absolute_offset;
+        {
+            for (const Output_connector& outconn : node.outputs) {
+                add<output>({ outconn.get_state() });
+            }
+        }
+        
+        size_t abs_new_outputs_offset = current_absolute_offset;
+        {
+            for (const Output_connector& outconn : node.outputs) {
+                add<output>({ outconn.get_new_state() });
+            }
+        }
+
+        //add data
+        size_t abs_data_offset = current_absolute_offset;
+        {
+            const std::vector<uint8_t>* data = romnode.get_data_save();
+            if(!data->empty()) add_raw(&(*data)[0], data->size());
+        }
+
+
+        {
+            offset inputs_offset = abs_inputs_offset - abs_node_offset;
+            offset outputs_offset = abs_outputs_offset - abs_node_offset;
+            offset new_outputs_offset = abs_new_outputs_offset - abs_node_offset;
+            offset data_offset = abs_data_offset - abs_node_offset;
+            ROMNodeHeader* header = get_at_abs<ROMNodeHeader>(abs_node_offset);
+
+            header->inputs_offset = inputs_offset;
+            header->outputs_offset = outputs_offset;
+            header->new_outputs_offset = new_outputs_offset;
+            header->data_offset = data_offset;
+        }
+
         break;
     }
     default:
@@ -854,7 +919,21 @@ size_t LogicBlock::parse(uint8_t* container, size_t abs_node_offset, std::string
         }
         break;
     }
-
+    case NodeType::ROMNode: {
+        ROMNodeHeader* header = get_at<ROMNodeHeader>(abs_node_offset, container);
+        for (size_t i = 0; i < header->input_count; i++) {
+            std::cout
+                << indent << "  input\n"
+                << indent << "   target offset: " << get_at<input>(abs_node_offset + header->inputs_offset + i * sizeof(input), container)->target_offset << "\n";
+        }
+        for (size_t i = 0; i < header->output_count; i++) {
+            std::cout
+                << indent << "  output\n"
+                //<< indent << "   value: " << *get_at<output>(header->outputs_offset + i * sizeof(output)) << "\n"
+                << indent << "   offset: " << abs_node_offset + header->outputs_offset + i * sizeof(output) << "\n";
+        }
+        break;
+    }
     default: {
         assert(false && "bogus amogus node type");
     }
@@ -1037,6 +1116,40 @@ bool LogicBlock::pretick(uint8_t* container, bool update_all, offset node_offset
 
         return true;
     }
+    case NodeType::ROMNode: {
+        ROMNodeHeader* header = get_at<ROMNodeHeader>(node_offset, container);
+        bool has_changed = false;
+
+
+        uint32_t adress = 0;
+        for (uint32_t i = 0; i < header->input_count; i++) {
+            bool val = get_input_val(i, header->inputs_offset, node_offset, container);
+            adress |= (static_cast<uint32_t>(val) << i);
+        }
+
+        uint16_t byte_size = header->output_count;
+        uint32_t byte_adress = (adress * byte_size) / 8;
+        uint32_t byte_offset = (adress * byte_size) % 8;
+
+        for (uint32_t i = 0; i < header->output_count; i++) {
+            output* old_output = get_at<output>(node_offset + header->outputs_offset + i * sizeof(output), container);
+            output* new_output = get_at<output>(node_offset + header->new_outputs_offset + i * sizeof(output), container);
+
+            byte_adress += byte_offset / 8;
+            byte_offset %= 8;
+
+            if (byte_adress < header->data_byte_count) {
+                uint8_t byte = *get_at<uint8_t>(node_offset + header->data_offset + byte_adress, container);
+
+                *new_output = byte & 1 << byte_offset;
+                if (old_output != new_output) has_changed = true;
+            }
+            ++byte_offset;
+            
+        }
+
+        return has_changed;
+    }
     default: assert(false);
     return false;
     }
@@ -1119,6 +1232,13 @@ void LogicBlock::tick(uint8_t* container, bool update_all, offset node_offset)
         }
         return;
     }
+    case NodeType::ROMNode: {
+        ROMNodeHeader* header = get_at<ROMNodeHeader>(node_offset, container);
+        for (size_t i = 0; i < header->output_count; i++) {
+            *get_at<output>(node_offset + header->outputs_offset + i * sizeof(output), container) = *get_at<output>(node_offset + header->new_outputs_offset + i * sizeof(output), container);
+        }
+        return;
+    }
     case NodeType::RootFunctionNode: {
         FunctionNodeHeader* header = get_at<FunctionNodeHeader>(node_offset, container);
 
@@ -1135,6 +1255,7 @@ void LogicBlock::tick(uint8_t* container, bool update_all, offset node_offset)
         return;
     }
     }
+
 }
 
 size_t LogicblockTools::input_count(offset header_offset, uint8_t* buffer) {
@@ -1170,9 +1291,14 @@ size_t LogicblockTools::input_count(offset header_offset, uint8_t* buffer) {
         break;
     }
 
+    {
     case NodeType::BusNode:
         return get_at<BusNodeHeader>(header_offset, buffer)->input_output_count;
         break;
+    }
+    case NodeType::ROMNode: {
+        return get_at<ROMNodeHeader>(header_offset, buffer)->input_count;
+    }
     default:
         assert(false && "unreachable");
         return 0;
@@ -1209,6 +1335,9 @@ size_t LogicblockTools::output_count(offset header_offset, uint8_t* buffer) {
     case NodeType::BusNode:
         return get_at<BusNodeHeader>(header_offset, buffer)->input_output_count;
 
+    case NodeType::ROMNode:
+        return get_at<ROMNodeHeader>(header_offset, buffer)->output_count;
+    
     default:
         assert(false && "Invalid NodeType");
         return 0;
@@ -1257,7 +1386,9 @@ offset LogicblockTools::outputs_offset(offset header_offset, uint8_t* buffer) {
     case NodeType::BusNode: {
         return get_at<BusNodeHeader>(header_offset, buffer)->shared_outputs_offset;
     }
-
+    case NodeType::ROMNode: {
+        return get_at<ROMNodeHeader>(header_offset, buffer)->outputs_offset;
+    }
     default:
         assert(false && "Invalid NodeType");
         return 0; // Return 0 for invalid types, though this line should never be reached due to the assert
@@ -1307,6 +1438,9 @@ offset LogicblockTools::new_outputs_offset(offset header_offset, uint8_t* buffer
     case NodeType::BusNode: {
         return get_at<BusNodeHeader>(header_offset, buffer)->shared_new_outputs_offset;
     }
+    case NodeType::ROMNode: {
+        return get_at<ROMNodeHeader>(header_offset, buffer)->outputs_offset;
+    }
     default:
         assert(false && "Invalid NodeType");
         return 0; // Return 0 for invalid types, though this line should never be reached due to the assert
@@ -1352,7 +1486,10 @@ offset LogicblockTools::inputs_offset(offset header_offset, uint8_t* buffer) {
     case NodeType::BusNode: {
         return get_at<BusNodeHeader>(header_offset, buffer)->inputs_offset;
     }
+    case NodeType::ROMNode: {
+        return get_at<ROMNodeHeader>(header_offset, buffer)->inputs_offset;
 
+    }
     default:
         assert(false && "Invalid NodeType");
         return 0; // Return 0 for invalid types, though this line should never be reached due to the assert

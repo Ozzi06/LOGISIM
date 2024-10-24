@@ -12,7 +12,7 @@ FunctionNode::FunctionNode(const FunctionNode* base) : Node(base), is_single_tic
     size_t idx = 0;
     for (size_t i = 0; i < base->nodes.size(); ++i) {
         nodes.push_back(base->nodes[i]->copy());
-        nodes[i]->move_to_container(&nodes);
+        nodes[i]->set_container(&nodes);
         idxs[i] = idx;
         ++idx;
     }
@@ -117,7 +117,7 @@ bool FunctionNode::show_node_editor()
         GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "is_cyclic:");
         current_x += 64 + margin;
 
-        if (is_cyclic_val.value()) {
+        if (is_cyclic_val.has_value() && is_cyclic_val.value()) {
             GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "true");
             current_x += 64 + margin;
         }

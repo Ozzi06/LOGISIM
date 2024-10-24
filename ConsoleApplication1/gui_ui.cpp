@@ -7,6 +7,7 @@
 #include "Displays.h"
 #include "Bus.h"
 #include "FunctionNode.h"
+#include "ROM.h"
 #include "game.h"
 
 #include "vector_tools.h"
@@ -388,6 +389,21 @@ bool NodeSelectionMenu() {
             const char* label = "GateNOT";
             if (GuiButton(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, label)) {
                 game.nodes.push_back(new GateNOT(&game.nodes, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
+                game.network_change();
+            }
+            current_depth += curr_el_h;
+        }
+        {   // Spacing line
+            curr_el_h = 15;
+            GuiLine(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, NULL);
+            current_depth += curr_el_h;
+        }
+
+        {   // Button
+            curr_el_h = 30;
+            const char* label = "ROM";
+            if (GuiButton(Rectangle{ menu_area.x + panelScroll.x, menu_area.y + panelScroll.y + current_depth, content_w, curr_el_h }, label)) {
+                game.nodes.push_back(new ROMNode(&game.nodes, GetScreenToWorld2D({ game.screenWidth / 2.0f, game.screenHeight / 2.0f }, game.camera)));
                 game.network_change();
             }
             current_depth += curr_el_h;

@@ -427,7 +427,7 @@ void Node::load_JSON(const json& nodeJson) {
             for (const json& inputJson : nodeJson.at("outputs")) {
                 unsigned long id = inputJson.at("Output_connector").at("id").get<unsigned long>();
                 bool state = inputJson.at("Output_connector").at("state").get<bool>();
-                outputs.push_back(Output_connector(this, i, "", state, id));
+                outputs.push_back(Output_connector(this, i, "", id));
                 initial_output_state.push_back(state);
                 i++;
             }
@@ -461,7 +461,7 @@ void Node::load_Bin(const uint8_t* node_data_ptr, const uint8_t* save_ptr)
     outputs.clear();
     for (size_t i = 0; i < node_data->output_count; i++) {
         const OutputData* outputdata = reinterpret_cast<const OutputData*>(save_ptr + node_data->outputs_offset + i * sizeof(OutputData));
-        outputs.push_back(Output_connector(this, i, outputdata->name, outputdata->state, outputdata->id));
+        outputs.push_back(Output_connector(this, i, outputdata->name, outputdata->id));
         initial_output_state.push_back(outputdata->state);
     }
 
@@ -470,7 +470,7 @@ void Node::load_Bin(const uint8_t* node_data_ptr, const uint8_t* save_ptr)
 
 bool Node::get_output_state(size_t idx) const
 {
-    if (!has_offset()) return initial_output_state[idx];
+    if (!has_offset()) return initial_output_state.size() > idx ? initial_output_state[idx] : false;
     using namespace LogicblockTools;
     assert(abs_node_offset != 0);
     Game& game = Game::getInstance();
@@ -480,7 +480,7 @@ bool Node::get_output_state(size_t idx) const
 
     assert(header->type == get_type());
     switch (header->type) {
-        // Binary Gates
+        // Single outoput nodes
     case NodeType::GateAND:
     case NodeType::GateOR:
     case NodeType::GateNAND:
@@ -493,7 +493,7 @@ bool Node::get_output_state(size_t idx) const
         break;
     }
 
-        // Unary Gates
+        // Multi outoput nodes
     case NodeType::GateBUFFER:
     case NodeType::GateNOT:
     case NodeType::PushButton:
@@ -501,7 +501,8 @@ bool Node::get_output_state(size_t idx) const
     case NodeType::StaticToggleButton:
     case NodeType::LightBulb:
     case NodeType::SevenSegmentDisplay:
-    case NodeType::FunctionNode: {
+    case NodeType::FunctionNode:
+    case NodeType::ROMNode: {
         offset abs_outputs_offset = abs_node_offset + outputs_offset(abs_node_offset, logicblock_ptr);
         assert(outputs.size() > idx);
         size_t outcount = output_count(abs_node_offset, logicblock_ptr);
@@ -530,7 +531,7 @@ bool Node::get_output_state(size_t idx) const
 }
 bool Node::get_new_output_state(size_t idx) const
 {
-    if (!has_offset()) return initial_output_state[idx];
+    if (!has_offset()) return initial_output_state.size() > idx ? initial_output_state[idx] : false;
     using namespace LogicblockTools;
     assert(abs_node_offset != 0);
     Game& game = Game::getInstance();
@@ -568,10 +569,8 @@ bool Node::get_new_output_state(size_t idx) const
     case NodeType::PushButton:
     case NodeType::ToggleButton:
     case NodeType::StaticToggleButton:
-
     case NodeType::LightBulb:
     case NodeType::SevenSegmentDisplay:
-
     case NodeType::FunctionNode: {
         assert(false && "These don't have new_outputs");
         break;
@@ -581,6 +580,15 @@ bool Node::get_new_output_state(size_t idx) const
         FunctionNodeHeader* root_header = game.get_logicblock<FunctionNodeHeader>(0);
         //TODO this is jank but should work, creates absolute offset as long as it's the child of the root node
         offset abs_new_outputs_offset = root_header->children_offset + new_outputs_offset(abs_node_offset, logicblock_ptr);
+        assert(outputs.size() > idx);
+        size_t outcount = output_count(abs_node_offset, logicblock_ptr);
+        if (!(outcount > idx)) return false;
+
+        return *game.get_logicblock<output>(abs_new_outputs_offset + idx * sizeof(output));
+        break;
+    }
+    case NodeType::ROMNode: {
+        offset abs_new_outputs_offset = abs_node_offset + new_outputs_offset(abs_node_offset, logicblock_ptr);
         assert(outputs.size() > idx);
         size_t outcount = output_count(abs_node_offset, logicblock_ptr);
         if (!(outcount > idx)) return false;
