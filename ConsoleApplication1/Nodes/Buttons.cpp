@@ -23,9 +23,9 @@ void Button::draw()
 
 
     if (game.camera.zoom > 1 / 10.0f && !is_selected)
-        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, ColorBrightness(color, -0.2f));
+        DrawRectangleRoundedLinesEx(rec, roundness, segments, lineThick, ColorBrightness(color, -0.2f));
     if (is_selected)
-        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, ColorBrightness(GREEN, -0.6f));
+        DrawRectangleRoundedLinesEx(rec, roundness, segments, lineThick, ColorBrightness(GREEN, -0.6f));
 
     //draw icon
     if (game.camera.zoom > 0.43f) {

@@ -2,6 +2,7 @@
 #include "LogicNodes.h"
 #include <type_traits>
 #include <map>
+#include <cstring>
 
 class LogicBlock {
 public:
@@ -9,7 +10,7 @@ public:
 
     LogicBlock(const LogicBlock& base) : data(nullptr), size(0) {
         allocate(base.size);
-        std::memcpy(data.get(), base.data.get(), size);
+        memcpy(data.get(), base.data.get(), size);
     }
 
     LogicBlock(LogicBlock&& other) noexcept : size(other.size) {

@@ -1,6 +1,6 @@
 #pragma once
 #include <cstdint>
 
-typedef unsigned long uid_t;
+typedef unsigned long my_uid_t;
 
-uid_t generate_id();
+my_uid_t generate_id();

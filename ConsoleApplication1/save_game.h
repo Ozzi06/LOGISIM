@@ -76,13 +76,13 @@ struct alignas(size_t) NodeData {
 };
 
 struct alignas(size_t) InputData {
-    uid_t target_id;
+    my_uid_t target_id;
     char name[56];
     uint32_t pad;
 };
 
 struct alignas(size_t) OutputData {
-    uid_t id;
+    my_uid_t id;
     char name[56];
     bool state;
     uint8_t pad1;

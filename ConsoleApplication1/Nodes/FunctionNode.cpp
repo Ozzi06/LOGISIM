@@ -3,6 +3,7 @@
 #include "raygui.h"
 #include "save_game.h"
 #include "vector_tools.h"
+#include <cstring>
 
 FunctionNode::FunctionNode(const FunctionNode* base) : Node(base), is_single_tick(base->is_single_tick), is_cyclic_val(base->is_cyclic_val), node_data_save(base->node_data_save)
 {
@@ -85,7 +86,9 @@ bool FunctionNode::show_node_editor()
     static bool TextBoxNodeLabelEditMode = false;
     const static size_t buffersize = 256;
     char TextBoxNodeLabel[256] = "";
-    strcpy_s(TextBoxNodeLabel, buffersize, label.c_str());
+
+    std::strncpy(TextBoxNodeLabel, label.c_str(), buffersize - 1);
+    TextBoxNodeLabel[buffersize - 1] = '\0';
 
     GuiPanel(area, "Node Settings");
 
@@ -378,9 +381,9 @@ void FunctionNode::draw()
     DrawRectangleRec(rec, color);
 
     if (game.camera.zoom > 1 / 10.0f && !is_selected)
-        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, ColorBrightness(color, -0.2f));
+        DrawRectangleRoundedLinesEx(rec, roundness, segments, lineThick, ColorBrightness(color, -0.2f));
     if (is_selected)
-        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, ColorBrightness(GREEN, -0.2f));
+        DrawRectangleRoundedLinesEx(rec, roundness, segments, lineThick, ColorBrightness(GREEN, -0.2f));
 
     //draw icon
     if (game.camera.zoom > 0.43f) {

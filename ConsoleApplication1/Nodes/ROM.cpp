@@ -21,7 +21,10 @@ bool ROMNode::show_node_editor()
     static bool TextBoxNodeLabelEditMode = false;
     const static size_t buffersize = 256;
     char TextBoxNodeLabel[256] = "";
-    strcpy_s(TextBoxNodeLabel, buffersize, label.c_str());
+
+    std::strncpy(TextBoxNodeLabel, label.c_str(), buffersize - 1);
+    TextBoxNodeLabel[buffersize - 1] = '\0';
+
 
     GuiPanel(area, "Node Settings");
 

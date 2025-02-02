@@ -2,7 +2,7 @@
 
 #include "raylib.h"
 #include "rlgl.h"
-#include "raymath.h"
+//#include "raymath.h"
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
 #include "game.h"
@@ -11,7 +11,7 @@
 //#define GUI_WINDOW_HELP_IMPLEMENTATION
 //#include "gui_window_help.h"
 
-#include <fstream>
+//#include <fstream>
 #include "vector_tools.h"
 
 void LoadTextures() {

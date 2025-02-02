@@ -11,11 +11,11 @@
 std::string num_toString(double number, int precision);
 
 
-bool operator==(const Vector2& v1, const Vector2& v2);
+//bool operator==(const Vector2& v1, const Vector2& v2);
 
-Vector2 operator+(const Vector2& v1, const Vector2& v2);
+//Vector2 operator+(const Vector2& v1, const Vector2& v2);
 
-Vector2 operator-(const Vector2& v1, const Vector2& v2);
+//Vector2 operator-(const Vector2& v1, const Vector2& v2);
 
 Vector2 operator*(const Vector2& v, float scalar);
 

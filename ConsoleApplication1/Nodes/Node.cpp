@@ -18,9 +18,9 @@ void Node::draw()
     DrawRectangleRec(rec, color);
 
     if (game.camera.zoom > 1 / 10.0f && !is_selected)
-        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, ColorBrightness(color, -0.2f));
+        DrawRectangleRoundedLinesEx(rec, roundness, segments, lineThick, ColorBrightness(color, -0.2f));
     if (is_selected)
-        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, ColorBrightness(GREEN, -0.2f));
+        DrawRectangleRoundedLinesEx(rec, roundness, segments, lineThick, ColorBrightness(GREEN, -0.2f));
 
     //draw icon
     if (game.camera.zoom > 0.43f) {
@@ -59,7 +59,10 @@ bool Node::show_node_editor()
     static bool TextBoxNodeLabelEditMode = false;
     const static size_t buffersize = 256;
     char TextBoxNodeLabel[256] = "";
-    strcpy_s(TextBoxNodeLabel, buffersize, label.c_str());
+
+    std::strncpy(TextBoxNodeLabel, label.c_str(), buffersize - 1);
+    TextBoxNodeLabel[buffersize - 1] = '\0';
+
 
     GuiPanel(area, "Node Settings");
 
@@ -168,7 +171,7 @@ void connect_node_network(std::vector<Node*>* nodes) {
         for (Input_connector& input : node->inputs) {
 
             bool found = false;
-            uid_t id = input.target_id;
+            my_uid_t id = input.target_id;
             if (id) {
                 for (Node* node2 : *nodes) {
                     if (found) break;

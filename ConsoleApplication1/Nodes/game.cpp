@@ -674,7 +674,7 @@ void Game::save_bin(std::string filePath)
     savebuilder.save_game(filePath);
 }
 
-void sort_nodes(std::vector<Node*>& nodes);
+static void sort_nodes(std::vector<Node*>& nodes);
 
 void Game::build_logic_block()
 {

@@ -99,10 +99,10 @@ protected:
 };
 
 struct Input_connector {
-    Input_connector(Node* host, size_t index, std::string name, Output_connector* target = nullptr, uid_t target_id = 0) : host(host), target(target), index(index), name(name), target_id(target_id) {}
+    Input_connector(Node* host, size_t index, std::string name, Output_connector* target = nullptr, my_uid_t target_id = 0) : host(host), target(target), index(index), name(name), target_id(target_id) {}
     Node* host;
     Output_connector* target;
-    uid_t target_id;
+    my_uid_t target_id;
     size_t index;
     std::string name;
 
@@ -122,7 +122,7 @@ struct Input_connector {
 
 struct Output_connector {
 public:
-    Output_connector(Node* host, size_t index, std::string name, uid_t id = generate_id()) : host(host), index(index), name(name), id(id) { }
+    Output_connector(Node* host, size_t index, std::string name, my_uid_t id = generate_id()) : host(host), index(index), name(name), id(id) { }
     Node* host;
     size_t index;
     std::string name;
@@ -133,7 +133,7 @@ public:
         return host->get_new_output_state(index);
     }
 
-    uid_t id;
+    my_uid_t id;
 
     Vector2 get_connection_pos() const {
         const float width = 30.0f;

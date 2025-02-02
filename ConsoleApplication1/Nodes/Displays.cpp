@@ -16,9 +16,9 @@ void LightBulb::draw()
             DrawRectangleRounded(rec, roundness, segments, BLACK);
 
         if (game.camera.zoom > 1 / 10.0f && !is_selected)
-            DrawRectangleRoundedLines(rec, roundness, segments, lineThick, Fade(GRAY, 0.4f));
+            DrawRectangleRoundedLinesEx(rec, roundness, segments, lineThick, Fade(GRAY, 0.4f));
         if (is_selected)
-            DrawRectangleRoundedLines(rec, roundness, segments, lineThick, Fade(GREEN, 0.4f));
+            DrawRectangleRoundedLinesEx(rec, roundness, segments, lineThick, Fade(GREEN, 0.4f));
 
         //draw icon
         if (game.camera.zoom > 0.43f) {
@@ -66,9 +66,9 @@ void SevenSegmentDisplay::draw()
     DrawRectangleRec(rec, color);
 
     if (game.camera.zoom > 1 / 10.0f && !is_selected)
-        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, ColorBrightness(color, -0.2f));
+        DrawRectangleRoundedLinesEx(rec, roundness, segments, lineThick, ColorBrightness(color, -0.2f));
     if (is_selected)
-        DrawRectangleRoundedLines(rec, roundness, segments, lineThick, ColorBrightness(GREEN, -0.2f));
+        DrawRectangleRoundedLinesEx(rec, roundness, segments, lineThick, ColorBrightness(GREEN, -0.2f));
 
     //draw name
     if (game.camera.zoom > 1 / 10.0f) {
