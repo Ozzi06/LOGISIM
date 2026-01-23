@@ -12,8 +12,8 @@ std::string open_file_dialog_json_bin()
     ofn.lpstrFile = new CHAR[MAX_PATH]; // Buffer to store the file name
     ofn.lpstrFile[0] = '\0';
     ofn.nMaxFile = MAX_PATH;
-    ofn.lpstrFilter = "Bin Files\0*.bin\0Json Files\0*.json\0\0"; // Filter to specify the extension
-    ofn.nFilterIndex = 1;
+    ofn.lpstrFilter = "Supported Files (*.bin, *.json)\0*.bin;*.json\0Bin Files (*.bin)\0*.bin\0Json Files (*.json)\0*.json\0\0";
+    ofn.nFilterIndex = 1; // This points to the "Supported Files" entry
     ofn.lpstrFileTitle = NULL;
     ofn.nMaxFileTitle = 0;
     ofn.lpstrInitialDir = "Saves";
@@ -186,6 +186,17 @@ std::string open_file_dialog_json_bin()
 
     // Set the initial folder to "Saves" if possible.
     gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(dialog), "Saves");
+
+    GtkFileFilter *filter_all = gtk_file_filter_new();
+    gtk_file_filter_set_name(filter_all, "All Files");
+    gtk_file_filter_add_mime_type(filter_all, "*/*"); // Matches any file type
+    gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), filter_all);
+
+    GtkFileFilter *filter_both = gtk_file_filter_new();
+    gtk_file_filter_set_name(filter_both, "Supported Files (*.bin, *.json)");
+    gtk_file_filter_add_pattern(filter_both, "*.bin");  // Add first pattern
+    gtk_file_filter_add_pattern(filter_both, "*.json"); // Add second pattern to the same filter
+    gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), filter_both);
 
     // Create and add a filter for binary (*.bin) files.
     GtkFileFilter *filter_bin = gtk_file_filter_new();

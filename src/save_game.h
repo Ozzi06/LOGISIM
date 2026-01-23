@@ -1,8 +1,13 @@
 #pragma once
+#include <cstring>
+#include <raylib.h>
 #include <string>
-#include <fstream>
+#include "LogicNodes.h"
+#include "random_id.h"
+// #include <fstream>
 #include <cassert>
-#include "game.h"
+#include <vector>
+// #include "game.h"
 //memory layout:
 
 /*

@@ -1,8 +1,9 @@
 #include "ROM.h"
 #include "game.h"
 #include "raygui.h"
-#include "save_game.h"
-#include "vector_tools.h"
+#include "raymath.h"
+// #include "save_game.h"
+// #include "vector_tools.h"
 #include <file_dialogs.h>
 
 bool ROMNode::show_node_editor()
@@ -93,7 +94,7 @@ bool ROMNode::show_node_editor()
 
 void ROMNode::grab_new_data()
 {
-    Game& game = Game::getInstance();
+    // Game& game = Game::getInstance();
 
     std::filesystem::path filepath = open_file_dialog_hex();
     std::ifstream dataFile(filepath, std::ios::binary);

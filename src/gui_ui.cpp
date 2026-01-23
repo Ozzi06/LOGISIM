@@ -6,7 +6,7 @@
 #include "Buttons.h"
 #include "Displays.h"
 #include "Bus.h"
-#include "FunctionNode.h"
+// #include "FunctionNode.h"
 #include "ROM.h"
 #include "game.h"
 
@@ -16,9 +16,9 @@
 
 #include "file_dialogs.h"
 
-#include <fstream>
-#include <filesystem>
-#include "save_game.h"
+// #include <fstream>
+// #include <filesystem>
+// #include "save_game.h"
 
 
 void edit_mode_changed() {
@@ -421,7 +421,7 @@ bool NodeSelectionMenu() {
 
 bool GuiUi()
 {
-    Game& game = Game::getInstance();
+    // Game& game = Game::getInstance();
     bool does_hover = false;
 
     if (EditModeButtons()) does_hover = true;

@@ -1,5 +1,7 @@
 #include "save_game.h"
 #include "Node.h"
+#include "game.h"
+#include <iostream>
 void SaveBuilder::save_game(std::string filePath)
 {
     Game& game = Game::getInstance();
@@ -37,7 +39,7 @@ void SaveBuilder::save_game(std::string filePath)
     }
 
     //add visual nodes
-    size_t nodes_offs = current_absolute_offset;
+    // size_t nodes_offs = current_absolute_offset;
     {
         for (Node* node : game.nodes) {
             size_t node_offs = current_absolute_offset;

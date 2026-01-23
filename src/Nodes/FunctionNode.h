@@ -1,6 +1,6 @@
 #pragma once
 #include "Node.h"
-
+#include "LogicBlocks.h"
 class FunctionNode : public Node {
 public:
     //constructors and destructors

@@ -1,12 +1,12 @@
-CC = g++
+CC = clang++
 
 # Get GTK flags from pkg-config
 GTK_CFLAGS := $(shell pkg-config --cflags gtk+-3.0)
 GTK_LDFLAGS := $(shell pkg-config --libs gtk+-3.0)
 
 OPT ?= -O0
-CFLAGS = -Wall -I/usr/include -Isrc/Nodes -I./src/ -std=c++20 $(OPT) $(GTK_CFLAGS)
-LDFLAGS = -L/usr/lib -lraylib -luuid $(GTK_LDFLAGS)
+CFLAGS = -Wall -Wextra -Wno-missing-field-initializers -Wno-unused-parameter -I/usr/include -Isrc/Nodes -I./src/ -std=c++20 $(OPT) $(GTK_CFLAGS)
+LDFLAGS = -L/usr/lib -lraylib -luuid -lm $(GTK_LDFLAGS)
 
 TARGET = out
 OBJDIR = build

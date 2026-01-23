@@ -1,8 +1,11 @@
 #include "game.h"
+#include "gui_ui.h"
+#include "raymath.h"
 #include "vector_tools.h"
 #include "save_game.h"
 #include "file_dialogs.h"
 #include "FunctionNode.h"
+#include <cstdint>
 
 Game Game::instance;
 
@@ -156,12 +159,12 @@ void Game::copy_selected_nodes()
         for (Input_connector& input : clipboard[i]->inputs) {
             if (input.target && input.target->host->is_selected) {
 
-                size_t target_idx = -1;
+                size_t target_idx = SIZE_MAX;
                 for (size_t p = 0; p < input.target->host->outputs.size(); ++p) {
                     if (&input.target->host->outputs[p] == input.target) target_idx = p;
                 }
 
-                assert(target_idx != -1);
+                assert(target_idx != SIZE_MAX);
 
                 for (size_t j = 0; j < nodes.size(); ++j) {
 
@@ -217,7 +220,7 @@ void Game::add_function_node()
         nodes.push_back(funnode);
 
         //load network
-        size_t curr_node_offset = saveheader->Nodes_offset;
+        // size_t curr_node_offset = saveheader->Nodes_offset;
 
         FunctionNodeHeader* logic_block_root = reinterpret_cast<FunctionNodeHeader*>(save.data() + saveheader->LogicBlock_offset);
         assert(logic_block_root->type == NodeType::RootFunctionNode || logic_block_root->type == NodeType::FunctionNode);
@@ -515,7 +518,7 @@ void Game::handle_input()
             }
 
             if (!moved_mouse) {
-                bool did_connect = false;
+                // bool did_connect = false;
 
                 for (auto it = nodes.rbegin(); it != nodes.rend(); ++it) {
                     Node* node = *it;
@@ -777,11 +780,11 @@ static void sort_nodes(std::vector<Node*>& nodes)
     }
     if (max_delay != -1) {
         std::sort(nodes.begin(), nodes.end(), [&](Node* a, Node* b) {
-            size_t max_a = 0;
+            int max_a = 0;
             for (Output_connector& out : a->outputs) {
                 if (marked_outconns[&out].first > max_a) max_a = marked_outconns[&out].first;
             }
-            size_t max_b = 0;
+            int max_b = 0;
             for (Output_connector& out : b->outputs) {
                 if (marked_outconns[&out].first > max_b) max_b = marked_outconns[&out].first;
             }

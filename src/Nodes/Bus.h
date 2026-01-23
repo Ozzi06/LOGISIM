@@ -56,7 +56,7 @@ struct Bus : public Node {
     virtual std::string get_type_str() const override { return"Bus"; }
     virtual NodeType get_type() const override { return NodeType::BusNode; }
 
-    virtual std::vector<Input_connector*> connected_inputs(size_t output_idx) {
+    virtual std::vector<Input_connector*> connected_inputs(size_t output_idx) override {
         std::vector<Input_connector*> conned;
 
         for (Node* node : *container) {

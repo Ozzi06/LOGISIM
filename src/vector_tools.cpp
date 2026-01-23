@@ -47,8 +47,8 @@ Rectangle RectFrom2Points(Vector2 a, Vector2 b)
 {
     float x = std::fmin(a.x, b.x);
     float y = std::fmin(a.y, b.y);
-    float size_x = abs(a.x - b.x);
-    float size_y = abs(a.y - b.y);
+    float size_x = std::abs(a.x - b.x);
+    float size_y = std::abs(a.y - b.y);
     return Rectangle{ x, y, size_x, size_y };
 }
 

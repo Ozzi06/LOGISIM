@@ -1,15 +1,24 @@
-#pragma once
-
 #include "raylib.h"
 #include "rlgl.h"
-//#include "raymath.h"
+
+// Save current diagnostic state
+#pragma clang diagnostic push 
+
+// Ignore the specific warnings raygui triggers
+#pragma clang diagnostic ignored "-Wdeprecated-enum-compare-conditional"
+#pragma clang diagnostic ignored "-Wunused-but-set-variable"
+#pragma clang diagnostic ignored "-Wmissing-field-initializers"
+#pragma clang diagnostic ignored "-Wunused-parameter"
+
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
+
+// Restore diagnostic state for your own code
+#pragma clang diagnostic pop
+
 #include "game.h"
 #include "BinaryGates.h"
 #include "UnaryGates.h"
-//#define GUI_WINDOW_HELP_IMPLEMENTATION
-//#include "gui_window_help.h"
 
 //#include <fstream>
 #include "vector_tools.h"
@@ -75,14 +84,14 @@ int run_game()
     game.camera.offset = { game.screenWidth / 2.0f , game.screenHeight / 2.0f };
 
 
-    float width = 500.0f;
-    float height = 500.0f;
+    // float width = 500.0f;
+    // float height = 500.0f;
 
     // Main game loop
 
     double draw_frequency = 60;
     double t = GetTime();
-    double prev_draw_t = 0;
+    // double prev_draw_t = 0;
 
 
     double expected_updates = 0.0;

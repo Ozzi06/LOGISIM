@@ -13,7 +13,7 @@ struct UnaryLogicGate : public Node {
     virtual void remove_input() override;
 
 
-    virtual std::vector<Input_connector*> connected_inputs(size_t output_idx) {
+    virtual std::vector<Input_connector*> connected_inputs(size_t output_idx) override {
         std::vector<Input_connector*> a;
         a.push_back(&inputs[output_idx]);
         return a;

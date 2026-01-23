@@ -2,10 +2,13 @@
 #include "game.h"
 #include "raygui.h"
 #include "save_game.h"
-#include "vector_tools.h"
+// #include "vector_tools.h"
+#include "raylib.h"
+#include "raymath.h"
+#include <cstdint>
 #include <cstring>
 
-FunctionNode::FunctionNode(const FunctionNode* base) : Node(base), is_single_tick(base->is_single_tick), is_cyclic_val(base->is_cyclic_val), node_data_save(base->node_data_save)
+FunctionNode::FunctionNode(const FunctionNode* base) : Node(base), node_data_save(base->node_data_save), is_cyclic_val(base->is_cyclic_val), is_single_tick(base->is_single_tick)
 {
     nodes.clear();
     size_t* idxs = new size_t[base->nodes.size()];
@@ -23,12 +26,12 @@ FunctionNode::FunctionNode(const FunctionNode* base) : Node(base), is_single_tic
         for (Input_connector& input : nodes[i]->inputs) {
             if (input.target) {
 
-                size_t target_idx = -1;
+                size_t target_idx = SIZE_MAX;
                 for (size_t p = 0; p < input.target->host->outputs.size(); ++p) {
                     if (&input.target->host->outputs[p] == input.target) target_idx = p;
                 }
 
-                assert(target_idx != -1);
+                assert(target_idx != SIZE_MAX);
 
                 for (size_t j = 0; j < base->nodes.size(); ++j) {
 
@@ -540,11 +543,11 @@ void FunctionNode::sort_linear()
     }
 
     std::sort(nodes.begin(), nodes.end(), [&](Node* a, Node* b) {
-        size_t max_a = 0;
+        int max_a = 0;
         for (Output_connector& out : a->outputs) {
             if (marked_outconns[&out] > max_a) max_a = marked_outconns[&out];
         }
-        size_t max_b = 0;
+        int max_b = 0;
         for (Output_connector& out : b->outputs) {
             if (marked_outconns[&out] > max_b) max_b = marked_outconns[&out];
         }

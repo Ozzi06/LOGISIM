@@ -1,8 +1,9 @@
 #include "Node.h"
 #include "game.h"
-#include "gui_ui.h"
+// #include "gui_ui.h"
 #include "raygui.h"
-#include "vector_tools.h"
+// #include "vector_tools.h"
+#include "raymath.h"
 #include "save_game.h"
 #include "NodeFactory.h"
 
@@ -144,18 +145,17 @@ bool Node::show_node_editor()
 
 void Node::change_label(const char* newlabel) {
     label = newlabel;
-    Game& game = Game::getInstance();
 }
 
-Node::Node(std::vector<Node*>* container, Vector2 pos, Vector2 size, Color color, std::vector<Input_connector> in, std::vector<Output_connector> out) : container(container), size(size), color(color), is_selected(false), inputs(in), outputs(out), pos(pos)
+Node::Node(std::vector<Node*>* container, Vector2 pos, Vector2 size, Color color, std::vector<Input_connector> in, std::vector<Output_connector> out) : is_selected(false), pos(pos), size(size), color(color), inputs(in), outputs(out), container(container)
 {
     reserve_outputs();
     if (outputs.size() == 0)
         outputs.push_back(*new Output_connector(this, 0, ""));
 }
 
-Node::Node(const Node* base) : container(base->container), is_selected(false), pos(base->pos),
-size(base->size), color(base->color), label(base->label)
+Node::Node(const Node* base) : is_selected(false), pos(base->pos), size(base->size),
+color(base->color), label(base->label), container(base->container)
 {
     reserve_outputs();
     for (size_t i = 0; i < base->inputs.size(); ++i) {

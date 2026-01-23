@@ -1,6 +1,10 @@
 #saved games/functions/subassemblies
 Saves/
 
+#clang cache
+.cache/
+compile_commands.json
+
 # Build results
 build/
 out

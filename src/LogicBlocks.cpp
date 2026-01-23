@@ -748,7 +748,7 @@ void LogicBlockBuilder::connect_children(uint8_t* container, size_t child_count)
     offset curr_child_offset = 0;
 
     for (size_t i = 0; i < child_count; i++) {
-        NodeHeader* curr_child_header = get_at<NodeHeader>(curr_child_offset, container);
+        // NodeHeader* curr_child_header = get_at<NodeHeader>(curr_child_offset, container);
         // Connect the inputs of the child nodes
         
 

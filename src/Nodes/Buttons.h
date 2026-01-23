@@ -18,8 +18,8 @@ struct Button :public Node {
 
     virtual Texture get_texture() const override { return{ 0 }; }
 
-    virtual void not_clicked() = 0;
-    virtual void clicked(Vector2 pos) = 0;
+    virtual void not_clicked() override = 0;
+    virtual void clicked(Vector2 pos) override = 0;
 
     virtual void set_output_state(size_t index, bool new_state);
 

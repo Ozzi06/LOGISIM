@@ -1,6 +1,13 @@
 #pragma once
+#include <memory>
+#include <vector>
+#include <string>
+#include <fstream>
+#include <iostream>
+#include <iomanip>
+#include <cassert>
 #include "LogicNodes.h"
-#include <type_traits>
+// #include <type_traits>
 #include <map>
 #include <cstring>
 

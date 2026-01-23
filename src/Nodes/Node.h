@@ -1,16 +1,49 @@
 #pragma once
 #include <vector>
-#include "gui_ui.h"
+// #include "gui_ui.h"
 #include "raylib.h"
 #include "nlohmann/json.hpp"
-#include <utility>
-#include "LogicBlocks.h"
+// #include <utility>
+// #include "LogicBlocks.h"
+#include "LogicNodes.h"
 #include "random_id.h"
 
 using json = nlohmann::json;
 
 struct Output_connector;
-struct Input_connector;
+
+struct Input_connector {
+    Input_connector(Node* host, size_t index, std::string name, Output_connector* target = nullptr, my_uid_t target_id = 0) : host(host), target(target), target_id(target_id), index(index), name(name) {}
+    Node* host;
+    Output_connector* target;
+    my_uid_t target_id;
+    size_t index;
+    std::string name;
+
+    Vector2 get_connection_pos() const;
+
+    void draw() const;
+
+    json to_JSON() const;
+};
+
+struct Output_connector {
+public:
+    Output_connector(Node* host, size_t index, std::string name, my_uid_t id = generate_id()) : host(host), index(index), name(name), id(id) { }
+    Node* host;
+    size_t index;
+    std::string name;
+    bool get_state() const;
+    bool get_new_state() const;
+
+    my_uid_t id;
+
+    Vector2 get_connection_pos() const;
+
+    void draw() const;
+
+    json to_JSON() const;
+};
 
 struct Node {
 public:
@@ -98,53 +131,26 @@ protected:
     bool has_offset_val = false;
 };
 
-struct Input_connector {
-    Input_connector(Node* host, size_t index, std::string name, Output_connector* target = nullptr, my_uid_t target_id = 0) : host(host), target(target), index(index), name(name), target_id(target_id) {}
-    Node* host;
-    Output_connector* target;
-    my_uid_t target_id;
-    size_t index;
-    std::string name;
+inline Vector2 Input_connector::get_connection_pos() const {
+    const float width = 30;
+    float spacing = 30;
+    // Now this works because Node's definition is visible!
+    float pos_y = host->pos.y + ((host->inputs.size() - 1) * spacing / 2.0f) - (index * spacing);
+    float pos_x = host->pos.x - host->size.x / 2.0f - width;
+    return Vector2{ pos_x, pos_y };
+}
 
-    Vector2 get_connection_pos() const {
-        const float width = 30;
-        float spacing = 30;
+inline bool Output_connector::get_state() const {
+    return host->get_output_state(index);
+}
+inline bool Output_connector::get_new_state() const {
+    return host->get_new_output_state(index);
+}
 
-        float pos_y = host->pos.y + ((host->inputs.size() - 1) * spacing / 2.0f) - (index * spacing);
-        float pos_x = host->pos.x - host->size.x / 2.0f - width;
-        return Vector2{ pos_x, pos_y };
-    }
-
-    void draw() const;
-
-    json to_JSON() const;
-};
-
-struct Output_connector {
-public:
-    Output_connector(Node* host, size_t index, std::string name, my_uid_t id = generate_id()) : host(host), index(index), name(name), id(id) { }
-    Node* host;
-    size_t index;
-    std::string name;
-    bool get_state() const {
-        return host->get_output_state(index);
-    }
-    bool get_new_state() const {
-        return host->get_new_output_state(index);
-    }
-
-    my_uid_t id;
-
-    Vector2 get_connection_pos() const {
-        const float width = 30.0f;
-        const float spacing = 30.0f;
-
-        float pos_y = host->pos.y + ((host->outputs.size() - 1) * spacing / 2.0f) - (index * spacing);
-        float pos_x = host->pos.x + host->size.x / 2.0f + width;
-        return Vector2{ pos_x, pos_y };
-    }
-
-    void draw() const;
-
-    json to_JSON() const;
-};
+inline Vector2 Output_connector::get_connection_pos() const {
+    const float width = 30.0f;
+    const float spacing = 30.0f;
+    float pos_y = host->pos.y + ((host->outputs.size() - 1) * spacing / 2.0f) - (index * spacing);
+    float pos_x = host->pos.x + host->size.x / 2.0f + width;
+    return Vector2{ pos_x, pos_y };
+}

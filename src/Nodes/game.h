@@ -1,10 +1,10 @@
 #pragma once
 
-#include "gui_ui.h"
+// #include "gui_ui.h"
 #include <vector>
-#include "random_id.h"
+// #include "random_id.h"
 
-#include <utility>
+// #include <utility>
 #include "LogicBlocks.h"
 #include "raylib.h"
 #include "nlohmann/json.hpp"
@@ -31,7 +31,7 @@ class Game {
 private:
     // Private constructor to prevent instantiation
     Game() {
-        camera = { 0 };
+        camera = {{0}};
         regular = { 0 };
     }
 
