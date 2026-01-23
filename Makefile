@@ -4,11 +4,14 @@ CC = g++
 GTK_CFLAGS := $(shell pkg-config --cflags gtk+-3.0)
 GTK_LDFLAGS := $(shell pkg-config --libs gtk+-3.0)
 
-CFLAGS = -Wall -I/usr/include -I./Nodes -I./ -std=c++20 $(GTK_CFLAGS)
+OPT ?= -O0
+CFLAGS = -Wall -I/usr/include -Isrc/Nodes -I./src/ -std=c++20 $(OPT) $(GTK_CFLAGS)
 LDFLAGS = -L/usr/lib -lraylib -luuid $(GTK_LDFLAGS)
+
 TARGET = out
-SRC = $(wildcard *.cpp ./Nodes/*.cpp)
-OBJ = $(SRC:.cpp=.o)
+OBJDIR = build
+SRC = $(wildcard src/*.cpp src/Nodes/*.cpp)
+OBJ = $(SRC:%.cpp=$(OBJDIR)/%.o)
 
 # Default target
 all: $(TARGET)
@@ -18,7 +21,8 @@ $(TARGET): $(OBJ)
 	$(CC) $(CFLAGS) $(OBJ) $(LDFLAGS) -o $(TARGET)
 
 # Compile source files to object files
-%.o: %.cpp
+$(OBJDIR)/%.o: %.cpp
+	mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Run the program
@@ -27,4 +31,4 @@ run: $(TARGET)
 
 # Clean object files and target executable
 clean:
-	rm -f $(TARGET) $(OBJ)
+	rm -rf $(OBJDIR) $(TARGET)
