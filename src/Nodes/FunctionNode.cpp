@@ -1,4 +1,5 @@
 #include "FunctionNode.h"
+#include "LogicNodes.h"
 #include "game.h"
 #include "gui_ui.h"
 #include "raygui.h"
@@ -9,10 +10,8 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
-#include <functional>
-#include <unordered_map>
 
-FunctionNode::FunctionNode(const FunctionNode* base) : Node(base), node_data_save(base->node_data_save), is_cyclic_val(base->is_cyclic_val), is_single_tick(base->is_single_tick)
+FunctionNode::FunctionNode(const FunctionNode* base) : Node(base), node_data_save(base->node_data_save), is_cyclic_val(base->is_cyclic_val)
 {
     nodes.clear();
     size_t* idxs = new size_t[base->nodes.size()];
@@ -76,6 +75,45 @@ FunctionNode::~FunctionNode()
         delete node;
     }
 }
+
+int FunctionNode::delay() const {
+    Game& game = Game::getInstance();
+    if (!has_offset()) return 1; // fallback for nodes not yet serialized
+    FunctionNodeHeader* header = game.get_logicblock<FunctionNodeHeader>(get_abs_node_offset());
+    if (header->logic_depth == LOGIC_DEPTH_CYCLIC) {
+        return -1;
+    }
+    return header->logic_depth;
+}
+
+bool FunctionNode::is_cyclic() const {
+    Game& game = Game::getInstance();
+    if (!has_offset()) return false; // fallback
+    const FunctionNodeHeader* header = game.get_logicblock<FunctionNodeHeader>(get_abs_node_offset());
+    return header->logic_depth == LOGIC_DEPTH_CYCLIC;
+}
+
+bool FunctionNode::get_is_single_tick() const {
+    Game& game = Game::getInstance();
+    if (!has_offset()) return false;
+    const FunctionNodeHeader* header = game.get_logicblock<FunctionNodeHeader>(get_abs_node_offset());
+    return header->is_single_tick;
+}
+
+void FunctionNode::set_is_single_tick(bool value) {
+    Game& game = Game::getInstance();
+    if (!has_offset()) return;
+    FunctionNodeHeader* header = game.get_logicblock<FunctionNodeHeader>(get_abs_node_offset());
+    header->is_single_tick = value;
+    header->has_changed = true; // Mark for rebuild?
+}
+bool FunctionNode::get_has_changed() const {
+    Game& game = Game::getInstance();
+    if (!has_offset()) return false;
+    const FunctionNodeHeader* header = game.get_logicblock<FunctionNodeHeader>(get_abs_node_offset());
+    return header->has_changed;
+}
+
 
 bool FunctionNode::show_node_editor()
 {
@@ -171,10 +209,10 @@ bool FunctionNode::show_node_editor()
         curr_el_h = 32;
         float current_x = Pos.x + margin;
 
-        GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "has_changed:");
+        GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "has_changed: ");
         current_x += 64 + margin;
 
-        if (has_changed) {
+        if (get_has_changed()) {
             GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "true");
             current_x += 64 + margin;
         }
@@ -195,18 +233,27 @@ bool FunctionNode::show_node_editor()
     {   // Change mode
         curr_el_h = 32;
         float current_x = Pos.x + margin;
-
         if (is_cyclic()) {}
-        else if (!is_single_tick) {
-            GuiToggle(Rectangle{ current_x, Pos.y + current_depth, 128, 32 }, "make_single_tick", &is_single_tick);
-            if (is_single_tick)
-                delay_str = "1";
-            current_depth += curr_el_h;
-        }
         else {
-            GuiToggle(Rectangle{ current_x, Pos.y + current_depth, 128, 32 }, "make_normal_timing", &is_single_tick);
-            if (!is_single_tick)
-                delay_str = std::to_string(delay());
+            // Create a local variable that mirrors the header bit
+            bool single_tick = get_is_single_tick(); // reads from header
+            
+            const char* label = single_tick ? "make_normal_timing" : "make_single_tick";
+            
+            GuiToggle(Rectangle{ current_x, Pos.y + current_depth, 128, 32 }, label, &single_tick);
+            
+            // Check if it changed and write back
+            if (single_tick != get_is_single_tick()) {
+                set_is_single_tick(single_tick);
+                
+                // Update delay string
+                if (single_tick) {
+                    delay_str = "1";
+                } else {
+                    delay_str = std::to_string(delay());
+                }
+            }
+            
             current_depth += curr_el_h;
         }
     }
@@ -233,91 +280,6 @@ void FunctionNode::load_extra_bin(const uint8_t* node_data_ptr, const uint8_t* s
     assert(logic_block_root->type == NodeType::RootFunctionNode);
     const uint8_t* funheader_ptr = save_ptr + saveheader->LogicBlock_offset + nodedata->abs_node_offset;
     allocate_node_data_save(funheader_ptr);
-}
-
-void FunctionNode::load_from_nodes()
-{
-    // populate and sort the arrays for where to route the input and output connectors on the function node
-    for (Node* node : nodes) {
-        if (node->isInput()) {
-            input_targs.push_back(node);
-        }
-        if (node->isOutput()) {
-            output_targs.push_back(node);
-        }
-    }
-    std::sort(input_targs.begin(), input_targs.end(), [](Node* a, Node* b) {
-        return a->pos.y < b->pos.y; // Return true if 'a' should come before 'b'
-        });
-
-    std::sort(output_targs.begin(), output_targs.end(), [](Node* a, Node* b) {
-        return a->pos.y < b->pos.y; // Return true if 'a' should come before 'b'
-        });
-
-    // create input and output connectors then resize the node
-    size_t targ_input_count = 0;
-    for (size_t i = 0; i < input_targs.size(); i++) {
-        for (size_t j = 0; j < input_targs[i]->outputs.size(); j++) {
-            targ_input_count++;
-        }
-    }
-    size_t targ_output_count = 0;
-    for (size_t i = 0; i < output_targs.size(); i++) {
-        for (size_t j = 0; j < output_targs[i]->inputs.size(); j++) {
-            targ_output_count++;
-        }
-    }
-
-    // adjust the connector count
-    {
-        while (inputs.size() < targ_input_count) {
-            inputs.push_back(Input_connector(this, inputs.size(), ""));
-        }
-        while (inputs.size() > targ_input_count) {
-            inputs.pop_back();
-        }
-        assert(inputs.size() == targ_input_count);
-
-        while (outputs.size() < targ_output_count) {
-            outputs.push_back(Output_connector(this, outputs.size(), ""));
-        }
-        while (outputs.size() > targ_output_count) {
-            outputs.pop_back();
-        }
-    }
-
-
-    //label the connectors
-    {
-        size_t input_index = 0;
-        for (Node* targ_in : input_targs) {
-            for (Output_connector& _ : targ_in->outputs) {
-                for (Input_connector& inconn : inputs) {
-                    if (inconn.index == input_index) {
-                        inconn.name = targ_in->label;
-                        input_index++;
-                        break;
-                    }
-                }
-            }
-        }
-
-        size_t output_index = 0;
-        for (Node* targ_out : output_targs) {
-            for (Input_connector& _ : targ_out->inputs) {
-                for (Output_connector& outconn : outputs) {
-                    if (outconn.index == output_index) {
-                        outconn.name = targ_out->label;
-                        output_index++;
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    assert(outputs.size() == targ_output_count);
-    recompute_size();
 }
 
 void FunctionNode::draw()
@@ -355,152 +317,6 @@ void FunctionNode::draw()
 
     //draw outputs
     for (const Output_connector& outconn : outputs) outconn.draw();
-}
-
-bool FunctionNode::is_cyclic() const
-{
-    if (is_cyclic_val.has_value()) {
-        return is_cyclic_val.value();
-    }
-
-    enum NodeState {
-        Unvisited,
-        Visiting,  // Node is being visited (used for cycle detection)
-        Visited    // Node has been fully visited
-    };
-
-    std::unordered_map<Output_connector*, NodeState> marked_outconns;
-    bool hasCycle = false;
-
-    std::function<void(Output_connector*)> DFS;
-
-
-    DFS = [&](Output_connector* outconn) {
-        if (hasCycle || !outconn) return;
-
-        if (marked_outconns[outconn] == NodeState::Visiting) {
-            hasCycle = true;
-            return;
-        }
-
-        if (outconn->host->is_cyclic()) {
-            hasCycle = true;
-            return;
-        }
-
-        if (marked_outconns[outconn] == NodeState::Visited) {
-            return;
-        }
-
-        marked_outconns[outconn] = NodeState::Visiting;
-
-        for (Input_connector* inconn : outconn->host->connected_inputs(outconn->index)) {
-            DFS(inconn->target);
-            if (hasCycle) return;
-        }
-
-        marked_outconns[outconn] = NodeState::Visited;
-        };
-
-    for (Node* outnode : output_targs) {
-        for (Input_connector& inconn : outnode->inputs) {
-            DFS(inconn.target);
-            if (hasCycle) return true;
-            marked_outconns.clear();
-        }
-    }
-
-    return false;
-}
-
-int FunctionNode::delay() const
-{
-    if (is_cyclic()) return -1;
-
-    std::unordered_map<Output_connector*, int> marked_outconns;
-    int max_delay = 1;
-    std::function<void(Output_connector*)> DFS;
-
-
-    DFS = [&](Output_connector* outconn) {
-        if (!outconn || max_delay == -1) return;
-
-        if (outconn->host->is_cyclic()) {
-            max_delay = -1;
-            return;
-        }
-
-        if (outconn->host->isInput()) return;
-
-        int current_delay = marked_outconns[outconn] + outconn->host->delay();
-        if (current_delay > max_delay) max_delay = current_delay;
-
-        for (Input_connector* inconn : outconn->host->connected_inputs(outconn->index)) {
-            if (marked_outconns[inconn->target] < current_delay) {
-                marked_outconns[inconn->target] = current_delay;
-                DFS(inconn->target);
-                if (max_delay == -1) return;
-            }
-        }
-        };
-
-    for (Node* outnode : output_targs) {
-        for (Input_connector& inconn : outnode->inputs) {
-            DFS(inconn.target);
-        }
-    }
-
-    return max_delay;
-}
-
-void FunctionNode::sort_linear()
-{
-    if (is_cyclic()) return;
-
-    std::unordered_map<Output_connector*, int> marked_outconns;
-    int max_delay = 1;
-    std::function<void(Output_connector*)> DFS;
-
-
-    DFS = [&](Output_connector* outconn) {
-        if (!outconn || max_delay == -1) return;
-
-        if (outconn->host->is_cyclic()) {
-            max_delay = -1;
-            return;
-        }
-
-        if (outconn->host->isInput()) return;
-
-        int current_delay = marked_outconns[outconn] + outconn->host->delay();
-        if (current_delay > max_delay) max_delay = current_delay;
-
-        for (Input_connector* inconn : outconn->host->connected_inputs(outconn->index)) {
-            if (marked_outconns[inconn->target] < current_delay) {
-                marked_outconns[inconn->target] = current_delay;
-                DFS(inconn->target);
-                if (max_delay == -1) return;
-            }
-        }
-        };
-
-    for (Node* outnode : output_targs) {
-        for (Input_connector& inconn : outnode->inputs) {
-            DFS(inconn.target);
-        }
-    }
-
-    std::sort(nodes.begin(), nodes.end(), [&](Node* a, Node* b) {
-        int max_a = 0;
-        for (Output_connector& out : a->outputs) {
-            if (marked_outconns[&out] > max_a) max_a = marked_outconns[&out];
-        }
-        int max_b = 0;
-        for (Output_connector& out : b->outputs) {
-            if (marked_outconns[&out] > max_b) max_b = marked_outconns[&out];
-        }
-        return max_a > max_b; // Return true if 'a' should come before 'b'
-        });
 }
 
 void FunctionNode::recompute_size()

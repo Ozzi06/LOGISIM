@@ -69,7 +69,6 @@ public:
     virtual std::vector<Input_connector*> connected_inputs(size_t output_idx);
 
     // State and Properties
-    bool has_changed = true;
     bool is_selected;
     Vector2 pos;
     Vector2 size;

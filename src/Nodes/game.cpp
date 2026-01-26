@@ -67,7 +67,7 @@ void Game::pretick()
     }
     else {
         if (logicblock) {
-            logicblock->pretick(logicblock->get_data(0), has_updated, 0);
+            logicblock->pretick(logicblock->get_data(0), has_updated, 0, false);
             return;
         }
         else {
@@ -634,8 +634,7 @@ void Game::save_bin(std::string filePath)
     SaveBuilder savebuilder = SaveBuilder();
     savebuilder.save_game(filePath);
 }
-
-static void sort_nodes(std::vector<Node*>& nodes);
+static int sort_nodes(std::vector<Node*>& nodes);
 
 void Game::build_logic_block()
 {
@@ -657,12 +656,12 @@ void Game::build_logic_block()
     auto start = std::chrono::high_resolution_clock::now();
 
     // Sort actual nodes
-    sort_nodes(nodes);
+    int max_delay = sort_nodes(nodes);
     //make copy of network to turn into function block
     std::vector<Node*> nodes_copy = nodes;
 
     LogicBlockBuilder builder;
-    builder.add_function_root(nodes_copy);
+    builder.add_function_root(nodes_copy, max_delay);
     logicblock = std::unique_ptr<LogicBlock>(builder.build());
 
 
@@ -679,9 +678,8 @@ void Game::build_logic_block()
     has_updated = true;
 }
 
-static void sort_nodes(std::vector<Node*>& nodes)
+static int sort_nodes(std::vector<Node*>& nodes)
 {
-
     enum NodeState {
         Unvisited,
         Visiting,  // Node is being visited (used for cycle detection)
@@ -737,6 +735,7 @@ static void sort_nodes(std::vector<Node*>& nodes)
             }
         }
     }
+
     std::sort(nodes.begin(), nodes.end(), [&](Node* a, Node* b) {
         // 1. Inputs have absolute priority (Go to the top)
         if (a->isInput() != b->isInput()) return a->isInput();
@@ -760,4 +759,5 @@ static void sort_nodes(std::vector<Node*>& nodes)
         // 4. Tie-breaker: If they are at the same logic depth, sort by Y
         return a->pos.y < b->pos.y;
     });
+    return max_delay;
 }

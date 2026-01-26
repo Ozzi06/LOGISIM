@@ -5,7 +5,7 @@
 class FunctionNode : public Node {
 public:
     //constructors and destructors
-    FunctionNode(std::vector<Node*>* container, Vector2 pos = { 0, 0 }) : Node(container, pos, { 0, 0 }, ColorBrightness(GRAY, -0.6f)), is_single_tick(false) { label = "Function"; }
+    FunctionNode(std::vector<Node*>* container, Vector2 pos = { 0, 0 }) : Node(container, pos, { 0, 0 }, ColorBrightness(GRAY, -0.6f)) { label = "Function"; }
     FunctionNode(const FunctionNode* base);
     ~FunctionNode();
 
@@ -29,9 +29,10 @@ public:
 
     virtual int delay() const override;
     virtual bool is_cyclic() const override;
+    bool get_is_single_tick() const;
+    void set_is_single_tick(bool value);
+    bool get_has_changed() const;
 
-
-    void load_from_nodes();
     void sort_linear();
 
     std::vector<Node*> nodes;
@@ -45,6 +46,5 @@ private:
     LogicBlock node_data_save;
 
     std::optional<bool> is_cyclic_val;
-    bool is_single_tick;
     std::string delay_str;
 };

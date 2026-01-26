@@ -67,7 +67,7 @@ public:
 
     size_t get_size() const { return size; }
 
-    bool pretick(uint8_t* container, bool update_all, offset node_offset);
+    bool pretick(uint8_t* container, bool update_all, offset node_offset, bool force_singletick);
     void tick(uint8_t* container, bool update_all, offset node_offset);
 
     uint8_t* get_data(size_t offset) {
@@ -87,7 +87,7 @@ public:
     ~LogicBlockBuilder() {}
     //size_t add_root(std::vector<Node*> nodes);
 
-    size_t add_function_root(std::vector<Node*> nodes);
+    size_t add_function_root(std::vector<Node*> nodes, int max_delay);
 
     void add_inputs(Node& node, std::vector<Node*> sorted_container);
 

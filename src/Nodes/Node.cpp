@@ -114,31 +114,6 @@ bool Node::show_node_editor()
         current_depth += curr_el_h;
     }
 
-    {   // Has_changed
-        curr_el_h = 32;
-        float current_x = Pos.x + margin;
-
-        GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "has_changed:");
-        current_x += 64 + margin;
-
-        if (has_changed) {
-            GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "true");
-            current_x += 64 + margin;
-        }
-        else {
-            GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "false");
-            current_x += 64 + margin;
-        }
-
-        current_depth += curr_el_h;
-    }
-
-    {   // Spacing line
-        curr_el_h = 15;
-        GuiLine(Rectangle{ Pos.x, Pos.y + current_depth, area_width, curr_el_h }, NULL);
-        current_depth += curr_el_h;
-    }
-
 
     area_height = current_depth;
     return CheckCollisionPointRec(GetMousePosition(), area);

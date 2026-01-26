@@ -103,13 +103,28 @@ struct OutputNodeHeader : public NodeHeader {
     //input_count * input
 };
 
+// Sentinel value for 12-bit logic_depth (2^12 - 1)
+constexpr uint16_t LOGIC_DEPTH_CYCLIC = 4095; 
+
 struct FunctionNodeHeader : public NodeHeader {
     uint16_t input_targ_node_count; //not number of connections but nodes
     uint16_t output_targ_node_count; //not number of connections but nodes
     uint16_t input_count;
     uint16_t output_count;
     uint16_t child_count;
-    bool has_changed;
+    union {
+        uint16_t logic_metadata;
+        struct {
+            // Bit 0: Backwards compatibility with the old bool
+            uint16_t has_changed    : 1; 
+            // Bit 1: Single-tick propagation flag
+            uint16_t is_single_tick : 1;
+            // Bits 2-3: Reserved for future flags (e.g., breakpoints, side effects)
+            uint16_t reserved       : 2;
+            // Bits 4-15: Logic Depth (0 to 4094). 4095 means "Cyclic"
+            uint16_t logic_depth    : 12; 
+        };
+    };
     offset intargs_offset;              // relative to start of node
     offset outtargs_offset;             // relative to start of node
     offset inputs_offset;               // relative to start of node
@@ -121,6 +136,10 @@ struct FunctionNodeHeader : public NodeHeader {
     //output_count * output
     //children
 };
+
+static_assert(offsetof(FunctionNodeHeader, intargs_offset) == 20, "Alignment Error");
+
+
 struct ROMNodeHeader : public NodeHeader {
     uint16_t input_count;
     uint16_t output_count;

@@ -120,11 +120,9 @@ void Button::recompute_size()
 
 void ToggleButton::clicked(Vector2 pos)
 {
-    has_changed = false;
     for (size_t i = 0; i < outputs.size(); i++) {
         if (CheckCollisionPointRec(pos, getButtonRect(i))) {
             set_output_state(i, !outputs[i].get_state());
-            has_changed = true;
         }
     }
 }
@@ -137,18 +135,14 @@ void ToggleButton::load_extra_bin(const uint8_t* node_data_ptr, const uint8_t* s
 
 void PushButton::not_clicked()
 {
-    has_changed = false;
     for (size_t i = 0; i < outputs.size(); i++) {
-        if (outputs[i].get_state()) has_changed = true;
         set_output_state(i, false);
     }
 }
 
 void PushButton::clicked(Vector2 pos)
 {
-    has_changed = false;
     for (size_t i = 0; i < outputs.size(); i++) {
-        if (!outputs[i].get_state()) has_changed = true;
         if (CheckCollisionPointRec(pos, getButtonRect(i))) set_output_state(i, true);
         else set_output_state(i, false);
 
