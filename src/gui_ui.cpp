@@ -20,6 +20,13 @@
 // #include <filesystem>
 // #include "save_game.h"
 
+bool GuiTextBoxBlocking(Rectangle bounds, char *text, int textSize, bool editMode) {
+    bool changed = GuiTextBox(bounds, text, textSize, editMode);
+    // Automatically tell the Game we are typing if the box is active
+    if(changed) Game::getInstance().is_text_input_active = !Game::getInstance().is_text_input_active;
+    // Pass through to the real Raygui function
+    return changed;
+}
 
 void edit_mode_changed() {
     Game::getInstance().unselect_all();
@@ -40,6 +47,13 @@ bool EditModeButtons() {
         &edit_mode
     );
 
+    // Keyboard shortcuts for edit modes (1-4 keys)
+    if (!game.is_text_input_active) {
+        if (IsKeyPressed(KEY_ONE)) edit_mode = 0;
+        else if (IsKeyPressed(KEY_TWO)) edit_mode = 1;
+        else if (IsKeyPressed(KEY_THREE)) edit_mode = 2;
+        else if (IsKeyPressed(KEY_FOUR)) edit_mode = 3;
+    }
 
     if (game.edit_mode != (EditMode)edit_mode) {
         edit_mode_changed();

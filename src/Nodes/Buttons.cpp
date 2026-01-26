@@ -7,25 +7,41 @@ void Button::draw()
     Game& game = Game::getInstance();
     float roundness = 0.1f;
     int segments = 50;
-    float lineThick = 10;
-    Rectangle rec = { pos.x - size.x / 2, pos.y - size.y / 2, size.x, size.y };
+    float lineThick = 10; 
+    Rectangle totalRec = { pos.x - size.x / 2, pos.y - size.y / 2, size.x, size.y };
 
     size_t button_count = outputs.size();
+    float segmentHeight = size.y / button_count;
+    float startY = pos.y - size.y / 2.0f;
+
+    // 1. DRAW ALL FILLS
     for (size_t i = 0; i < button_count; i++) {
         Rectangle rec = getButtonRect(i);
-        if (outputs[i].get_state())
-            DrawRectangleRec(rec, Color{ 219, 42, 2, 255 });
-        else
-            DrawRectangleRec(rec, Color{ 252, 57, 13, 255 });
-        if (game.camera.zoom > 0.4 && i < button_count - 1)
-            DrawLineEx({ rec.x, rec.y }, { rec.x + rec.width, rec.y }, lineThick / 1.0f, ColorBrightness(color, -0.2f));
+        Color btnColor = outputs[i].get_state() ? Color{ 219, 42, 2, 255 } : Color{ 252, 57, 13, 255 };
+        DrawRectangleRec(rec, btnColor);
     }
 
+    // 2. DRAW BOUNDARY LINES
+    // Instead of thinking "Bottom of button i", we think "Boundary between i and i+1"
+    if (game.camera.zoom > 0.4f && button_count > 1) {
+        for (size_t i = 1; i < button_count; i++) {
+            // The boundary is exactly at Start + (index * height)
+            float boundaryY = startY + (i * segmentHeight);
+            
+            DrawLineEx(
+                { totalRec.x, boundaryY }, 
+                { totalRec.x + totalRec.width, boundaryY }, 
+                4.0f, // This line now sits 2px into the button above and 2px into the button below
+                ColorBrightness(color, -0.4f)
+            );
+        }
+    }
 
-    if (game.camera.zoom > 1 / 10.0f && !is_selected)
-        DrawRectangleRoundedLinesEx(rec, roundness, segments, lineThick, ColorBrightness(color, -0.2f));
-    if (is_selected)
-        DrawRectangleRoundedLinesEx(rec, roundness, segments, lineThick, ColorBrightness(GREEN, -0.6f));
+    // 3. DRAW NODE BORDER (Drawn last so it frames the buttons)
+    if (game.camera.zoom > 1 / 10.0f) {
+        Color borderColor = is_selected ? ColorBrightness(GREEN, -0.3f) : ColorBrightness(color, -0.2f);
+        DrawRectangleRoundedLinesEx(totalRec, roundness, segments, lineThick, borderColor);
+    }
 
     //draw icon
     if (game.camera.zoom > 0.43f) {
@@ -72,12 +88,13 @@ void Button::remove_input() {
 
 Rectangle Button::getButtonRect(size_t id)
 {
+    float segmentHeight = size.y / outputs.size();
     Rectangle rec{
         pos.x - size.x / 2.0f,
-
-        pos.y + size.y / 2.0f - (id + 1) * size.y / outputs.size()
-
-        , size.x, size.y / outputs.size()
+        // Start at the very top of the node and move down segment by segment
+        (pos.y - size.y / 2.0f) + (id * segmentHeight),
+        size.x, 
+        segmentHeight
     };
     return rec;
 }

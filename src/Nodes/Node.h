@@ -134,8 +134,8 @@ protected:
 inline Vector2 Input_connector::get_connection_pos() const {
     const float width = 30;
     float spacing = 30;
-    // Now this works because Node's definition is visible!
-    float pos_y = host->pos.y + ((host->inputs.size() - 1) * spacing / 2.0f) - (index * spacing);
+    // START AT TOP: pos.y minus half the total height, then MOVE DOWN by (index * spacing)
+    float pos_y = host->pos.y - ((host->inputs.size() - 1) * spacing / 2.0f) + (index * spacing);
     float pos_x = host->pos.x - host->size.x / 2.0f - width;
     return Vector2{ pos_x, pos_y };
 }
@@ -150,7 +150,8 @@ inline bool Output_connector::get_new_state() const {
 inline Vector2 Output_connector::get_connection_pos() const {
     const float width = 30.0f;
     const float spacing = 30.0f;
-    float pos_y = host->pos.y + ((host->outputs.size() - 1) * spacing / 2.0f) - (index * spacing);
+    // START AT TOP: pos.y minus half the total height, then MOVE DOWN by (index * spacing)
+    float pos_y = host->pos.y - ((host->outputs.size() - 1) * spacing / 2.0f) + (index * spacing);
     float pos_x = host->pos.x + host->size.x / 2.0f + width;
     return Vector2{ pos_x, pos_y };
 }

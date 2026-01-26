@@ -189,7 +189,7 @@ std::string open_file_dialog_json_bin()
 
     GtkFileFilter *filter_all = gtk_file_filter_new();
     gtk_file_filter_set_name(filter_all, "All Files");
-    gtk_file_filter_add_mime_type(filter_all, "*/*"); // Matches any file type
+    gtk_file_filter_add_pattern(filter_all, "*");  // Changed from add_mime_type
     gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), filter_all);
 
     GtkFileFilter *filter_both = gtk_file_filter_new();

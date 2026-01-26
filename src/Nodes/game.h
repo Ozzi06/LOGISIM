@@ -67,6 +67,7 @@ public:
 
     Font regular;
     EditMode edit_mode = EDIT;
+    bool is_text_input_active = false;
 
     bool sim_playing = false;
     bool warp = false;

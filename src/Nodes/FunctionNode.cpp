@@ -1,5 +1,6 @@
 #include "FunctionNode.h"
 #include "game.h"
+#include "gui_ui.h"
 #include "raygui.h"
 #include "save_game.h"
 // #include "vector_tools.h"
@@ -56,11 +57,11 @@ FunctionNode::FunctionNode(const FunctionNode* base) : Node(base), node_data_sav
     }
 
     std::sort(input_targs.begin(), input_targs.end(), [](Node* a, Node* b) {
-        return a->pos.y > b->pos.y; // Return true if 'a' should come before 'b'
+        return a->pos.y < b->pos.y; // Return true if 'a' should come before 'b' (Top=low y first)
         });
 
     std::sort(output_targs.begin(), output_targs.end(), [](Node* a, Node* b) {
-        return a->pos.y > b->pos.y; // Return true if 'a' should come before 'b'
+        return a->pos.y < b->pos.y; // Return true if 'a' should come before 'b' (Top=low y first)
         });
 
     recompute_size();
@@ -104,7 +105,7 @@ bool FunctionNode::show_node_editor()
         GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 32, 16 }, "Label:");
         current_x += 32 + margin;
 
-        if (GuiTextBox(Rectangle{ current_x, Pos.y + current_depth, Pos.x + margin + content_w - current_x, 32 }, TextBoxNodeLabel, buffersize, TextBoxNodeLabelEditMode))
+        if (GuiTextBoxBlocking(Rectangle{ current_x, Pos.y + current_depth, Pos.x + margin + content_w - current_x, 32 }, TextBoxNodeLabel, buffersize, TextBoxNodeLabelEditMode))
             TextBoxNodeLabelEditMode = !TextBoxNodeLabelEditMode;
         label = TextBoxNodeLabel;
         current_depth += curr_el_h;
@@ -299,11 +300,11 @@ void FunctionNode::load_from_nodes()
         }
     }
     std::sort(input_targs.begin(), input_targs.end(), [](Node* a, Node* b) {
-        return a->pos.y > b->pos.y; // Return true if 'a' should come before 'b'
+        return a->pos.y < b->pos.y; // Return true if 'a' should come before 'b'
         });
 
     std::sort(output_targs.begin(), output_targs.end(), [](Node* a, Node* b) {
-        return a->pos.y > b->pos.y; // Return true if 'a' should come before 'b'
+        return a->pos.y < b->pos.y; // Return true if 'a' should come before 'b'
         });
 
     // create input and output connectors then resize the node

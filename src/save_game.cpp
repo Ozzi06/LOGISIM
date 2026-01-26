@@ -2,9 +2,15 @@
 #include "Node.h"
 #include "game.h"
 #include <iostream>
+
+
+
+
 void SaveBuilder::save_game(std::string filePath)
 {
     Game& game = Game::getInstance();
+    game.build_logic_block();
+
 
     if (filePath.empty()) {
         std::cout << "No file path selected\n";

@@ -1,5 +1,6 @@
 #include "ROM.h"
 #include "game.h"
+#include "gui_ui.h"
 #include "raygui.h"
 #include "raymath.h"
 // #include "save_game.h"
@@ -38,7 +39,7 @@ bool ROMNode::show_node_editor()
         GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 32, 16 }, "Label:");
         current_x += 32 + margin;
 
-        if (GuiTextBox(Rectangle{ current_x, Pos.y + current_depth, Pos.x + margin + content_w - current_x, curr_el_h }, TextBoxNodeLabel, buffersize, TextBoxNodeLabelEditMode))
+        if (GuiTextBoxBlocking(Rectangle{ current_x, Pos.y + current_depth, Pos.x + margin + content_w - current_x, curr_el_h }, TextBoxNodeLabel, buffersize, TextBoxNodeLabelEditMode))
             TextBoxNodeLabelEditMode = !TextBoxNodeLabelEditMode;
         label = TextBoxNodeLabel;
         current_depth += curr_el_h;

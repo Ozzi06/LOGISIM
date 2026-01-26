@@ -1,6 +1,7 @@
 #include "Node.h"
 #include "game.h"
 // #include "gui_ui.h"
+#include "gui_ui.h"
 #include "raygui.h"
 // #include "vector_tools.h"
 #include "raymath.h"
@@ -76,7 +77,7 @@ bool Node::show_node_editor()
         GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 32, 16 }, "Label:");
         current_x += 32 + margin;
 
-        if (GuiTextBox(Rectangle{ current_x, Pos.y + current_depth, Pos.x + margin + content_w - current_x, 32 }, TextBoxNodeLabel, buffersize, TextBoxNodeLabelEditMode)) {
+        if (GuiTextBoxBlocking(Rectangle{ current_x, Pos.y + current_depth, Pos.x + margin + content_w - current_x, 32 }, TextBoxNodeLabel, buffersize, TextBoxNodeLabelEditMode)) {
             TextBoxNodeLabelEditMode = !TextBoxNodeLabelEditMode;
         }
         if (label.c_str() != TextBoxNodeLabel) {
@@ -162,7 +163,9 @@ color(base->color), label(base->label), container(base->container)
         inputs.push_back(Input_connector(this, i, base->inputs[i].name.c_str(), base->inputs[i].target));
     }
     for (size_t i = 0; i < base->outputs.size(); ++i) {
-        outputs.push_back(Output_connector(this, i, base->outputs[i].name.c_str(), base->outputs[i].get_state()));
+        // FIX: Removed the 4th argument 'get_state()'. 
+        // Let the default parameter 'generate_id()' create a unique ID.
+        outputs.push_back(Output_connector(this, i, base->outputs[i].name.c_str()));
     }
 }
 
@@ -267,7 +270,7 @@ Input_connector* Node::select_input(Vector2 select_pos)
 
         Vector2 pos = {
             conn.host->pos.x - conn.host->size.x / 2 - width,
-            conn.host->pos.y + ((float)conn.host->inputs.size() - 1.0f) * spacing / 2.0f - conn.index * spacing - lineThick / 2.0f
+            conn.host->pos.y - ((float)conn.host->inputs.size() - 1.0f) * spacing / 2.0f + conn.index * spacing - lineThick / 2.0f
         };
 
         Rectangle rec = {
@@ -293,7 +296,7 @@ Output_connector* Node::select_output(Vector2 select_pos)
 
         Vector2 pos = {
             conn.host->pos.x + conn.host->size.x / 2.0f,
-            conn.host->pos.y + (conn.host->outputs.size() - 1) * spacing / 2.0f - conn.index * spacing - lineThick / 2.0f
+            conn.host->pos.y - (conn.host->outputs.size() - 1) * spacing / 2.0f + conn.index * spacing - lineThick / 2.0f
         };
 
         Rectangle rec = {
@@ -322,7 +325,7 @@ std::vector<Input_connector*> Node::select_inputs(Rectangle select_area)
 
         Vector2 pos = {
             conn.host->pos.x - conn.host->size.x / 2 - width,
-            conn.host->pos.y + ((float)conn.host->inputs.size() - 1.0f) * spacing / 2.0f - conn.index * spacing - lineThick / 2.0f
+            conn.host->pos.y - ((float)conn.host->inputs.size() - 1.0f) * spacing / 2.0f + conn.index * spacing - lineThick / 2.0f
         };
 
         Rectangle rec = {
@@ -351,7 +354,7 @@ std::vector<Output_connector*> Node::select_outputs(Rectangle select_area)
 
         Vector2 pos = {
             conn.host->pos.x + conn.host->size.x / 2.0f,
-            conn.host->pos.y + (conn.host->outputs.size() - 1) * spacing / 2.0f - conn.index * spacing - lineThick / 2.0f
+            conn.host->pos.y - (conn.host->outputs.size() - 1) * spacing / 2.0f + conn.index * spacing - lineThick / 2.0f
         };
 
         Rectangle rec = {
@@ -615,7 +618,7 @@ void Output_connector::draw() const
 
     Vector2 startPos = {
         host->pos.x + host->size.x / 2.0f,
-        host->pos.y + (host->outputs.size() - 1) * height_spacing / 2.0f - index * height_spacing
+        host->pos.y - (host->outputs.size() - 1) * height_spacing / 2.0f + index * height_spacing
     };
 
     Vector2 endPos = { startPos.x + width ,startPos.y, };
@@ -636,7 +639,7 @@ void Output_connector::draw() const
 
         Vector2 pos = {
             host->pos.x + host->size.x / 2.0f,
-            host->pos.y + (host->outputs.size() - 1) * height_spacing / 2.0f - index * height_spacing - lineThick / 2.0f
+            host->pos.y - (host->outputs.size() - 1) * height_spacing / 2.0f + index * height_spacing - lineThick / 2.0f
         };
 
         Font font = GetFontDefault();
@@ -664,7 +667,7 @@ void Input_connector::draw() const
 
     Vector2 startPos = {
         host->pos.x - host->size.x / 2,
-        host->pos.y + ((float)host->inputs.size() - 1.0f) * height_spacing / 2.0f - index * height_spacing
+        host->pos.y - ((float)host->inputs.size() - 1.0f) * height_spacing / 2.0f + index * height_spacing
     };
     Vector2 endPos = { startPos.x - width ,startPos.y, };
 
@@ -686,13 +689,12 @@ void Input_connector::draw() const
             DrawLineEx(get_connection_pos(), target->get_connection_pos(), lineThick, GRAY);
         }
     }
-
     //Draw name
     {
         float text_spacing = 2.0f;
         Vector2 pos = {
             host->pos.x - host->size.x / 2 - width,
-            host->pos.y + ((float)host->inputs.size() - 1.0f) * height_spacing / 2.0f - index * height_spacing - lineThick / 2.0f
+            host->pos.y - ((float)host->inputs.size() - 1.0f) * height_spacing / 2.0f + index * height_spacing - lineThick / 2.0f
         };
 
         Font font = GetFontDefault();

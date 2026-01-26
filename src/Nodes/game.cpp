@@ -10,6 +10,7 @@
 Game Game::instance;
 
 void Game::draw() {
+    // is_text_input_active = false; 
     // Draw world
     screenWidth = GetScreenWidth();
     screenHeight = GetScreenHeight();
@@ -25,7 +26,7 @@ void Game::draw() {
 
     if (area_selected) {
         Rectangle area = RectFrom2Points(GetScreenToWorld2D(GetMousePosition(), camera), first_corner);
-        DrawRectangleRec(area, Fade(GREEN, 0.05f));
+        DrawRectangleRec(area, Fade(GREEN, 0.2f));
     }
 
     EndMode2D();
@@ -252,11 +253,11 @@ void Game::add_function_node()
         }
 
         std::sort(input_targs.begin(), input_targs.end(), [](NodeData* a, NodeData* b) {
-            return a->pos.y > b->pos.y; // Return true if 'a' should come before 'b'
+            return a->pos.y < b->pos.y; // Return true if 'a' should come before 'b' (lower y first)
             });
 
         std::sort(output_targs.begin(), output_targs.end(), [](NodeData* a, NodeData* b) {
-            return a->pos.y > b->pos.y; // Return true if 'a' should come before 'b'
+            return a->pos.y < b->pos.y; // Return true if 'a' should come before 'b' (lower y first)
             });
 
         for (NodeData* nodedata : input_targs) {
@@ -265,9 +266,13 @@ void Game::add_function_node()
             }
         }
         for (NodeData* nodedata : output_targs) {
-            for (size_t i = 0; i < nodedata->input_count; ++i) {
+            for (uint32_t i = 0; i < nodedata->input_count; i++) {
+
                 const OutputData* outputdata = reinterpret_cast<const OutputData*>(save.data() + nodedata->outputs_offset + i * sizeof(OutputData));
                 funnode->outputs.push_back(Output_connector(funnode, funnode->outputs.size(), nodedata->label, outputdata->id));
+
+                // const InputData* inputdata = reinterpret_cast<const InputData*>(save.data() + nodedata->inputs_offset + i * sizeof(InputData));
+                // funnode->outputs.push_back(Output_connector(funnode, funnode->outputs.size(), inputdata->name, generate_id()));
             }
         }
 
@@ -320,7 +325,11 @@ void Game::add_subassebly()
 
     NormalizeNodeNetworkPosToLocation(subassembly, camera.target);
 
+    // FIX: Regenerate IDs for the newly loaded subassembly to prevent global ID collisions
     for (Node* node : subassembly) {
+        for (Output_connector& out : node->outputs) {
+            out.id = generate_id(); 
+        }
         node->set_container(&nodes);
     }
 
@@ -556,11 +565,11 @@ void Game::handle_input()
             if (!selected_outputs.empty()) {
 
                 std::sort(selected_inputs.begin(), selected_inputs.end(), [](Input_connector* a, Input_connector* b) {
-                    return a->get_connection_pos().y > b->get_connection_pos().y; // Return true if 'a' should come before 'b'
+                    return a->get_connection_pos().y < b->get_connection_pos().y; // Return true if 'a' should come before 'b'
                     });
 
                 std::sort(selected_outputs.begin(), selected_outputs.end(), [](Output_connector* a, Output_connector* b) {
-                    return a->get_connection_pos().y > b->get_connection_pos().y; // Return true if 'a' should come before 'b'
+                    return a->get_connection_pos().y < b->get_connection_pos().y; // Return true if 'a' should come before 'b'
                     });
 
                 if (selected_outputs.size() > 1) {
@@ -698,12 +707,13 @@ void Game::build_logic_block()
     // Record start time
     auto start = std::chrono::high_resolution_clock::now();
 
-    //sort nodes
-    std::vector<Node*> storted_nodes = nodes;
-    sort_nodes(storted_nodes);
+    // Sort actual nodes
+    sort_nodes(nodes);
+    //make copy of network to turn into function block
+    std::vector<Node*> nodes_copy = nodes;
 
     LogicBlockBuilder builder;
-    builder.add_function_root(storted_nodes);
+    builder.add_function_root(nodes_copy);
     logicblock = std::unique_ptr<LogicBlock>(builder.build());
 
 
@@ -778,39 +788,27 @@ static void sort_nodes(std::vector<Node*>& nodes)
             }
         }
     }
-    if (max_delay != -1) {
-        std::sort(nodes.begin(), nodes.end(), [&](Node* a, Node* b) {
-            int max_a = 0;
-            for (Output_connector& out : a->outputs) {
-                if (marked_outconns[&out].first > max_a) max_a = marked_outconns[&out].first;
-            }
-            int max_b = 0;
-            for (Output_connector& out : b->outputs) {
-                if (marked_outconns[&out].first > max_b) max_b = marked_outconns[&out].first;
-            }
-            return max_a > max_b; // Return true if 'a' should come before 'b'
-            });
-    }
+    std::sort(nodes.begin(), nodes.end(), [&](Node* a, Node* b) {
+        // 1. Inputs have absolute priority (Go to the top)
+        if (a->isInput() != b->isInput()) return a->isInput();
+        if (a->isInput()) return a->pos.y < b->pos.y; // Topmost input first
 
+        // 2. Outputs have lowest priority (Go to the bottom)
+        if (a->isOutput() != b->isOutput()) return !a->isOutput();
+        if (a->isOutput()) return a->pos.y < b->pos.y; // Topmost output first
 
-    //sort inputs
-    std::sort(nodes.begin(), nodes.end(), [](const Node* a, const Node* b) {
-        if (a->isInput() != b->isInput()) {
-            return a->isInput(); // Inputs go to the top
-        }
-        if (a->isInput() && b->isInput()) {
-            return a->pos.y < b->pos.y; // Sort inputs by posY
-        }
-        return false; // Keep non-inputs in their original order
-        });
-    //sort outputs
-    std::sort(nodes.begin(), nodes.end(), [](const Node* a, const Node* b) {
-        if (a->isOutput() != b->isOutput()) {
-            return !a->isOutput(); // Outputs go to the bottom
-        }
-        if (a->isOutput() && b->isOutput()) {
-            return a->pos.y > b->pos.y; // Sort outputs by posY
-        }
-        return false; // Keep non-inputs in their original order
-        });
+        // 3. Both are Gates: Sort by topological delay (Logic depth)
+        int delay_a = 0;
+        for (Output_connector& out : a->outputs) 
+            if (marked_outconns.count(&out)) delay_a = std::max(delay_a, marked_outconns[&out].first);
+        
+        int delay_b = 0;
+        for (Output_connector& out : b->outputs) 
+            if (marked_outconns.count(&out)) delay_b = std::max(delay_b, marked_outconns[&out].first);
+
+        if (delay_a != delay_b) return delay_a > delay_b;
+
+        // 4. Tie-breaker: If they are at the same logic depth, sort by Y
+        return a->pos.y < b->pos.y;
+    });
 }
