@@ -1,5 +1,6 @@
 #pragma once
 #include "Node.h"
+#include <memory>
 struct Bus : public Node {
     Bus(std::vector<Node*>* container, Vector2 pos = { 0,0 }, Output_connector* input = nullptr) : Node(container, pos, { 0, 0 }, ColorBrightness(BLUE, -0.4f)) {
         label = "BUS_0";
@@ -44,9 +45,6 @@ struct Bus : public Node {
 
     Node* copy() const override { return new Bus(this); }
 
-    virtual json to_JSON() const override;
-
-    virtual void load_extra_JSON(const json& nodeJson) override;
     virtual void load_extra_bin(const uint8_t* node_data_ptr, const uint8_t* save_ptr) override;
 
     virtual std::string get_label() const override { return std::string(label); }

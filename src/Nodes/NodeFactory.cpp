@@ -6,6 +6,8 @@
 #include "Bus.h"
 #include "FunctionNode.h"
 #include "ROM.h"
+#include <functional>
+#include <unordered_map>
 
 Node* NodeFactory::createNode(std::vector<Node*>* container, const std::string& nodeName) {
     static std::unordered_map<std::string, std::function<Node* (std::vector<Node*>* container)>> factoryMap = {

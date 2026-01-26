@@ -192,22 +192,6 @@ void connect_node_network(std::vector<Node*>* nodes) {
     }
 }
 
-void NodeNetworkFromJson(const json& nodeNetworkJson, std::vector<Node*>* nodes) {
-    for (const auto& node : nodeNetworkJson) {
-        // Each node is a JSON object where the key is the gate type
-        for (auto it = node.begin(); it != node.end(); ++it) {
-            std::string nodeType = it.key(); // Get the gate type (e.g., "GateAND")
-            json nodeJson = it.value(); // Get the JSON object representing the node
-
-            Node* node = NodeFactory::createNode(nodes, nodeType);
-            assert(node && "node not created");
-            node->load_JSON(nodeJson);
-            nodes->push_back(node);
-        }
-    }
-
-    connect_node_network(nodes);
-}
 
 void NodeNetworkFromBinary(std::filesystem::path filepath, std::vector<Node*>* nodes)
 {
@@ -377,75 +361,6 @@ std::vector<Input_connector*> Node::connected_inputs(size_t output_idx) {
         input_nodes.push_back(&inputs[i]);
     }
     return input_nodes;
-}
-
-json Node::to_JSON() const {
-
-    json jOutputs = json::array();
-    for (const auto& output : outputs) {
-        jOutputs.push_back(output.to_JSON());
-    }
-
-    json jInputs = json::array();
-    for (const auto& input : inputs) {
-        jInputs.push_back(input.to_JSON());
-    }
-
-    return
-    {
-
-        {get_type_str(),
-            {
-                {"pos.x", pos.x},
-                {"pos.y", pos.y},
-                {"size.x", size.x},
-                {"size.y", size.y},
-                {"label", label},
-                {"outputs", jOutputs},
-                {"inputs", jInputs}
-            }
-        }
-    };
-}
-
-void Node::load_JSON(const json& nodeJson) {
-    try {
-        label = nodeJson.at("label").get<std::string>();
-        pos.x = nodeJson.at("pos.x").get<float>();
-        pos.y = nodeJson.at("pos.y").get<float>();
-
-        size.x = nodeJson.at("size.x").get<float>();
-        size.y = nodeJson.at("size.y").get<float>();
-
-        inputs.clear();
-        {
-            size_t i = 0;
-            for (const json& inputJson : nodeJson.at("inputs")) {
-                unsigned long target = inputJson.at("Input_connector").at("target").get<unsigned long>();
-                inputs.push_back(Input_connector(this, i, "", nullptr, target));
-                i++;
-            }
-        }
-
-        outputs.clear();
-        {
-            size_t i = 0;
-            for (const json& inputJson : nodeJson.at("outputs")) {
-                unsigned long id = inputJson.at("Output_connector").at("id").get<unsigned long>();
-                bool state = inputJson.at("Output_connector").at("state").get<bool>();
-                outputs.push_back(Output_connector(this, i, "", id));
-                initial_output_state.push_back(state);
-                i++;
-            }
-        }
-
-    }
-    catch (const json::exception& e) {
-        // Handle or log error, e.g., missing key or wrong type
-        std::cerr << "JSON parsing error: " << e.what() << '\n';
-    }
-
-    load_extra_JSON(nodeJson);
 }
 
 void Node::load_Bin(const uint8_t* node_data_ptr, const uint8_t* save_ptr)
@@ -652,12 +567,6 @@ void Output_connector::draw() const
     }
 }
 
-json Output_connector::to_JSON() const {
-    return json{
-        {"Output_connector", json::object({  {"id", id}, {"state", get_state()}})}
-    };
-}
-
 void Input_connector::draw() const
 {
     Game& game = Game::getInstance();
@@ -704,10 +613,4 @@ void Input_connector::draw() const
             color = DARKGREEN;
         DrawTextEx(font, text, pos + Vector2{ width, 0 }, 12, text_spacing, color);
     }
-}
-
-json Input_connector::to_JSON() const {
-    return json{
-        {"Input_connector", json::object({  {"target", target ? target->id : 0}})}
-    };
 }

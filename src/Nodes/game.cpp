@@ -5,7 +5,10 @@
 #include "save_game.h"
 #include "file_dialogs.h"
 #include "FunctionNode.h"
+#include <algorithm>
 #include <cstdint>
+#include <functional>
+#include <unordered_map>
 
 Game Game::instance;
 
@@ -201,7 +204,7 @@ void Game::paste_nodes()
 
 void Game::add_function_node()
 {
-    std::filesystem::path filepath = open_file_dialog_json_bin();
+    std::filesystem::path filepath = open_file_dialog_bin();
     std::ifstream saveFile(filepath, std::ios::binary);
 
     if (saveFile.is_open() && filepath.extension() == ".bin") {
@@ -283,15 +286,6 @@ void Game::add_function_node()
         funnode->allocate_node_data_save(funheader_ptr);
         network_change();
     }
-    else if (saveFile.is_open() && filepath.extension() == ".json") {
-        json save;
-        saveFile >> save;
-        saveFile.close();
-        FunctionNode* funnode = new FunctionNode(&nodes, GetScreenToWorld2D({ screenWidth / 2.0f, screenHeight / 2.0f }, camera));
-        nodes.push_back(funnode);
-        funnode->load_JSON(save);
-        network_change();
-    }
     else if (saveFile.is_open()) {
         std::cerr << "invalid path specified";
     }
@@ -303,8 +297,8 @@ void Game::add_function_node()
 
 void Game::add_subassebly()
 {
-    std::filesystem::path filepath = open_file_dialog_json_bin();
-    if (!(filepath.extension() == ".bin" || filepath.extension() == ".json")) {
+    std::filesystem::path filepath = open_file_dialog_bin();
+    if (!(filepath.extension() == ".bin")) {
         std::cerr << "invalid file extension selected";
         return;
     }
@@ -312,15 +306,6 @@ void Game::add_subassebly()
     std::vector<Node*> subassembly;
     if (filepath.extension() == ".bin") {
         NodeNetworkFromBinary(filepath, &subassembly);
-    }
-    else if (filepath.extension() == ".json") {
-        std::ifstream saveFile(filepath, std::ios::binary);
-        if (saveFile.is_open()) {
-            json save;
-            saveFile >> save;
-            saveFile.close();
-            NodeNetworkFromJson(save.at("nodes"), &subassembly);
-        }
     }
 
     NormalizeNodeNetworkPosToLocation(subassembly, camera.target);
@@ -642,42 +627,6 @@ void Game::handle_input()
 #endif
         break;
     }
-}
-
-void Game::save_json(std::string filePath)
-{
-    if (filePath.empty()) {
-        std::cout << "No file path selected\n";
-        return;
-    }
-
-    std::filesystem::path filepath(filePath);
-    std::string filename = filepath.stem().string();
-
-    json myJson = {
-        {"label", filename.c_str()},
-        {"camera", camera},
-        {"nodes", json::array()}
-    };
-
-    for (Node* node : nodes)
-        myJson["nodes"].push_back(node->to_JSON());
-
-    std::ofstream outputFile(filePath);
-
-    if (outputFile.is_open()) {
-        // Write the JSON data to the file
-        outputFile << std::setw(4) << myJson << std::endl;
-
-        // Close the file stream
-        outputFile.close();
-
-        std::cout << "JSON data saved to file: " << filePath << std::endl;
-    }
-    else {
-        std::cerr << "Error opening file for writing: " << filePath << std::endl;
-    }
-
 }
 
 void Game::save_bin(std::string filePath)

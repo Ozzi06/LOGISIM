@@ -1,15 +1,14 @@
 #pragma once
 
 // #include "gui_ui.h"
+#include <filesystem>
 #include <vector>
 // #include "random_id.h"
 
 // #include <utility>
 #include "LogicBlocks.h"
 #include "raylib.h"
-#include "nlohmann/json.hpp"
 
-using json = nlohmann::json;
 
 struct Output_connector;
 struct Input_connector;
@@ -99,7 +98,6 @@ public:
 
     void handle_input();
 
-    void save_json(std::string filePath = "gamesave.json");
 
     void save_bin(std::string filePath = "gamesave.bin");
 
@@ -112,8 +110,6 @@ private:
     bool area_selected = false;
     Vector2 first_corner = { 0,0 };
 };
-
-void NodeNetworkFromJson(const json& nodeNetworkJson, std::vector<Node*>* nodes);
 
 void NodeNetworkFromBinary(std::filesystem::path filepath, std::vector<Node*>* nodes);
 

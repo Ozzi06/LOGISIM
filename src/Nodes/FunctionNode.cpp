@@ -6,8 +6,11 @@
 // #include "vector_tools.h"
 #include "raylib.h"
 #include "raymath.h"
+#include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <functional>
+#include <unordered_map>
 
 FunctionNode::FunctionNode(const FunctionNode* base) : Node(base), node_data_save(base->node_data_save), is_cyclic_val(base->is_cyclic_val), is_single_tick(base->is_single_tick)
 {
@@ -217,62 +220,6 @@ bool FunctionNode::show_node_editor()
 
     area_height = current_depth;
     return CheckCollisionPointRec(GetMousePosition(), area);
-}
-
-json FunctionNode::to_JSON() const
-{
-
-    json jOutputs = json::array();
-    for (const auto& output : outputs) {
-        jOutputs.push_back(output.to_JSON());
-    }
-
-    json jInputs = json::array();
-    for (const auto& input : inputs) {
-        jInputs.push_back(input.to_JSON());
-    }
-
-    json myJson = {
-        {get_type_str(),
-            {
-                {"pos.x", pos.x},
-                {"pos.y", pos.y},
-                {"size.x", size.x},
-                {"size.y", size.y},
-                {"label", label},
-                {"outputs", jOutputs},
-                {"inputs", jInputs},
-                {"nodes", json::array()}
-            }
-        }
-    };
-
-    for (Node* node : nodes)
-        myJson[get_type_str()]["nodes"].push_back(node->to_JSON());
-
-    return myJson;
-}
-
-void FunctionNode::load_extra_JSON(const json& nodeJson)
-{
-    try {
-        // load all the nodes
-        nodes.clear();
-        if (nodeJson.contains(get_type_str()))
-            NodeNetworkFromJson(nodeJson.at(get_type_str()).at("nodes"), &nodes);
-        else if (nodeJson.contains("nodes"))
-            NodeNetworkFromJson(nodeJson.at("nodes"), &nodes);
-        else
-            std::cerr << "JSON parsing error: \n";
-
-        load_from_nodes();
-        is_cyclic_val = is_cyclic();
-        sort_linear();
-    }
-    catch (const json::exception& e) {
-        // Handle or log error, e.g., missing key or wrong type
-        std::cerr << "JSON parsing error: " << e.what() << '\n';
-    }
 }
 
 void FunctionNode::load_extra_bin(const uint8_t* node_data_ptr, const uint8_t* save_ptr)

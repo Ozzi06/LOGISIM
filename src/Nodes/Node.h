@@ -2,13 +2,10 @@
 #include <vector>
 // #include "gui_ui.h"
 #include "raylib.h"
-#include "nlohmann/json.hpp"
 // #include <utility>
 // #include "LogicBlocks.h"
 #include "LogicNodes.h"
 #include "random_id.h"
-
-using json = nlohmann::json;
 
 struct Output_connector;
 
@@ -23,8 +20,6 @@ struct Input_connector {
     Vector2 get_connection_pos() const;
 
     void draw() const;
-
-    json to_JSON() const;
 };
 
 struct Output_connector {
@@ -41,8 +36,6 @@ public:
     Vector2 get_connection_pos() const;
 
     void draw() const;
-
-    json to_JSON() const;
 };
 
 struct Node {
@@ -90,10 +83,7 @@ public:
     virtual void clicked(Vector2 pos) {}
 
     // Serialization
-    virtual json to_JSON() const;
-    void load_JSON(const json& nodeJson);
     void load_Bin(const uint8_t* node_data_ptr, const uint8_t* save_ptr);
-    virtual void load_extra_JSON(const json& nodeJson) {}
     virtual void load_extra_bin(const uint8_t* node_data_ptr, const uint8_t* save_ptr) {}
 
     // Node Properties

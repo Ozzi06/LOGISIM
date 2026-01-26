@@ -92,12 +92,6 @@ bool MenuAreaButtons() {
     float menu_area_w = 200, menu_area_h = 50;
     Rectangle menu_area{ 10, 10, menu_area_w, menu_area_h };
     GuiGroupBox(menu_area, NULL);
-    
-    {
-        Rectangle save_button_area{ menu_area.x + 10 + menu_area.width / element_count * element_idx, menu_area.y + 10, menu_area.width / element_count - 20, menu_area.height - 20 };
-        if (GuiButton(save_button_area, "#02#Save JSON")) game.save_json(ShowSaveFileDialogJson());
-        ++element_idx;
-    }
 
     {
         Rectangle save_button_area{ menu_area.x + 10 + menu_area.width / element_count * element_idx, menu_area.y + 10, menu_area.width / element_count - 20, menu_area.height - 20 };

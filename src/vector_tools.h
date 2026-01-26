@@ -5,8 +5,8 @@
 // #include <iostream>
 // #include <iomanip>
 // #include <sstream>
+#include <string>
 #include <vector>
-#include "nlohmann/json.hpp"
 
 std::string num_toString(double number, int precision);
 
@@ -93,14 +93,3 @@ void moveToBottom(std::vector<T>& vec, typename std::vector<T>::iterator it) {
     vec.push_back(element); // Append element at the end
 }
 
-// Define how to serialize Vector2
-void to_json(nlohmann::json& j, const Vector2& v);
-
-// Define how to deserialize Vector2
-void from_json(const nlohmann::json& j, Vector2& v);
-
-// Define how to serialize Camera2D
-void to_json(nlohmann::json& j, const Camera2D& camera);
-
-// Define how to deserialize Camera2D
-void from_json(const nlohmann::json& j, Camera2D& camera);

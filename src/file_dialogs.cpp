@@ -2,7 +2,7 @@
 #ifdef _WIN32
 #include <windows.h>
 
-std::string open_file_dialog_json_bin()
+std::string open_file_dialog_bin()
 {
     // Initialize the OPENFILENAMEA structure
     OPENFILENAMEA ofn;
@@ -12,7 +12,7 @@ std::string open_file_dialog_json_bin()
     ofn.lpstrFile = new CHAR[MAX_PATH]; // Buffer to store the file name
     ofn.lpstrFile[0] = '\0';
     ofn.nMaxFile = MAX_PATH;
-    ofn.lpstrFilter = "Supported Files (*.bin, *.json)\0*.bin;*.json\0Bin Files (*.bin)\0*.bin\0Json Files (*.json)\0*.json\0\0";
+    ofn.lpstrFilter = "Supported Files (*.bin)\0*.bin\0Bin Files (*.bin)\0\0";
     ofn.nFilterIndex = 1; // This points to the "Supported Files" entry
     ofn.lpstrFileTitle = NULL;
     ofn.nMaxFileTitle = 0;
@@ -71,46 +71,6 @@ std::string open_file_dialog_hex()
     }
 }
 
-std::string ShowSaveFileDialogJson()
-{
-    OPENFILENAMEA ofn;       // Common dialog box structure
-    char szFile[260];       // Buffer for file name
-    HWND hwnd = NULL;       // Owner window
-    HANDLE hf;              // File handle
-
-    // Initialize OPENFILENAME
-    ZeroMemory(&ofn, sizeof(ofn));
-    ofn.lStructSize = sizeof(ofn);
-    ofn.hwndOwner = hwnd;
-    ofn.lpstrFile = szFile;
-    ofn.lpstrFile[0] = '\0'; // Ensure the file name is initially empty
-    ofn.nMaxFile = sizeof(szFile);
-    ofn.lpstrFilter = "Json Files (*.json)\0";
-    ofn.nFilterIndex = 1; // Default to showing text files first
-    ofn.lpstrFileTitle = NULL;
-    ofn.nMaxFileTitle = 0;
-    ofn.lpstrInitialDir = "Saves";
-    ofn.Flags = OFN_PATHMUSTEXIST | OFN_OVERWRITEPROMPT;
-    ofn.lpstrDefExt = "json"; // Default file extension
-
-    // Display the Save As dialog box
-    if (GetSaveFileNameA(&ofn) == TRUE) {
-        // Create or open the file
-        hf = CreateFileA(ofn.lpstrFile,
-            GENERIC_READ | GENERIC_WRITE,
-            0,
-            NULL,
-            CREATE_ALWAYS,
-            FILE_ATTRIBUTE_NORMAL,
-            NULL);
-        if (hf != INVALID_HANDLE_VALUE) {
-            CloseHandle(hf); // Close the handle so the caller can use the file
-            return std::string(ofn.lpstrFile); // Return the filename
-        }
-    }
-
-    return ""; // Return an empty string if the dialog is canceled or an error occurs
-}
 std::string ShowSaveFileDialogBin()
 {
     OPENFILENAMEA ofn;       // Common dialog box structure
@@ -170,9 +130,9 @@ static void ensure_gtk_initialized()
     }
 }
 
-/// Opens a file dialog that allows selection of .bin or .json files.
+/// Opens a file dialog that allows selection of .bin files.
 /// Returns the selected file path or an empty string if cancelled.
-std::string open_file_dialog_json_bin()
+std::string open_file_dialog_bin()
 {
     ensure_gtk_initialized();
 
@@ -192,23 +152,12 @@ std::string open_file_dialog_json_bin()
     gtk_file_filter_add_pattern(filter_all, "*");  // Changed from add_mime_type
     gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), filter_all);
 
-    GtkFileFilter *filter_both = gtk_file_filter_new();
-    gtk_file_filter_set_name(filter_both, "Supported Files (*.bin, *.json)");
-    gtk_file_filter_add_pattern(filter_both, "*.bin");  // Add first pattern
-    gtk_file_filter_add_pattern(filter_both, "*.json"); // Add second pattern to the same filter
-    gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), filter_both);
-
     // Create and add a filter for binary (*.bin) files.
     GtkFileFilter *filter_bin = gtk_file_filter_new();
     gtk_file_filter_set_name(filter_bin, "Bin Files");
     gtk_file_filter_add_pattern(filter_bin, "*.bin");
     gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), filter_bin);
 
-    // Create and add a filter for JSON (*.json) files.
-    GtkFileFilter *filter_json = gtk_file_filter_new();
-    gtk_file_filter_set_name(filter_json, "Json Files");
-    gtk_file_filter_add_pattern(filter_json, "*.json");
-    gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), filter_json);
 
     std::string filename;
     if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
@@ -265,59 +214,6 @@ std::string open_file_dialog_hex()
     return filename;
 }
 
-/// Opens a "Save File" dialog for a JSON file.
-/// If the user accepts, it creates (or truncates) the file and returns its path.
-/// Returns an empty string if cancelled.
-std::string ShowSaveFileDialogJson()
-{
-    ensure_gtk_initialized();
-
-    // Create a "Save File" dialog.
-    GtkWidget *dialog = gtk_file_chooser_dialog_new("Save JSON File",
-                                                    nullptr,
-                                                    GTK_FILE_CHOOSER_ACTION_SAVE,
-                                                    "_Cancel", GTK_RESPONSE_CANCEL,
-                                                    "_Save", GTK_RESPONSE_ACCEPT,
-                                                    nullptr);
-
-    // Set initial folder to "Saves".
-    gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(dialog), "Saves");
-
-    // Enable overwrite confirmation.
-    gtk_file_chooser_set_do_overwrite_confirmation(GTK_FILE_CHOOSER(dialog), TRUE);
-
-    // Set a default filename (optional).
-    gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(dialog), "untitled.json");
-
-    // Add a filter for JSON files.
-    GtkFileFilter *filter_json = gtk_file_filter_new();
-    gtk_file_filter_set_name(filter_json, "Json Files");
-    gtk_file_filter_add_pattern(filter_json, "*.json");
-    gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), filter_json);
-
-    std::string filename;
-    if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
-        char *file = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
-        if (file) {
-            filename = file;
-            g_free(file);
-
-            // Optionally, create/truncate the file.
-            FILE *fp = fopen(filename.c_str(), "wb");
-            if (fp) {
-                fclose(fp);
-            } else {
-                g_warning("Could not create file: %s", filename.c_str());
-                filename.clear();
-            }
-        }
-    }
-    gtk_widget_destroy(dialog);
-    while (gtk_events_pending())
-        gtk_main_iteration();
-    
-    return filename;
-}
 
 /// Opens a "Save File" dialog for a binary file.
 /// If the user accepts, it creates (or truncates) the file and returns its path.

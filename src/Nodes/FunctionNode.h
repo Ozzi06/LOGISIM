@@ -1,6 +1,7 @@
 #pragma once
 #include "Node.h"
 #include "LogicBlocks.h"
+#include <optional>
 class FunctionNode : public Node {
 public:
     //constructors and destructors
@@ -23,8 +24,6 @@ public:
     virtual const std::vector<Node*>* get_children() const override { return &nodes; }
 
 
-    virtual json to_JSON() const override;
-    virtual void load_extra_JSON(const json& nodeJson) override;
     virtual void load_extra_bin(const uint8_t* node_data_ptr, const uint8_t* save_ptr) override;
     virtual void recompute_size() override;
 

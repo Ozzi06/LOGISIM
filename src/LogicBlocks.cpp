@@ -3,6 +3,7 @@
 #include "Bus.h"
 #include "FunctionNode.h"
 #include "ROM.h"
+#include <algorithm>
 
 constexpr uint32_t NODE_ALIGNMENT = 4;
 
