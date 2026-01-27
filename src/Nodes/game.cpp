@@ -6,6 +6,7 @@
 #include "file_dialogs.h"
 #include "FunctionNode.h"
 #include <algorithm>
+#include <cassert>
 #include <cstdint>
 #include <functional>
 #include <unordered_map>
@@ -310,13 +311,17 @@ void Game::add_subassebly()
 
     NormalizeNodeNetworkPosToLocation(subassembly, camera.target);
 
-    // FIX: Regenerate IDs for the newly loaded subassembly to prevent global ID collisions
+    std::cout << "--- Generarting Subassembly IDs ---" << std::endl;
     for (Node* node : subassembly) {
         for (Output_connector& out : node->outputs) {
-            out.id = generate_id(); 
+            my_uid_t old_id = out.id;
+            assert(old_id != 0);
+            out.id = generate_id();
+            std::cout << "Node Output: " << old_id << " -> " << out.id << std::endl;
         }
         node->set_container(&nodes);
     }
+    std::cout << "-----------------------------------" << std::endl;
 
     nodes.insert(nodes.end(), subassembly.begin(), subassembly.end());
     network_change();

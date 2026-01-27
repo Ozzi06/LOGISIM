@@ -4,7 +4,7 @@
 void Bus::add_input() {
     if (outputs.size() == outputs.capacity()) return;
     inputs.push_back(Input_connector(this, inputs.size(), ""));
-    outputs.push_back(Output_connector(this, outputs.size(), "", false));
+    outputs.push_back(Output_connector(this, outputs.size(), ""));
     recompute_size();
     find_connections();
     Game& game = Game::getInstance();

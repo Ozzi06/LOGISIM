@@ -1,28 +1,17 @@
 #include "random_id.h"
+#include <random>
+#include <limits>
 
-#ifdef _WIN32
-    // Windows-specific includes and library linking.
-    #pragma comment(lib, "rpcrt4.lib")  // UuidCreate - Minimum supported OS Win 2000
-    #include <Windows.h>
+my_uid_t generate_id() {
+    // std::random_device requests entropy from the OS kernel (e.g., /dev/urandom)
+    // This ensures different seeds on every restart.
+    static std::random_device rd; 
 
-    my_uid_t generate_id() {
-        UUID uuid;
-        UuidCreate(&uuid);
-        return uuid.Data1;
-    }
+    // Mersenne Twister 64-bit is extremely high quality and fast.
+    static std::mt19937_64 gen(rd()); 
 
-#else
-    // Linux (or other Unix-like OS) implementation using libuuid.
-    #include <uuid/uuid.h>
-    #include <string.h>  // for memcpy
+    // Use the full 64-bit range.
+    static std::uniform_int_distribution<my_uid_t> dis(1, std::numeric_limits<my_uid_t>::max());
 
-    my_uid_t generate_id() {
-        uuid_t uuid;
-        uuid_generate(uuid);
-
-        // Extract the first 4 bytes as a my_uid_t (assuming my_uid_t is 32 bits).
-        my_uid_t id;
-        memcpy(&id, uuid, sizeof(id));
-        return id;
-    }
-#endif
+    return dis(gen);
+}
