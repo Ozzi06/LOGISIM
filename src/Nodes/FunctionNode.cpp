@@ -11,7 +11,7 @@
 #include <cstdint>
 #include <cstring>
 
-FunctionNode::FunctionNode(const FunctionNode* base) : Node(base), node_data_save(base->node_data_save), is_cyclic_val(base->is_cyclic_val)
+FunctionNode::FunctionNode(const FunctionNode* base) : Node(base), node_data_save(base->node_data_save)
 {
     nodes.clear();
     size_t* idxs = new size_t[base->nodes.size()];
@@ -75,11 +75,10 @@ FunctionNode::~FunctionNode()
         delete node;
     }
 }
-
 int FunctionNode::delay() const {
-    Game& game = Game::getInstance();
-    if (!has_offset()) return 1; // fallback for nodes not yet serialized
-    FunctionNodeHeader* header = game.get_logicblock<FunctionNodeHeader>(get_abs_node_offset());
+    const FunctionNodeHeader* header = reinterpret_cast<const FunctionNodeHeader*>(node_data_save.get_header());
+    assert(header->logic_depth >=0);
+    assert(header->logic_depth <= LOGIC_DEPTH_CYCLIC);
     if (header->logic_depth == LOGIC_DEPTH_CYCLIC) {
         return -1;
     }
@@ -87,31 +86,33 @@ int FunctionNode::delay() const {
 }
 
 bool FunctionNode::is_cyclic() const {
-    Game& game = Game::getInstance();
-    if (!has_offset()) return false; // fallback
-    const FunctionNodeHeader* header = game.get_logicblock<FunctionNodeHeader>(get_abs_node_offset());
+    const FunctionNodeHeader* header = reinterpret_cast<const FunctionNodeHeader*>(node_data_save.get_header());
     return header->logic_depth == LOGIC_DEPTH_CYCLIC;
 }
 
 bool FunctionNode::get_is_single_tick() const {
-    Game& game = Game::getInstance();
-    if (!has_offset()) return false;
-    const FunctionNodeHeader* header = game.get_logicblock<FunctionNodeHeader>(get_abs_node_offset());
+    const FunctionNodeHeader* header = reinterpret_cast<const FunctionNodeHeader*>(node_data_save.get_header());
     return header->is_single_tick;
 }
 
 void FunctionNode::set_is_single_tick(bool value) {
     Game& game = Game::getInstance();
-    if (!has_offset()) return;
-    FunctionNodeHeader* header = game.get_logicblock<FunctionNodeHeader>(get_abs_node_offset());
-    header->is_single_tick = value;
-    header->has_changed = true; // Mark for rebuild?
+    assert(has_offset());
+    if(has_offset()){
+        FunctionNodeHeader* header = game.get_logicblock<FunctionNodeHeader>(get_abs_node_offset());
+        header->is_single_tick = value;
+        header->has_changed = true; // Mark for reevalutaion
+        game.network_change();
+    }
 }
 bool FunctionNode::get_has_changed() const {
     Game& game = Game::getInstance();
-    if (!has_offset()) return false;
-    const FunctionNodeHeader* header = game.get_logicblock<FunctionNodeHeader>(get_abs_node_offset());
-    return header->has_changed;
+    assert(has_offset());
+    if(has_offset()){
+        const FunctionNodeHeader* header = game.get_logicblock<FunctionNodeHeader>(get_abs_node_offset());
+        return header->has_changed;
+    }
+    return false;
 }
 
 
@@ -165,7 +166,7 @@ bool FunctionNode::show_node_editor()
         GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "is_cyclic:");
         current_x += 64 + margin;
 
-        if (is_cyclic_val.has_value() && is_cyclic_val.value()) {
+        if (is_cyclic()) {
             GuiLabel(Rectangle{ current_x, Pos.y + current_depth, 64, 32 }, "true");
             current_x += 64 + margin;
         }

@@ -44,7 +44,5 @@ public:
     void allocate_node_data_save(const uint8_t* node);
 private:
     LogicBlock node_data_save;
-
-    std::optional<bool> is_cyclic_val;
     std::string delay_str;
 };

@@ -141,6 +141,7 @@ color(base->color), label(base->label), container(base->container)
         // FIX: Removed the 4th argument 'get_state()'. 
         // Let the default parameter 'generate_id()' create a unique ID.
         outputs.push_back(Output_connector(this, i, base->outputs[i].name.c_str()));
+        initial_output_state.push_back(base->outputs[i].get_state());
     }
 }
 
